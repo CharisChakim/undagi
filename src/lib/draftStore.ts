@@ -41,7 +41,7 @@ export function loadDraft<T>(scope: DraftScope, fallback: T): T {
 // Two components can hold the same draft: the home composer hands over to
 // the chat composer as the first message is sent. Each change is announced
 // so the other copy does not keep showing text that was already sent.
-const DRAFT_CHANGE_EVENT = "architech:draft-change";
+const DRAFT_CHANGE_EVENT = "undagi:draft-change";
 
 interface DraftChange {
   key: string;

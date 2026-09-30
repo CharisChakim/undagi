@@ -2,13 +2,14 @@
 set -Eeuo pipefail
 
 REPOSITORY="CharisChakim/undagi"
-INSTALL_DIR="${ARCHITECH_INSTALL_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/undagi}"
-BIN_DIR="${ARCHITECH_BIN_DIR:-$HOME/.local/bin}"
+# The ARCHITECH_* names from before the rename are still accepted as fallbacks.
+INSTALL_DIR="${UNDAGI_INSTALL_DIR:-${ARCHITECH_INSTALL_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/undagi}}"
+BIN_DIR="${UNDAGI_BIN_DIR:-${ARCHITECH_BIN_DIR:-$HOME/.local/bin}}"
 # Until after 1.0.1-beta the app was called The Architech and installed here.
 # Its data/ and .env live in the install directory, so the old one is moved
 # to the new name rather than left behind.
 LEGACY_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/the-architech"
-ARCHIVE_URL="${ARCHITECH_ARCHIVE_URL:-https://github.com/${REPOSITORY}/archive/refs/heads/main.tar.gz}"
+ARCHIVE_URL="${UNDAGI_ARCHIVE_URL:-${ARCHITECH_ARCHIVE_URL:-https://github.com/${REPOSITORY}/archive/refs/heads/main.tar.gz}}"
 
 for command_name in node npm curl tar; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -22,7 +23,7 @@ if ! node -e 'const [major, minor] = process.versions.node.split(".").map(Number
   exit 1
 fi
 
-if [[ -z "${ARCHITECH_INSTALL_DIR:-}" && -d "$LEGACY_INSTALL_DIR" && ! -e "$INSTALL_DIR" ]]; then
+if [[ -z "${UNDAGI_INSTALL_DIR:-}" && -z "${ARCHITECH_INSTALL_DIR:-}" && -d "$LEGACY_INSTALL_DIR" && ! -e "$INSTALL_DIR" ]]; then
   printf 'Moving The Architech install to %s...\n' "$INSTALL_DIR"
   mv "$LEGACY_INSTALL_DIR" "$INSTALL_DIR"
   # The old launcher still points at the directory that was just moved.

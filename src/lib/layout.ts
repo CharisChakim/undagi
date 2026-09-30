@@ -1,6 +1,9 @@
 export type LayoutMode = "agent" | "split" | "board";
 
-const LAYOUT_KEY = "architech_layout";
+const LAYOUT_KEY = "undagi_layout";
+// Key lama sebelum rename. Hanya dibaca; tidak dihapus supaya versi app lama
+// tetap bisa membacanya kalau user rollback.
+const LEGACY_LAYOUT_KEY = "architech_layout";
 const DEFAULT_RATIO = 0.42;
 const MIN_RATIO = 0.25;
 const MAX_RATIO = 0.75;
@@ -31,11 +34,16 @@ function defaultMode(): LayoutMode {
   return "agent";
 }
 
+// Load dan save harus melihat nilai yang sama, jadi keduanya lewat sini.
+function readStoredLayout(): string | null {
+  return localStorage.getItem(LAYOUT_KEY) ?? localStorage.getItem(LEGACY_LAYOUT_KEY);
+}
+
 export function loadLayout(): { mode: LayoutMode; ratio: number } {
   const fallback = defaultMode();
 
   try {
-    const raw = localStorage.getItem(LAYOUT_KEY);
+    const raw = readStoredLayout();
     if (!raw) return { mode: fallback, ratio: DEFAULT_RATIO };
 
     const stored = JSON.parse(raw) as StoredLayout;
@@ -60,7 +68,7 @@ export function saveLayout(value: { mode: LayoutMode; ratio: number }): void {
   let lastMode: "agent" | "board" = "agent";
 
   try {
-    const previous = localStorage.getItem(LAYOUT_KEY);
+    const previous = readStoredLayout();
 
     if (previous) {
       const stored = JSON.parse(previous) as StoredLayout;

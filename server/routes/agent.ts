@@ -234,7 +234,7 @@ function realpathOrNearestExistingParent(candidate: string): string {
 }
 
 function trustedWorkspaceRoots(): string[] {
-  const configured = process.env.ARCHITECH_WORKSPACE_ROOTS
+  const configured = (process.env.UNDAGI_WORKSPACE_ROOTS || process.env.ARCHITECH_WORKSPACE_ROOTS)
     ?.split(path.delimiter)
     .map((root) => root.trim())
     .filter(Boolean) ?? [];

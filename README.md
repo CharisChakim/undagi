@@ -72,7 +72,7 @@ Included presets cover local routers, Ollama, LM Studio, OpenRouter, Anthropic, 
 
 ### API keys
 
-Keys saved through the UI are stored server-side in `data/architech.db`; protect that file and its backups. To keep a key out of the database, put the variable name in **API key environment variable** and define the value in `.env`.
+Keys saved through the UI are stored server-side in `data/undagi.db`; protect that file and its backups. After upgrading from a build that used `architech.db`, that old file stays on disk with the same keys in plaintext; delete it once you have checked the upgrade. To keep a key out of the database, put the variable name in **API key environment variable** and define the value in `.env`.
 
 For the agent runtimes — Codex, Claude Code, and Antigravity — see [docs/harness/connections.md](docs/harness/connections.md): what each one needs installed, and how to read a runtime card that fails. Backups, the automatic migration, and how to go back a version are in [docs/harness/rollback.md](docs/harness/rollback.md).
 
@@ -145,8 +145,11 @@ directory:
 | Windows | `%APPDATA%\Undagi` |
 | Linux | `~/.config/Undagi` |
 
-The database is at `data/architech.db` inside that folder. To supply API keys
+The database is at `data/undagi.db` inside that folder. To supply API keys
 through environment variables rather than the UI, put a `.env` file there.
+If `undagi.db` is missing but an `architech.db` from an older build is in the
+same folder, Undagi copies it to `undagi.db` on startup and leaves the old file
+untouched.
 
 On first launch, if that folder is empty and a folder from The Architech
 (`%APPDATA%\The Architech` or `~/.config/The Architech`) exists, Undagi copies
@@ -216,7 +219,7 @@ The development command runs the Vite client and API server together. The produc
 
 ## Data and security notes
 
-- Project sessions, saved connections, role bindings, and MCP server definitions are stored in `data/architech.db`.
+- Project sessions, saved connections, role bindings, and MCP server definitions are stored in `data/undagi.db`.
 - `data/` is runtime state and should not be committed.
 - API keys returned by the connections API are represented only by `hasKey`; the secret value is not sent back to the browser.
 - Choose a workspace deliberately. The Agent has no file access until you provide one.

@@ -7,7 +7,7 @@
 dan `server/llm/adapters/*` sudah ada, `callLlm` di `server.ts` sudah mendelegasi.
 
 **Butuh konfirmasi pemilik repo sebelum dikerjakan:** fase ini menyimpan API key
-plaintext di `data/architech.db`. Kalau belum ada konfirmasi, berhenti dan tanya.
+plaintext di `data/undagi.db`. Kalau belum ada konfirmasi, berhenti dan tanya.
 
 ## Masalah yang diselesaikan
 

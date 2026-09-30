@@ -47,7 +47,7 @@ export interface McpClient {
 
 ## Protokol
 
-`initialize` (protocolVersion `2025-06-18`, `capabilities: {}`, `clientInfo: {name:"the-architech"}`)
+`initialize` (protocolVersion `2025-06-18`, `capabilities: {}`, `clientInfo: {name:"undagi"}`)
 → `notifications/initialized` → `tools/list` (ikuti `nextCursor` sampai habis) → `tools/call`.
 
 Notifikasi masuk `notifications/tools/list_changed` menandai cache basi. Notifikasi lain

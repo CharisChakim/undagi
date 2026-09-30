@@ -12,12 +12,19 @@ otomatis.
 Seluruh state server ada dalam satu berkas SQLite:
 
 ```
-data/architech.db
+data/undagi.db
 ```
 
-Lokasinya bisa dipindah dengan environment variable `ARCHITECH_DATA_DIR`;
-paket desktop memakainya karena direktori instalasi sering read-only. Tanpa
-variabel itu, path-nya relatif terhadap direktori kerja proses.
+Lokasinya bisa dipindah dengan environment variable `UNDAGI_DATA_DIR` (nama lama
+`ARCHITECH_DATA_DIR` masih diterima sebagai fallback); paket desktop memakainya
+karena direktori instalasi sering read-only. Tanpa variabel itu, path-nya
+relatif terhadap direktori kerja proses.
+
+Saat start, kalau `undagi.db` belum ada tapi `architech.db` ada di direktori
+yang sama, berkas lama itu **disalin** ke `undagi.db`. Berkas lama dibiarkan
+utuh dan perubahan sesudahnya tidak disinkronkan balik ke sana, jadi setelah
+upgrade `architech.db` tinggal sebagai salinan pra-upgrade. Itulah berkas yang
+dipulihkan kalau mundur ke build yang lebih tua dari penggantian nama ini.
 
 Berkas itu memuat tiga belas tabel: `sessions`, `conversations`, `messages`,
 `conversation_schema_migrations`, `connections`, `role_bindings`,
@@ -49,7 +56,9 @@ opsional, `project_id` opsional), supaya sebuah chat bisa berdiri tanpa proyek.
 Yang dilakukannya, berurutan:
 
 1. **Menyalin seluruh database** ke
-   `architech.db.pre-conversations-v2-<timestamp>.bak` di direktori yang sama.
+   `undagi.db.pre-conversations-v2-<timestamp>.bak` di direktori yang sama
+   (backup lama dari build sebelum penggantian nama tetap bernama
+   `architech.db.pre-conversations-v2-<timestamp>.bak`).
    Kalau penyalinan gagal, migrasi berhenti dan tidak menyentuh apa pun.
 2. Mengganti nama tabel lama, membuat tabel baru, dan memindahkan setiap baris.
    Baris v1 mendapat `project_id` dari `session_id`-nya, jadi tidak ada chat
@@ -100,7 +109,24 @@ npm install
 npm run build
 ```
 
-Database tidak perlu disentuh.
+Database tidak perlu disentuh — kecuali mundurnya melewati penggantian nama
+ke Undagi, lihat bagian berikutnya.
+
+### Kalau mundur ke build sebelum penggantian nama
+
+Build lama membaca `data/architech.db`, bukan `data/undagi.db`. Kalau hanya
+kodenya yang dikembalikan, ia membuka `architech.db` yang tinggal sebagai
+salinan pra-upgrade, sehingga semua pekerjaan sesudah upgrade tampak hilang.
+Sebelum menjalankan build lama, bawa database sekarang ke nama lama:
+
+```bash
+cp data/architech.db data/architech.db.pre-rollback
+cp data/undagi.db data/architech.db
+```
+
+Sebelum maju lagi ke build baru, pindahkan atau hapus `data/undagi.db`. Selama
+berkas itu ada, `architech.db` tidak disalin ulang dan perubahan yang dibuat di
+build lama diabaikan.
 
 ### Kalau migrasi percakapan sudah berjalan
 
@@ -115,10 +141,15 @@ Prosedurnya:
    membutuhkannya kalau ternyata ingin maju lagi:
 
    ```bash
-   cp data/architech.db data/architech.db.before-rollback
+   cp data/undagi.db data/undagi.db.before-rollback
    ```
 
-3. **Pulihkan backup pra-migrasi:**
+3. **Pulihkan backup pra-migrasi** ke nama berkas yang dibaca build tujuan.
+   Schema v1 hanya ada di build sebelum penggantian nama, jadi tujuannya
+   `data/architech.db`. Backup dari build itu bernama
+   `architech.db.pre-conversations-v2-<timestamp>.bak`; kalau migrasinya
+   berjalan di build yang sudah memakai nama Undagi, namanya
+   `undagi.db.pre-conversations-v2-<timestamp>.bak`:
 
    ```bash
    cp data/architech.db.pre-conversations-v2-<timestamp>.bak data/architech.db
@@ -142,26 +173,26 @@ Backup otomatis hanya dibuat oleh migrasi percakapan; migrasi lain di masa depan
 belum tentu punya kebiasaan yang sama.
 
 ```bash
-cp data/architech.db data/architech.db.$(date +%Y%m%d-%H%M%S).bak
+cp data/undagi.db data/undagi.db.$(date +%Y%m%d-%H%M%S).bak
 ```
 
 ## Memeriksa keadaan schema
 
 Perintah di bawah memakai CLI `sqlite3`. Kalau tidak terpasang, Node bisa
 menggantikannya: `node -e "const {DatabaseSync}=require('node:sqlite');
-console.log(new DatabaseSync('data/architech.db').prepare('<query>').all())"`.
+console.log(new DatabaseSync('data/undagi.db').prepare('<query>').all())"`.
 
 Versi migrasi yang tercatat:
 
 ```bash
-sqlite3 data/architech.db "SELECT name, version, applied_at FROM conversation_schema_migrations;"
+sqlite3 data/undagi.db "SELECT name, version, applied_at FROM conversation_schema_migrations;"
 ```
 
 Bentuk tabel percakapan saat ini — kalau ada kolom `project_id`, database sudah
 v2:
 
 ```bash
-sqlite3 data/architech.db "PRAGMA table_info(conversations);"
+sqlite3 data/undagi.db "PRAGMA table_info(conversations);"
 ```
 
 Backup yang tersedia:

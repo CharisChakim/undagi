@@ -241,7 +241,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = process.env.ARCHITECH_DIST_DIR ?? path.join(process.cwd(), "dist");
+    const distPath = process.env.UNDAGI_DIST_DIR || process.env.ARCHITECH_DIST_DIR || path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));

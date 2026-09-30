@@ -9,7 +9,7 @@ import type { RuntimeBinaryPathError } from "./binary-paths.ts";
 // db.ts reads this when it is first imported, so the module is loaded after
 // the data directory is pointed somewhere disposable.
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "undagi-binary-paths-test-"));
-process.env.ARCHITECH_DATA_DIR = dataDir;
+process.env.UNDAGI_DATA_DIR = dataDir;
 
 const { parseRuntimeBinaryPathInput } = await import("./binary-paths.ts");
 const { db } = await import("../../db.ts");

@@ -142,9 +142,11 @@ Dua hal yang perlu diketahui tentang kunci:
 
 - Kunci **tidak pernah dikirim balik ke browser**. API koneksi hanya
   mengembalikan `hasKey`.
-- Kunci yang diketik langsung **disimpan apa adanya** di `data/architech.db`.
+- Kunci yang diketik langsung **disimpan apa adanya** di `data/undagi.db`.
   Berkas itu, termasuk setiap salinan cadangannya, harus diperlakukan sebagai
-  rahasia. Memakai variabel environment membuat kunci tidak ikut masuk ke
+  rahasia. Setelah upgrade dari build yang memakai `architech.db`, berkas lama
+  itu tetap ada di disk dengan kunci yang sama; hapus setelah upgrade dipastikan
+  berjalan baik. Memakai variabel environment membuat kunci tidak ikut masuk ke
   database maupun ke backup-nya.
 
 ## Memeriksa dari terminal

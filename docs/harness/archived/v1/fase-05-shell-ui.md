@@ -56,7 +56,7 @@ di sekeliling setiap akses, kembalikan bawaan saat gagal.
 export type LayoutMode = "agent" | "split" | "board";
 export const loadLayout: () => { mode: LayoutMode; ratio: number };  // ratio 0.25–0.75
 export const saveLayout: (v: { mode: LayoutMode; ratio: number }) => void;
-// key: "architech_layout"
+// key: "undagi_layout"
 ```
 
 - `split` — bawaan di viewport > 1100px.

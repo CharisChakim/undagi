@@ -318,8 +318,8 @@ function upsertPreference(current: RuntimePreference[], next: RuntimePreference)
 // The composer's picker and the Connections dialog each hold this state. A
 // refresh, a saved path or a saved preference in one is announced to the
 // other, so the picker does not keep a runtime's old status or models.
-const RUNTIME_REPORT_EVENT = "architech:runtime-report";
-const RUNTIME_PREFERENCE_EVENT = "architech:runtime-preference";
+const RUNTIME_REPORT_EVENT = "undagi:runtime-report";
+const RUNTIME_PREFERENCE_EVENT = "undagi:runtime-preference";
 
 interface RuntimeChange<T> {
   value: T;

@@ -5,10 +5,31 @@ import path from "path";
 // Paket desktop menjalankan server dari direktori instalasi yang sering
 // read-only, jadi lokasi data bisa ditunjuk lewat environment. Tanpa itu
 // perilakunya sama seperti sebelumnya: ./data relatif terhadap cwd.
-export const DB_DIR = process.env.ARCHITECH_DATA_DIR ?? path.join(process.cwd(), "data");
-const DB_PATH = path.join(DB_DIR, "architech.db");
+export const DB_DIR =
+  process.env.UNDAGI_DATA_DIR || process.env.ARCHITECH_DATA_DIR || path.join(process.cwd(), "data");
+const DB_PATH = path.join(DB_DIR, "undagi.db");
+const LEGACY_DB_PATH = path.join(DB_DIR, "architech.db");
 
 fs.mkdirSync(DB_DIR, { recursive: true });
+
+// Sebelum diganti nama menjadi Undagi, berkas ini bernama architech.db. Salinan
+// dibuat, bukan dipindah, supaya versi lama tetap utuh untuk rollback; ia hanya
+// disalin selama undagi.db belum ada, jadi data baru tidak pernah tertimpa.
+// Salinan lewat SQLite, bukan copyFileSync: journal yang tertinggal oleh proses
+// yang mati di tengah commit ikut diputar ulang, dan hasilnya ditulis ke berkas
+// sementara lalu di-rename supaya undagi.db tidak pernah ada dalam keadaan
+// terpotong (kalau ada, ia menang selamanya dan salinan tidak diulang).
+if (!fs.existsSync(DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
+  const partial = `${DB_PATH}.tmp-${process.pid}`;
+  fs.rmSync(partial, { force: true });
+  const legacy = new DatabaseSync(LEGACY_DB_PATH);
+  try {
+    legacy.prepare("VACUUM INTO ?").run(partial);
+  } finally {
+    legacy.close();
+  }
+  fs.renameSync(partial, DB_PATH);
+}
 
 export const db = new DatabaseSync(DB_PATH);
 

@@ -3,7 +3,7 @@
 > Konteks besarnya ada di [`PLAN.md`](PLAN.md); aturan yang berlaku untuk semua fase
 > ada di [`README.md`](README.md). Baca keduanya sebelum mulai.
 
-Kamu bekerja di repo `the-architech` (React 19 + Vite 6 di `src/`, Express 4 di `server.ts`, SQLite `node:sqlite` di `db.ts`, dijalankan lewat `tsx`). Node 24. Komentar di repo ini ditulis **Bahasa Indonesia** dan menjelaskan *kenapa*, bukan *apa* — ikuti gaya itu.
+Kamu bekerja di repo `undagi` (React 19 + Vite 6 di `src/`, Express 4 di `server.ts`, SQLite `node:sqlite` di `db.ts`, dijalankan lewat `tsx`). Node 24. Komentar di repo ini ditulis **Bahasa Indonesia** dan menjelaskan *kenapa*, bukan *apa* — ikuti gaya itu.
 
 Ini bagian dari perombakan besar menjadi agent harness agnostik. **Kerjakan HANYA Fase 1 di bawah.** Jangan mengerjakan fase lain, jangan menyentuh UI, jangan menyentuh `agent.ts`.
 

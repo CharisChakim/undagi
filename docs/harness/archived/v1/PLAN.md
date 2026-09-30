@@ -1,4 +1,4 @@
-# Rombak The Architech → Agent Harness Agnostik
+# Rombak Undagi → Agent Harness Agnostik
 
 ## Context
 
@@ -502,7 +502,7 @@ Fase 5–7 bisa paralel dengan 4 setelah 3 mendarat. Fase 8 butuh 4 (tool pipeli
 
 ## Butuh review Anda
 
-1. **API key plaintext di `data/architech.db`.** Satu-satunya keputusan dengan tradeoff keamanan nyata: file itu gitignored, tapi backup atau folder tersinkron membocorkannya. Alasan memilihnya: server harus bisa memanggil model tanpa tab browser. Kolom `api_key_env` adalah jalan keluarnya. **Konfirmasi sebelum fase 2 mendarat.**
+1. **API key plaintext di `data/undagi.db`.** Satu-satunya keputusan dengan tradeoff keamanan nyata: file itu gitignored, tapi backup atau folder tersinkron membocorkannya. Alasan memilihnya: server harus bisa memanggil model tanpa tab browser. Kolom `api_key_env` adalah jalan keluarnya. **Konfirmasi sebelum fase 2 mendarat.**
 2. **`edit_file`/`write_file` tidak butuh approval**, sementara fase 4 menaikkan daya edit agent secara signifikan. Apakah penulisan file harus lewat kanal approval seperti `run_command`? Keputusan produk, sengaja tidak dirancang di sini.
 3. **`run_command` tetap tanpa denylist** dan string perintahnya tidak di-sandbox (`agent.ts` mendokumentasikan ini sebagai disengaja). Fase 3 mempertahankan apa adanya — konfirmasi masih diinginkan sekarang setelah server MCP juga bisa men-spawn proses.
 4. **Gemini pindah ke endpoint OpenAI-compat** mengubah format wire provider default. Uji manual end-to-end dengan key asli sebelum fase 1 di-merge.

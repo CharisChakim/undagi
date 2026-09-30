@@ -83,7 +83,7 @@ perbarui brief sesudahnya sebelum mengerjakannya — jangan memaksakan isinya.
 
 Empat hal ini ada di bagian **Butuh review Anda** di `PLAN.md`; yang paling mendesak:
 
-- **Fase 2:** API key disimpan plaintext di `data/architech.db`. Alasannya server harus
+- **Fase 2:** API key disimpan plaintext di `data/undagi.db`. Alasannya server harus
   bisa memanggil model tanpa tab browser terbuka. Kolom `api_key_env` disediakan sebagai
   jalan keluar. Konfirmasi sebelum fase 2 dikerjakan.
 - **Fase 4:** `edit_file`/`write_file` tidak lewat kanal approval, padahal fase itu

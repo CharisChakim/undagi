@@ -11,13 +11,13 @@ const moduleUrl = new URL("./conversations.ts", import.meta.url).href;
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 // The migration runs when the module is loaded, against whichever database
-// ARCHITECH_DATA_DIR points at. A module is only evaluated once per process, so
+// UNDAGI_DATA_DIR points at. A module is only evaluated once per process, so
 // each fixture gets its own child process rather than a shared one.
 function loadConversationsAgainst(dataDir: string): void {
   const result = spawnSync(
     process.execPath,
     ["--import", "tsx", "-e", `await import(${JSON.stringify(moduleUrl)})`],
-    { cwd: repoRoot, env: { ...process.env, ARCHITECH_DATA_DIR: dataDir }, encoding: "utf8" },
+    { cwd: repoRoot, env: { ...process.env, UNDAGI_DATA_DIR: dataDir }, encoding: "utf8" },
   );
   assert.equal(result.status, 0, `loading conversations.ts failed:\n${result.stderr}`);
 }
@@ -64,7 +64,7 @@ const MESSAGES_SQL = `
 `;
 
 function seed(dataDir: string, schema: string, rows: (db: DatabaseSync) => void): string {
-  const file = path.join(dataDir, "architech.db");
+  const file = path.join(dataDir, "undagi.db");
   const db = new DatabaseSync(file);
   db.exec(schema);
   rows(db);
@@ -164,7 +164,7 @@ test("an empty database gets the tables without a backup", () => {
   const dataDir = freshDataDir();
   loadConversationsAgainst(dataDir);
 
-  const db = open(path.join(dataDir, "architech.db"));
+  const db = open(path.join(dataDir, "undagi.db"));
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN ('conversations','messages')").get()?.n, 2);
   assert.equal(db.prepare("SELECT version FROM conversation_schema_migrations WHERE name = 'conversations'").get()?.version, 2);
   db.close();

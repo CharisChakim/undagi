@@ -25,7 +25,7 @@ fs.mkdirSync(dataDir, { recursive: true });
 function migrateLegacyUserData(target) {
   const legacy = path.join(app.getPath("appData"), "The Architech");
   if (path.resolve(legacy) === path.resolve(target) || !fs.existsSync(legacy)) return;
-  if (fs.existsSync(path.join(target, "data", "architech.db"))) return;
+  if (["undagi.db", "architech.db"].some((name) => fs.existsSync(path.join(target, "data", name)))) return;
   try {
     fs.cpSync(legacy, target, {
       recursive: true,
@@ -44,10 +44,10 @@ function migrateLegacyUserData(target) {
 process.chdir(userData);
 
 process.env.NODE_ENV = "production";
-process.env.ARCHITECH_DATA_DIR = dataDir;
+process.env.UNDAGI_DATA_DIR = dataDir;
 // Aset klien ikut di dalam paket, bukan di folder data.
 const distDir = path.join(__dirname, "..", "dist").replace("app.asar", "app.asar.unpacked");
-process.env.ARCHITECH_DIST_DIR = distDir;
+process.env.UNDAGI_DIST_DIR = distDir;
 // Port 0 = OS memilih port bebas, supaya tidak bentrok dengan proses lain.
 process.env.PORT = "0";
 // Aplikasi desktop tidak perlu terekspos ke jaringan lokal.

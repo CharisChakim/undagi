@@ -8,7 +8,7 @@ import test from "node:test";
 // db.ts reads this when it is first imported, so everything that touches the
 // database is loaded dynamically, after the data directory is disposable.
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "undagi-agent-route-test-"));
-process.env.ARCHITECH_DATA_DIR = dataDir;
+process.env.UNDAGI_DATA_DIR = dataDir;
 
 const express = (await import("express")).default;
 const { db, saveSession } = await import("../../db.ts");

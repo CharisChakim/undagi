@@ -8,7 +8,8 @@ $Repository = "CharisChakim/undagi"
 # Its data/ and .env live in the install directory, so the old one is moved
 # to the new name rather than left behind.
 $LegacyInstallDir = "$env:LOCALAPPDATA\TheArchitech"
-$ArchiveUrl = if ($env:ARCHITECH_ARCHIVE_URL) { $env:ARCHITECH_ARCHIVE_URL } else { "https://github.com/$Repository/archive/refs/heads/main.zip" }
+# The ARCHITECH_* name from before the rename is still accepted as a fallback.
+$ArchiveUrl = if ($env:UNDAGI_ARCHIVE_URL) { $env:UNDAGI_ARCHIVE_URL } elseif ($env:ARCHITECH_ARCHIVE_URL) { $env:ARCHITECH_ARCHIVE_URL } else { "https://github.com/$Repository/archive/refs/heads/main.zip" }
 
 foreach ($CommandName in @("node", "npm")) {
   if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
