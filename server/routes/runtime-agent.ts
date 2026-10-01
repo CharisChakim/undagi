@@ -12,7 +12,7 @@ import {
   recordConversationNote,
 } from "../agent/conversations.ts";
 import { unseenMessages, withConversationContext, type ConversationContext, type StoredMessage } from "../agent/runtimeContext.ts";
-import { validateTransientWorkspaceRoot } from "./agent.ts";
+import { adviseApprovalInBackground, validateTransientWorkspaceRoot, type ApprovalAdviceHooks } from "./agent.ts";
 import { autoApproves, parsePermissionMode, runtimeApprovalAction, type PermissionMode } from "../agent/permissionMode.ts";
 import { discoverRuntime } from "../runtimes/discovery.ts";
 import type { RuntimeDetection, RuntimeId } from "../runtimes/types.ts";
@@ -61,6 +61,8 @@ const pendingRuntimeApprovals = new Map<string, PendingRuntimeApproval>();
 export interface RuntimeAgentRouterOptions {
   discover?: typeof discoverRuntime;
   runnerDependencies?: RuntimeRunnerDependencies;
+  /** Replaces the Jev feature check and advisor behind approval risk advice. */
+  approvalAdvice?: ApprovalAdviceHooks;
 }
 
 interface RuntimeAgentBody {
@@ -278,6 +280,7 @@ function waitForRuntimeApproval(
   approval: RuntimeApprovalRequest,
   send: (event: NormalizedUiEvent) => boolean,
   signal: AbortSignal,
+  advice?: ApprovalAdviceHooks,
 ): Promise<"accept" | "decline"> {
   const stored = createRunApproval({
     runId,
@@ -322,6 +325,16 @@ function waitForRuntimeApproval(
     signal.addEventListener("abort", onAbort, { once: true });
     timer = setTimeout(() => finish(false, "expired"), APPROVAL_TIMEOUT_MS);
     timer.unref?.();
+    // The card is already sent and the approval can already be answered; the
+    // advice is a later, optional addition to it.
+    adviseApprovalInBackground({
+      approvalId: stored.id,
+      elicitId: stored.id,
+      ...(approval.command ? { command: approval.command } : {}),
+      ...(approval.cwd ? { cwd: approval.cwd } : {}),
+      kind: approval.kind,
+      ...(approval.reason ? { reason: approval.reason } : {}),
+    }, () => !settled, send, advice);
   });
 }
 
@@ -659,7 +672,7 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
       claudeSdk: claudeSdk ?? undefined,
       approvalHandler: async (approval) => {
         if (autoApproves(body.permissionMode, runtimeApprovalAction(approval))) return "accept";
-        const decision = await waitForRuntimeApproval(run.id, approval, send, ac.signal);
+        const decision = await waitForRuntimeApproval(run.id, approval, send, ac.signal, options.approvalAdvice);
         if (decision === "decline") approvalRejected = true;
         return decision;
       },

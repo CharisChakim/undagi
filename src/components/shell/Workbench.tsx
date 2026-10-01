@@ -117,6 +117,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     runtimeSelection,
     harnessSettings,
     permissionMode,
+    pipeline: { hasPlan: Boolean(session.plan), hasPrd: Boolean(session.prd), hasTasks: (session.tasks ?? []).length > 0 },
   });
 
   const handleRunTask = React.useCallback((task: AgentTask): void => {
@@ -160,6 +161,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         onDecideApproval={agentRun.decideApproval}
         onRespondQuestions={agentRun.respondQuestions}
         onStop={agentRun.stop}
+        onDismissHint={agentRun.dismissHint}
         hasPlan={Boolean(session.plan)}
         runtimeSelection={runtimeSelection}
         runtimeReport={runtimeDiscovery.report}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Check, Clock3, Terminal, X } from "lucide-react";
 import { useT } from "../../lib/i18n";
+import type { ApprovalAdvice } from "../../lib/jev";
 
 const APPROVAL_TIMEOUT_SECONDS = 300;
 
@@ -14,6 +15,7 @@ interface ApprovalEntry {
   blockedPath?: string;
   decided: boolean;
   approved?: boolean;
+  advice?: ApprovalAdvice;
 }
 
 export interface ApprovalCardProps {
@@ -28,6 +30,14 @@ export interface ApprovalCardProps {
   onRespond?: EntryDecisionHandler;
   decide?: DecisionHandler;
 }
+
+// Neutral pill; only the dot and the word take the risk colour.
+const RISK_TONE: Record<ApprovalAdvice["risk"], string> = {
+  low: "text-ok-ink",
+  medium: "text-warn-ink",
+  high: "text-danger-ink",
+};
+const RISK_DOT: Record<ApprovalAdvice["risk"], string> = { low: "bg-ok", medium: "bg-warn", high: "bg-danger" };
 
 const formatCountdown = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
@@ -53,6 +63,8 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
   const approvalBlockedPath = blockedPath ?? entry?.blockedPath;
   const isResolved = resolved ?? entry?.decided ?? decided;
   const approvalResult = approved ?? entry?.approved;
+  const advice = entry?.advice;
+  const advicePercent = advice ? Math.round(Math.min(1, Math.max(0, advice.confidence)) * 100) : 0;
   const [remaining, setRemaining] = useState(APPROVAL_TIMEOUT_SECONDS);
   const [deciding, setDeciding] = useState(false);
 
@@ -117,6 +129,24 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
       <pre className="text-xs font-mono text-ink whitespace-pre-wrap break-all bg-canvas rounded-lg px-2.5 py-2">
         {approvalCommand}
       </pre>
+
+      {advice && !isResolved && (
+        <div>
+          <span
+            title={t("Advisory only — you decide")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-canvas px-2 py-0.5 text-[11px]"
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${RISK_DOT[advice.risk]}`} aria-hidden />
+            <span className={RISK_TONE[advice.risk]}>
+              {advice.risk === "low"
+                ? t("Jev: low risk · {percent}% sure", { percent: advicePercent })
+                : advice.risk === "medium"
+                  ? t("Jev: medium risk · {percent}% sure", { percent: advicePercent })
+                  : t("Jev: high risk · {percent}% sure", { percent: advicePercent })}
+            </span>
+          </span>
+        </div>
+      )}
 
       {approvalCwd && (
         <div className="text-xs text-muted break-all">

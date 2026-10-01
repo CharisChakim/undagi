@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Bot, Check, ChevronDown, Circle, Clock3, Code2, FileText, Folder, GitBranch, History, Kanban, Laptop, ListChecks, PlugZap, Sparkles } from "lucide-react";
+import { AlertTriangle, Bot, Check, ChevronDown, Circle, Clock3, Code2, FileText, Folder, GitBranch, History, Kanban, Laptop, ListChecks, PlugZap, Sparkles, X } from "lucide-react";
 import type { PermissionMode, ProjectSession, RuntimeDiscoveryReport, RuntimePreference } from "../../types";
 import type { RuntimeChatSelection } from "../../lib/runtimeChat";
-import type { Entry } from "../../lib/agentEvents";
+import { INTENT_HINT_STEP, type Entry } from "../../lib/agentEvents";
 import { projectNameFromWorkspaceRoot } from "../../lib/workspace";
 import { useT } from "../../lib/i18n";
 import { clearDraft, loadDraft, saveDraft } from "../../lib/draftStore";
@@ -36,6 +36,8 @@ export interface AgentPaneProps {
   onRespondQuestions: (elicitId: string, answers: Record<string, string>) => void | Promise<void>;
   onStop: () => void;
   onNavigatePipeline?: (step: PipelineStep) => void;
+  /** Removes one of Jev's hints from the chat. */
+  onDismissHint?: (id: string) => void;
   hasPlan: boolean;
   runtimeSelection: RuntimeChatSelection;
   runtimeReport: RuntimeDiscoveryReport | null;
@@ -69,6 +71,7 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
   onRespondQuestions,
   onStop,
   onNavigatePipeline,
+  onDismissHint,
   hasPlan,
   runtimeSelection,
   runtimeReport,
@@ -261,6 +264,31 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
             <span className="min-w-0 flex-1">MCP {entry.server}: {entry.message} · {t("{count} tools", { count: entry.tools })}</span>
           </div>
         );
+      case "intent_hint": {
+        const step = INTENT_HINT_STEP[entry.intent];
+        return (
+          <div key={entry.id} className="flex items-center gap-2 rounded-xl border border-line bg-subtle px-3 py-2 text-xs text-muted" role="note">
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent-ink" aria-hidden />
+            <span className="min-w-0 flex-1">
+              {entry.intent === "plan_project"
+                ? t("Jev thinks this is a request to plan a project")
+                : entry.intent === "generate_prd"
+                  ? t("Jev thinks this is a request to write the PRD")
+                  : t("Jev thinks this is a request to generate the tasks")}
+            </span>
+            {onNavigatePipeline && (
+              <button type="button" onClick={step === 1 ? openPlanPanel : () => onNavigatePipeline(step)} className="shrink-0 font-medium text-accent-ink hover:underline">
+                {entry.intent === "plan_project" ? t("Plan a project") : entry.intent === "generate_prd" ? t("Create a PRD") : t("Open Kanban")}
+              </button>
+            )}
+            {onDismissHint && (
+              <button type="button" onClick={() => onDismissHint(entry.id)} aria-label={t("Dismiss")} title={t("Dismiss")} className="shrink-0 rounded p-0.5 text-faint hover:text-ink">
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            )}
+          </div>
+        );
+      }
       case "turn_end":
         return (
           <div key={entry.id} className="flex items-center gap-2 px-1 text-[11px] text-faint">

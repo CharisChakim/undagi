@@ -92,6 +92,23 @@ The example file includes:
 
 The app does not automatically choose one provider or one API-key variable. Select the variable explicitly on each connection.
 
+## Optional: Jev decisions
+
+[Jev](https://docs.typesafe.ai) is a hosted decision model from TypeSafe AI. It does not write text; it judges a piece of text against typed questions and returns probabilities. Undagi can use it for four small hints. It is **off by default**, needs your own TypeSafe API key (early access), and is advisory only: it never approves, blocks, edits, or runs anything, and any failure or timeout silently falls back to normal behaviour.
+
+Enable it in **Settings → Agent settings → Jev decisions (optional)**: a master switch, your API key, and four independent switches.
+
+| Switch | What you get |
+| --- | --- |
+| Understand chat requests | A dismissible hint offering the matching panel (Plan, PRD, Tasks) when a message asks for the next step. Never navigates by itself. |
+| Check if an idea is clear enough | A quiet "about N% ready to plan" line in the Plan intake. Generate stays enabled. |
+| Rate risk on permission requests | A low/medium/high badge on the approval card, shown after the card appears. You still decide. Not shown in Auto or Full-access modes, where no card appears. |
+| Suggest task dependencies | A dismissible list of task pairs that may depend on each other. Display only; the task board and the dependency rule are unchanged. |
+
+**Privacy:** while a switch is on, the text being judged is sent to `api.typesafe.ai`: the chat message; the plan description; task titles, target files, and instruction excerpts; a permission request's command and working folder. Secret-looking values are redacted first, on a best-effort basis. With all switches off, nothing is sent. This is the one part of Undagi that talks to a third-party service besides the model providers you configure yourself. The key is stored in `data/undagi.db` in plaintext, like connection keys, so protect that file.
+
+Jev's judgments are probabilities, not guarantees, and it does not replace the text-generating models that Plan, PRD, and Tasks still need. Setup, per-switch details, and troubleshooting: [docs/harness/jev.md](docs/harness/jev.md).
+
 ## Give the Agent a workspace
 
 The Agent can work with project files only after **Working folder** is set. Paths are resolved inside that folder, with symlink checks.

@@ -28,6 +28,9 @@ import {
 } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { openDependencies } from "../lib/taskDependencies";
+import { pendingDependencyAdvice } from "../lib/dependencyAdvice";
+import { jevWants, requestDependencyAdvice, type DependencyAdvice } from "../lib/jev";
+import { useJevSettings } from "../lib/useJevSettings";
 import {
   attachPrdVersionToPrd,
   attachPrdVersionToTasks,
@@ -84,9 +87,14 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<TaskStatus | null>(null);
   const tasksAbort = useRef<AbortController | null>(null);
+  // Jev's dependency hints are display only: nothing below reads them to gate a task.
+  const { settings: jevSettings } = useJevSettings();
+  const [dependencyAdvice, setDependencyAdvice] = useState<DependencyAdvice[] | null>(null);
+  const dependencyAdviceSeq = useRef(0);
   const reviewAbort = useRef<AbortController | null>(null);
 
   const tasks = session.tasks || [];
+  const dependencyHints = pendingDependencyAdvice(dependencyAdvice, tasks);
   const blockedTitle = (task: AgentTask): string | undefined => {
     const open = openDependencies(task, tasks);
     return open.length ? t("Waiting on {tasks}, which is not done yet.", { tasks: open.join(", ") }) : undefined;
@@ -164,9 +172,28 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
     return () => controller.abort();
   }, [selectedTask?.id, reviewRefresh, t]);
 
+  useEffect(() => {
+    setDependencyAdvice(null);
+    return () => {
+      dependencyAdviceSeq.current += 1;
+    };
+  }, [session.id]);
+
+  const askDependencyAdvice = (board: AgentTask[]) => {
+    if (board.length < 2 || !jevWants(jevSettings, "dependencyCheck")) return;
+    const seq = ++dependencyAdviceSeq.current;
+    void requestDependencyAdvice(
+      board.map(({ id, title, targetFiles, dependencies, promptInstructions }) => ({ id, title, targetFiles, dependencies, promptInstructions })),
+    ).then((advice) => {
+      if (seq === dependencyAdviceSeq.current) setDependencyAdvice(advice);
+    });
+  };
+
   const handleGenerateTasks = async () => {
     setLoading(true);
     setErrorMessage(null);
+    dependencyAdviceSeq.current += 1;
+    setDependencyAdvice(null);
     setGenerationChars(0);
     const controller = new AbortController();
     tasksAbort.current = controller;
@@ -181,10 +208,12 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
         : session;
       const generated = await generateTasks(taskSession, lang, controller.signal, setGenerationChars, pipelineTarget);
       const generatedTasks = attachPrdVersionToTasks(generated, recorded?.version);
+      const mergedTasks = mergeGeneratedTasks(tasks, generatedTasks);
       onUpdateSession({
         ...(recorded && versionedPrd ? { prd: versionedPrd, prdVersions: recorded.versions } : {}),
-        tasks: mergeGeneratedTasks(tasks, generatedTasks),
+        tasks: mergedTasks,
       });
+      askDependencyAdvice(mergedTasks);
 
       // Expand all by default
       const initialExpanded: Record<string, boolean> = {};
@@ -463,6 +492,34 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
               <button type="button" onClick={handleGenerateTasks} disabled={loading} className="btn-primary shrink-0 text-xs">
                 <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
                 {loading ? t("Building the task board...") : t("Sync tasks")}
+              </button>
+            </div>
+          )}
+
+          {dependencyHints.length > 0 && (
+            <div className="flex items-start justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft p-4 text-accent-ink">
+              <div className="flex items-start gap-2 text-sm">
+                <ListOrdered className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <strong className="font-semibold">{t("Jev suggests these tasks may depend on each other — review before running:")}</strong>
+                  <ul className="mt-1.5 space-y-0.5 text-xs">
+                    {dependencyHints.map((hint) => {
+                      const label = (id: string) => `${id} "${tasks.find((task) => task.id === id)?.title ?? ""}"`;
+                      return (
+                        <li key={`${hint.taskId}>${hint.dependsOn}`}>
+                          {t("{task} may need {dependency} first ({percent}%)", {
+                            task: label(hint.taskId),
+                            dependency: label(hint.dependsOn),
+                            percent: Math.round(Math.min(1, Math.max(0, hint.probability)) * 100),
+                          })}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+              <button type="button" onClick={() => setDependencyAdvice(null)} className="rounded-lg p-1.5 hover:bg-surface/60" aria-label={t("Dismiss")}>
+                <X className="h-4 w-4" />
               </button>
             </div>
           )}

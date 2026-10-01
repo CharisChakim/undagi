@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { RuntimeDetection } from "../runtimes/types.ts";
+import type { RuntimeAgentRouterOptions } from "./runtime-agent.ts";
 import type {
   RuntimeApprovalHandler,
   RuntimeEvent,
@@ -101,10 +102,12 @@ async function withServer(
   provider: ProviderFixture,
   body: (url: string) => Promise<void>,
   discovered: RuntimeDetection = detection,
+  routerOptions: Pick<RuntimeAgentRouterOptions, "approvalAdvice"> = {},
 ): Promise<void> {
   const app = express();
   app.use(express.json());
   app.use(createRuntimeAgentRouter({
+    ...routerOptions,
     discover: async () => discovered,
     runnerDependencies: {
       createCodexExecutor: (options) => {
@@ -754,4 +757,220 @@ test("when the server cannot tell Stop from a dropped connection, the stored rea
     assert.doesNotMatch(run?.error ?? "", /disconnected/i);
     assert.match(run?.error ?? "", /stopped this run|lost its connection/);
   });
+});
+
+/**
+ * Opens a chat and lets the test look at the stream while it is still open,
+ * so it can answer an approval and watch what follows.
+ */
+async function openChat(url: string, body: Record<string, unknown>) {
+  const res = await fetch(`${url}/api/runtime-agent/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runtime: "codex", message: "Do the task.", ...body }),
+  });
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  const events: SseEvent[] = [];
+  let ended = false;
+  let wake: Array<() => void> = [];
+  const finished = (async () => {
+    let buffer = "";
+    while (true) {
+      const { done: over, value } = await reader.read();
+      if (over) break;
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split("\n\n");
+      buffer = chunks.pop() ?? "";
+      for (const chunk of chunks) {
+        const line = chunk.split("\n").find((item) => item.startsWith("data: "));
+        if (line) events.push(JSON.parse(line.slice(6)) as SseEvent);
+      }
+      wake.splice(0).forEach((resolve) => resolve());
+    }
+    ended = true;
+    wake.splice(0).forEach((resolve) => resolve());
+  })();
+  return {
+    events,
+    finished,
+    async waitFor(type: string): Promise<SseEvent> {
+      while (!events.some((event) => event.type === type)) {
+        if (ended) throw new Error(`The stream ended without a ${type} event.`);
+        await new Promise<void>((resolve) => wake.push(resolve));
+      }
+      return events.find((event) => event.type === type)!;
+    },
+    decide: (request: SseEvent, approved: boolean) => fetch(`${url}/api/runtime-agent/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approvalId: request.approvalId, runId: request.runId, approved }),
+    }),
+  };
+}
+
+const commandApproval = {
+  requestId: "req_1",
+  kind: "command" as const,
+  threadId: "thread_fixture",
+  turnId: "turn_fixture",
+  itemId: "item_1",
+  command: "rm -rf build",
+  cwd: "/work/app",
+  reason: "Clean the build folder",
+  details: {},
+};
+
+const lowRisk = { risk: "low" as const, score: 0.4, confidence: 0.81 };
+
+test("risk advice follows the approval card without holding it back or deciding it", async () => {
+  const decisions: unknown[] = [];
+  const provider = new ProviderFixture(async function* (fixture) {
+    decisions.push(await fixture.approvalHandler!(commandApproval));
+    yield done;
+  });
+  const asked: unknown[] = [];
+  let release: () => void = () => {};
+  const advised = new Promise<void>((resolve) => { release = resolve; });
+  const { sessionId, taskId } = project();
+
+  await withServer(provider, async (url) => {
+    const stream = await openChat(url, { sessionId, taskId });
+    // The advisor has not answered yet, and the card is already here.
+    const request = await stream.waitFor("approval_request");
+    assert.equal(asked.length, 1);
+    assert.equal(stream.events.some((event) => event.type === "approval_advice"), false);
+
+    release();
+    const advice = await stream.waitFor("approval_advice");
+    assert.deepEqual(
+      { approvalId: advice.approvalId, elicitId: advice.elicitId, risk: advice.risk, score: advice.score, confidence: advice.confidence },
+      { approvalId: request.approvalId, elicitId: request.approvalId, ...lowRisk },
+    );
+    assert.equal(decisions.length, 0, "the provider is still waiting for the user");
+
+    assert.equal((await stream.decide(request, false)).status, 200);
+    await stream.finished;
+
+    assert.deepEqual(decisions, ["decline"]);
+    const kinds = stream.events.map((event) => event.type).filter((type) => type.startsWith("approval_"));
+    assert.deepEqual(kinds, ["approval_request", "approval_advice", "approval_resolved"]);
+  }, detection, {
+    approvalAdvice: {
+      isActive: (feature) => feature === "permissionRisk",
+      advise: async (input) => {
+        asked.push(input);
+        await advised;
+        return lowRisk;
+      },
+    },
+  });
+
+  assert.deepEqual(asked, [{ command: "rm -rf build", cwd: "/work/app", kind: "command", reason: "Clean the build folder" }]);
+});
+
+test("no risk advice is asked for or sent while the feature is off", async () => {
+  const provider = new ProviderFixture(async function* (fixture) {
+    await fixture.approvalHandler!(commandApproval);
+    yield done;
+  });
+  let asked = 0;
+  const { sessionId, taskId } = project();
+
+  await withServer(provider, async (url) => {
+    const stream = await openChat(url, { sessionId, taskId });
+    const request = await stream.waitFor("approval_request");
+    await stream.decide(request, true);
+    await stream.finished;
+    assert.equal(stream.events.some((event) => event.type === "approval_advice"), false);
+  }, detection, {
+    approvalAdvice: {
+      isActive: () => false,
+      advise: async () => { asked += 1; return lowRisk; },
+    },
+  });
+
+  assert.equal(asked, 0);
+});
+
+test("risk advice that arrives after the approval was answered is dropped", async () => {
+  const provider = new ProviderFixture(async function* (fixture) {
+    await fixture.approvalHandler!(commandApproval);
+    yield done;
+  });
+  let release: () => void = () => {};
+  const advised = new Promise<void>((resolve) => { release = resolve; });
+  let answered = false;
+  const { sessionId, taskId } = project();
+
+  await withServer(provider, async (url) => {
+    const stream = await openChat(url, { sessionId, taskId });
+    const request = await stream.waitFor("approval_request");
+    await stream.decide(request, true);
+    await stream.waitFor("approval_resolved");
+    release();
+    await stream.finished;
+    assert.equal(stream.events.some((event) => event.type === "approval_advice"), false);
+    assert.equal(stream.events.at(-1)?.runStatus, "completed");
+  }, detection, {
+    approvalAdvice: {
+      isActive: () => true,
+      advise: async () => {
+        await advised;
+        answered = true;
+        return lowRisk;
+      },
+    },
+  });
+
+  assert.equal(answered, true, "the advisor did answer, too late");
+});
+
+test("an advisor that fails or has nothing to say leaves the approval untouched", async () => {
+  const advisors: Array<NonNullable<RuntimeAgentRouterOptions["approvalAdvice"]>> = [
+    { isActive: () => true, advise: async () => { throw new Error("advisor down"); } },
+    { isActive: () => true, advise: () => { throw new Error("advisor broke synchronously"); } },
+    { isActive: () => true, advise: async () => null },
+    { isActive: () => { throw new Error("settings unreadable"); }, advise: async () => lowRisk },
+  ];
+
+  for (const approvalAdvice of advisors) {
+    const decisions: unknown[] = [];
+    const provider = new ProviderFixture(async function* (fixture) {
+      decisions.push(await fixture.approvalHandler!(commandApproval));
+      yield done;
+    });
+    const { sessionId, taskId } = project();
+
+    await withServer(provider, async (url) => {
+      const stream = await openChat(url, { sessionId, taskId });
+      const request = await stream.waitFor("approval_request");
+      // Let the advisor's failure play out before the user answers.
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await stream.decide(request, true);
+      await stream.finished;
+      assert.equal(stream.events.some((event) => event.type === "approval_advice"), false);
+      assert.equal(stream.events.at(-1)?.runStatus, "completed");
+    }, detection, { approvalAdvice });
+
+    assert.deepEqual(decisions, ["accept"]);
+  }
+});
+
+test("a permission mode that answers the approval itself shows no card and asks no advice", async () => {
+  const provider = new ProviderFixture(async function* (fixture) {
+    await fixture.approvalHandler!(commandApproval);
+    yield done;
+  });
+  let asked = 0;
+  const { sessionId, taskId } = project();
+
+  await withServer(provider, async (url) => {
+    const events = await chat(url, { sessionId, taskId, permissionMode: "full" });
+    assert.equal(events.some((event) => event.type === "approval_request" || event.type === "approval_advice"), false);
+  }, detection, {
+    approvalAdvice: { isActive: () => true, advise: async () => { asked += 1; return lowRisk; } },
+  });
+
+  assert.equal(asked, 0);
 });

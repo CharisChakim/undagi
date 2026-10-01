@@ -15,6 +15,9 @@ import {
 import { useT } from "../../lib/i18n";
 import { useDraft } from "../../lib/draftStore";
 import { generateFollowUpQuestions, generateProjectPlan, isAbort, PipelineModelControl, usePipelineTarget } from "../../lib/generate";
+import { jevWants, requestIntakeAdvice, type IntakeAdvice } from "../../lib/jev";
+import { useJevSettings } from "../../lib/useJevSettings";
+import { intakeAnswerLines, intakeNote, shouldAskIntakeOnBlur } from "./intakeAdvice";
 import {
   createFollowUpState,
   getFollowUpOptions,
@@ -80,6 +83,12 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
   const [subView, setSubView] = useState<IntakeView>(initialView || (session.followUps.length > 0 ? "clarify" : "form"));
   const generationAbort = useRef<AbortController | null>(null);
 
+  // Jev only advises here: nothing below reads this to enable, disable or change anything.
+  const { settings: jevSettings } = useJevSettings();
+  const [intakeAdvice, setIntakeAdvice] = useState<{ text: string; advice: IntakeAdvice } | null>(null);
+  const intakeSeq = useRef(0);
+  const lastIntakeText = useRef<string | null>(null);
+
   const { questions, answers, customAnswerActive } = followUpState;
 
   useEffect(() => {
@@ -89,6 +98,25 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
   useEffect(() => {
     if (session.followUps.length > 0 && !session.plan) setSubView("clarify");
   }, [session.id, session.followUps.length, session.plan]);
+
+  useEffect(() => {
+    setIntakeAdvice(null);
+    lastIntakeText.current = null;
+    return () => {
+      intakeSeq.current += 1;
+    };
+  }, [session.id]);
+
+  // A newer request supersedes an older one; while one is out, or if it fails, nothing shows.
+  const askIntakeAdvice = (text: string, answerLines?: string[]) => {
+    if (!jevWants(jevSettings, "intakeCheck")) return;
+    const seq = ++intakeSeq.current;
+    lastIntakeText.current = text;
+    setIntakeAdvice(null);
+    void requestIntakeAdvice({ description: text, ...(answerLines?.length ? { answers: answerLines } : {}) }).then((advice) => {
+      if (seq === intakeSeq.current) setIntakeAdvice(advice ? { text, advice } : null);
+    });
+  };
 
   const requestFollowUps = async (isFirstRound: boolean) => {
     if (!description.trim()) {
@@ -138,6 +166,8 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
         clarificationComplete: data.needsMoreInfo === false,
         readinessNote: data.readinessNote || "",
       });
+      // Round one's answers are the AI's own suggestions, not the user's.
+      askIntakeAdvice(description.trim(), isFirstRound ? undefined : intakeAnswerLines(transportAnswers));
 
       if (isFirstRound) setSubView("clarify");
     } catch (err: any) {
@@ -214,6 +244,15 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
     setFollowUpState((previous) => ({ ...previous, answers: nextAnswers }));
   };
 
+  const intakeNoteNow = jevWants(jevSettings, "intakeCheck") && intakeAdvice?.text === description.trim() ? intakeNote(intakeAdvice.advice) : null;
+  const jevIntakeLine = intakeNoteNow && (
+    <p className="text-xs text-faint">
+      {intakeNoteNow.clearEnough
+        ? t("Jev: about {percent}% ready to plan — clear enough", { percent: intakeNoteNow.percent })
+        : t("Jev: about {percent}% ready to plan — needs more detail", { percent: intakeNoteNow.percent })}
+    </p>
+  );
+
   return (
     <div className="space-y-6 pb-12">
       <div className="space-y-4">
@@ -278,7 +317,8 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
 
             <div>
               <label className="field-label">{t("Detailed project description")} <span className="text-danger">*</span></label>
-              <textarea rows={5} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("Describe your idea: the problem it solves, the main features you picture, and how it works.")} className="field leading-relaxed resize-y" />
+              <textarea rows={5} value={description} onChange={(event) => setDescription(event.target.value)} onBlur={() => { if (shouldAskIntakeOnBlur(description, lastIntakeText.current)) askIntakeAdvice(description.trim()); }} placeholder={t("Describe your idea: the problem it solves, the main features you picture, and how it works.")} className="field leading-relaxed resize-y" />
+              <div className="mt-1.5 empty:hidden">{jevIntakeLine}</div>
             </div>
 
             <div>
@@ -322,6 +362,7 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
               {session.clarificationComplete ? <CheckCircle2 className="w-4 h-4 text-ok shrink-0 mt-0.5" /> : <HelpCircle className="w-4 h-4 text-warn shrink-0 mt-0.5" />}
               <div className="leading-relaxed"><strong className="font-semibold block mb-0.5">{session.clarificationComplete ? t("Round {round}: the AI considers the information sufficient.", { round: session.clarificationRound ?? 1 }) : t("Round {round}: the AI still has questions.", { round: session.clarificationRound ?? 1 })}</strong>{session.readinessNote}</div>
             </div>}
+            {jevIntakeLine}
 
             <div className="space-y-3">
               {questions.map((question, index) => {

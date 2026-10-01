@@ -430,7 +430,7 @@ function evidenceKind(value: unknown): EvidenceKind {
   return value as EvidenceKind;
 }
 
-function safeString(value: string): string {
+export function safeString(value: string): string {
   const redacted = value
     .replace(/((?:api[-_]?key|access[-_]?token|refresh[-_]?token|authorization|password|secret|credential|cookie)\s*[:=]\s*)([^\s,;]+)/gi, "$1[redacted]")
     .replace(/((?:--?)(?:api[-_]?key|access[-_]?token|password|secret|token)\s+)([^\s]+)/gi, "$1[redacted]");

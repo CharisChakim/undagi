@@ -11,6 +11,8 @@ Mulai dari dokumen berikut untuk pekerjaan baru:
   dipasang, dan cara membaca kartu koneksi yang gagal.
 - [`rollback.md`](rollback.md) — lokasi state, migrasi yang berjalan sendiri,
   dan prosedur mundur ke versi sebelumnya.
+- [`jev.md`](jev.md) — layanan keputusan opsional Jev (TypeSafe AI): cara
+  menyalakan, empat sakelar, teks apa yang dikirim keluar, dan pemecahan masalah.
 
 ## Arsip
 

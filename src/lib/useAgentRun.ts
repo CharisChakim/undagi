@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { Entry } from "./agentEvents";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  intentHintFor,
+  intentStillApplies,
+  withApprovalAdvice,
+  withIntentHint,
+  worthAnIntentHint,
+  type Entry,
+  type PipelineProgress,
+} from "./agentEvents";
+import { jevWants, requestIntentAdvice } from "./jev";
+import { useJevSettings } from "./useJevSettings";
 import {
   loadExternalRuntimeSession,
   normalizeRuntimeChatEvent,
@@ -19,6 +29,8 @@ interface AgentRunOptions {
   runtimeSelection?: RuntimeChatSelection;
   harnessSettings: AgentHarnessSettings;
   permissionMode?: PermissionMode;
+  /** What the project already has; without it Jev's hint about a message is never asked for. */
+  pipeline?: PipelineProgress;
 }
 
 interface AgentRunResult {
@@ -29,6 +41,7 @@ interface AgentRunResult {
   retry: () => Promise<void>;
   decideApproval: (elicitId: string, ok: boolean) => Promise<void>;
   respondQuestions: (elicitId: string, answers: Record<string, string>) => Promise<void>;
+  dismissHint: (id: string) => void;
   stop: () => void;
 }
 
@@ -198,8 +211,9 @@ export function entriesFromStoredMessages(messages: unknown[], sequence: { curre
 // disimpan terpisah apa adanya dari server, karena blok tool_use dan tool_result
 // harus tetap berpasangan persis atau permintaan berikutnya ditolak.
 
-export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplied, runtimeSelection = { runtime: "legacy", model: "inherit", effort: "inherit" }, harnessSettings, permissionMode = "ask" }: AgentRunOptions): AgentRunResult {
+export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplied, runtimeSelection = { runtime: "legacy", model: "inherit", effort: "inherit" }, harnessSettings, permissionMode = "ask", pipeline }: AgentRunOptions): AgentRunResult {
   const { t } = useT();
+  const { settings: jevSettings } = useJevSettings();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -211,13 +225,20 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
   const approvalRunIds = useRef(new Map<string, string>());
   const liveSendStarted = useRef(false);
   const onToolAppliedRef = useRef(onToolApplied);
+  const jevSettingsRef = useRef(jevSettings);
+  const pipelineRef = useRef(pipeline);
+  // Counts chats: an answer that comes back after the chat changed is dropped.
+  const chatGeneration = useRef(0);
 
   onToolAppliedRef.current = onToolApplied;
+  jevSettingsRef.current = jevSettings;
+  pipelineRef.current = pipeline;
 
   useEffect(() => {
     let cancelled = false;
     controller.current?.abort();
     controller.current = null;
+    chatGeneration.current += 1;
     history.current = [];
     approvalRunIds.current.clear();
     conversationId.current = loadConversationId(sessionId);
@@ -327,6 +348,23 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     }
   }, [entries, t]);
 
+  // Jev's guess at what a message is for. Fire and forget: sending never waits
+  // for it, and it only ever adds a dismissible line under the message.
+  const requestIntentHint = useCallback((afterEntryId: string, message: string, isTaskRun: boolean): void => {
+    if (!pipelineRef.current || !worthAnIntentHint(message, isTaskRun)) return;
+    if (!jevWants(jevSettingsRef.current, "intentRouting")) return;
+    const chat = chatGeneration.current;
+    void requestIntentAdvice({ message, ...pipelineRef.current }).then((advice) => {
+      // The project may have moved on while Jev thought about it.
+      const intent = chat === chatGeneration.current && pipelineRef.current ? intentHintFor(advice, pipelineRef.current) : null;
+      if (intent) setEntries((prev) => withIntentHint(prev, afterEntryId, intent));
+    }).catch(() => undefined);
+  }, []);
+
+  const dismissHint = useCallback((id: string): void => {
+    setEntries((prev) => prev.filter((entry) => entry.kind !== "intent_hint" || entry.id !== id));
+  }, []);
+
   const send = useCallback(async (text: string, options?: AgentSendOptions): Promise<boolean> => {
     const message = text.trim();
     if (!message || controller.current) return false;
@@ -335,7 +373,9 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     liveSendStarted.current = true;
     setError(null);
     setBusy(true);
-    setEntries((prev) => [...prev, { kind: "user", id: `user-${Date.now()}`, text: message }]);
+    const userEntryId = `user-${Date.now()}`;
+    setEntries((prev) => [...prev, { kind: "user", id: userEntryId, text: message }]);
+    requestIntentHint(userEntryId, message, Boolean(options?.taskId));
 
     const ac = new AbortController();
     controller.current = ac;
@@ -508,6 +548,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
                 ? { ...entry, decided: true, approved: event.approved }
                 : entry
             ));
+          } else if (event.type === "approval_advice") {
+            setEntries((prev) => withApprovalAdvice(prev, event));
           } else if (event.type === "questions") {
             const currentConversationId =
               typeof event.conversationId === "string" && event.conversationId
@@ -613,7 +655,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     // offering it to send again, even when that turn then failed. A turn the
     // user stopped ends without "done", but its message is in the chat too.
     return ac.signal.aborted || wasMessageDelivered(nativeRuntime, sawTurn, sawDone);
-  }, [allowShell, appendError, harnessSettings, permissionMode, runtimeSelection, sessionId, t, workspaceRoot]);
+  }, [allowShell, appendError, harnessSettings, permissionMode, requestIntentHint, runtimeSelection, sessionId, t, workspaceRoot]);
 
   const retry = useCallback(async (): Promise<void> => {
     if (lastSend.current) await send(lastSend.current.message, lastSend.current.options);
@@ -623,5 +665,15 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     controller.current?.abort();
   }, []);
 
-  return { entries, busy, error, send, retry, decideApproval, respondQuestions, stop };
+  // A hint whose step the project has since taken no longer applies.
+  const hasPlan = pipeline?.hasPlan;
+  const hasPrd = pipeline?.hasPrd;
+  const hasTasks = pipeline?.hasTasks;
+  const visibleEntries = useMemo(() => {
+    if (!entries.some((entry) => entry.kind === "intent_hint")) return entries;
+    const progress = { hasPlan: Boolean(hasPlan), hasPrd: Boolean(hasPrd), hasTasks: Boolean(hasTasks) };
+    return entries.filter((entry) => entry.kind !== "intent_hint" || intentStillApplies(entry.intent, progress));
+  }, [entries, hasPlan, hasPrd, hasTasks]);
+
+  return { entries: visibleEntries, busy, error, send, retry, decideApproval, respondQuestions, dismissHint, stop };
 }

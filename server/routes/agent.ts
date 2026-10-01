@@ -22,6 +22,8 @@ import { hasActiveRun } from "../runs/store.ts";
 import { runAgent } from "../agent/loop.ts";
 import { parseAgentHarnessSettings } from "../agent/harness.ts";
 import { parsePermissionMode, withPermissionMode } from "../agent/permissionMode.ts";
+import { adviseApproval, isJevActive } from "../jev/features.ts";
+import type { ApprovalAdviceEvent, JevFeature } from "../jev/types.ts";
 
 const router = express.Router();
 
@@ -30,7 +32,7 @@ const DEFAULT_MODEL = "claude-combo";
 const ELICIT_TIMEOUT_MS = 300_000;
 
 type ElicitRequest =
-  | { kind: "approval"; command: string; cwd?: string }
+  | { kind: "approval"; command: string; cwd?: string; action?: "edit" | "command" }
   | { kind: "questions"; questions: unknown[]; round: number };
 
 type ElicitEntry = {
@@ -150,11 +152,50 @@ function makeSender(res: Response, ac: AbortController): (event: unknown) => boo
   };
 }
 
-function makeElicit(
+/** Seams for tests: which Jev feature check and which advisor the routes use. */
+export interface ApprovalAdviceHooks {
+  isActive?: (feature: JevFeature) => boolean;
+  advise?: typeof adviseApproval;
+}
+
+/**
+ * Jev's second opinion on an approval card that is already on screen, sent as
+ * an `approval_advice` event when it arrives. It is advisory and fire-and-forget:
+ * nothing waits for it, it never decides or delays the approval, and it is
+ * dropped without a trace when Jev is off or fails, when the approval has been
+ * answered by then, or when the stream is gone.
+ */
+export function adviseApprovalInBackground(
+  request: { approvalId: string; elicitId?: string; command?: string; cwd?: string; kind?: string; reason?: string },
+  isPending: () => boolean,
+  send: (event: { type: string; [key: string]: unknown }) => boolean,
+  hooks: ApprovalAdviceHooks = {},
+): void {
+  try {
+    if (!(hooks.isActive ?? isJevActive)("permissionRisk")) return;
+    const { approvalId, elicitId, ...input } = request;
+    void Promise.resolve((hooks.advise ?? adviseApproval)(input)).then((advice) => {
+      if (!advice || !isPending()) return;
+      const event: ApprovalAdviceEvent = {
+        approvalId,
+        ...(elicitId ? { elicitId } : {}),
+        risk: advice.risk,
+        score: advice.score,
+        confidence: advice.confidence,
+      };
+      send({ type: "approval_advice", ...event });
+    }).catch(() => undefined);
+  } catch {
+    // Advice is a bonus; the approval carries on without it.
+  }
+}
+
+export function makeElicit(
   convId: string,
   ac: AbortController,
   send: (event: unknown) => boolean,
   ownedIds: Set<string>,
+  advice?: ApprovalAdviceHooks,
 ): (request: ElicitRequest) => Promise<unknown> {
   return (request: ElicitRequest): Promise<unknown> => {
     const elicitId = randomUUID();
@@ -204,6 +245,15 @@ function makeElicit(
           };
 
       if (!send(event)) finish(false);
+      else if (request.kind === "approval") {
+        adviseApprovalInBackground({
+          approvalId: elicitId,
+          elicitId,
+          command: request.command,
+          ...(request.cwd ? { cwd: request.cwd } : {}),
+          kind: request.action === "edit" ? "file_change" : "command",
+        }, () => !settled, send, advice);
+      }
     });
   };
 }

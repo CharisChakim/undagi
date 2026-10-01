@@ -26,14 +26,15 @@ utuh dan perubahan sesudahnya tidak disinkronkan balik ke sana, jadi setelah
 upgrade `architech.db` tinggal sebagai salinan pra-upgrade. Itulah berkas yang
 dipulihkan kalau mundur ke build yang lebih tua dari penggantian nama ini.
 
-Berkas itu memuat tiga belas tabel: `sessions`, `conversations`, `messages`,
+Berkas itu memuat empat belas tabel: `sessions`, `conversations`, `messages`,
 `conversation_schema_migrations`, `connections`, `role_bindings`,
 `mcp_servers`, `runs`, `run_events`, `run_approvals`, `run_evidence`,
-`runtime_preferences`, dan `runtime_binary_paths`.
+`runtime_preferences`, `runtime_binary_paths`, dan `jev_settings`.
 
 Dua hal yang perlu diingat sebelum menyalin berkas ini ke mana pun:
 
-- Tabel `connections` menyimpan API key yang diketik langsung **apa adanya**.
+- Tabel `connections` (dan `jev_settings`, untuk key Jev) menyimpan API key yang
+  diketik langsung **apa adanya**.
   Setiap salinan database adalah salinan kunci-kunci itu. Koneksi yang memakai
   variabel environment tidak menaruh kunci di database.
 - `data/` adalah runtime state dan tidak masuk ke git.

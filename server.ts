@@ -14,6 +14,7 @@ import runtimePreferencesRouter from "./server/routes/runtime-preferences.ts";
 import runsRouter from "./server/routes/runs.ts";
 import runtimeAgentRouter from "./server/routes/runtime-agent.ts";
 import mcpRouter from "./server/mcp/routes.ts";
+import { jevRouter } from "./server/jev/routes.ts";
 import { listConversations } from "./server/agent/conversations.ts";
 import { removeChatWorkspaces } from "./server/agent/chatWorkspace.ts";
 import { generateFollowups } from "./server/pipeline/followups.ts";
@@ -37,6 +38,7 @@ app.use(runtimePreferencesRouter);
 app.use(runsRouter);
 app.use(runtimeAgentRouter);
 app.use(mcpRouter);
+app.use(jevRouter);
 
 // Port 0 membuat OS memilih port bebas; paket desktop memakainya supaya tidak
 // bentrok dengan apa pun yang sudah memakai 3000, lalu membaca port sebenarnya

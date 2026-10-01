@@ -1,4 +1,5 @@
 import type { RuntimeDiscoveryReport, RuntimeId } from "../types";
+import { parseApprovalAdvice } from "./agentEvents";
 
 export type RuntimeChatSelection =
   | { runtime: "legacy"; model: "inherit"; effort: "inherit" }
@@ -227,6 +228,18 @@ export function normalizeRuntimeChatEvent(value: unknown): RuntimeChatEvent | nu
       command: text(event.command) ?? "",
       cwd: text(event.cwd) ?? undefined,
     };
+  }
+  if (kind === "approval_advice") {
+    // Jev's read on a card already shown; one that names no card or no risk is dropped.
+    const parsed = parseApprovalAdvice(event);
+    return parsed
+      ? {
+          type: "approval_advice",
+          approvalId: text(event.approvalId) ?? parsed.ids[0],
+          elicitId: text(event.elicitId) ?? parsed.ids[0],
+          ...parsed.advice,
+        }
+      : null;
   }
   if (kind === "error") {
     const error = record(event.error);

@@ -13,6 +13,17 @@ test("a done event without a run status stays a plain done", () => {
   assert.deepEqual(normalizeRuntimeChatEvent({ type: "done" }), { type: "done" });
 });
 
+test("risk advice for an approval passes through with its card's ids, and a malformed one is dropped", () => {
+  const advice = { type: "approval_advice", approvalId: "a1", elicitId: "a1", risk: "high", score: 1.7, confidence: 0.9, runId: "run-1" };
+  assert.deepEqual(normalizeRuntimeChatEvent(advice), { type: "approval_advice", approvalId: "a1", elicitId: "a1", risk: "high", score: 1.7, confidence: 0.9 });
+  assert.deepEqual(
+    normalizeRuntimeChatEvent({ ...advice, elicitId: undefined }),
+    { type: "approval_advice", approvalId: "a1", elicitId: "a1", risk: "high", score: 1.7, confidence: 0.9 },
+  );
+  assert.equal(normalizeRuntimeChatEvent({ ...advice, risk: "critical" }), null);
+  assert.equal(normalizeRuntimeChatEvent({ ...advice, approvalId: undefined, elicitId: undefined }), null);
+});
+
 function report(ready: Array<"codex" | "claude" | "antigravity">): RuntimeDiscoveryReport {
   return {
     checkedAt: new Date(0).toISOString(),
