@@ -1,6 +1,14 @@
 import type { AgentTask } from "../types";
 
-export type TaskOutcome = "done" | "blocked";
+/**
+ * Where a card goes when its run ends. Blocked is the agent's own verdict: it needs
+ * something a person has to supply. Failed is the run breaking: an error, a timeout,
+ * or a stream that stopped. They need different things from the user, so they are kept apart.
+ */
+export type TaskOutcome = "done" | "blocked" | "failed";
+
+/** What the agent can say itself in its closing line. */
+export type AgentVerdict = "done" | "blocked";
 
 // The agent has no tool to move a card, so the last line of its reply is how it
 // says "done" or "stuck". server/agent/harness.ts asks for it; keep them in sync.
@@ -8,11 +16,11 @@ export type TaskOutcome = "done" | "blocked";
 const MARKER = /^[\s>*_`-]*task_status\s*:\s*(done|blocked)\b/i;
 
 /** The agent's own verdict: the last marker line in its reply, if it wrote one. */
-export function taskStatusMarker(text: string): TaskOutcome | null {
-  let found: TaskOutcome | null = null;
+export function taskStatusMarker(text: string): AgentVerdict | null {
+  let found: AgentVerdict | null = null;
   for (const line of text.split("\n")) {
     const match = MARKER.exec(line);
-    if (match) found = match[1].toLowerCase() as TaskOutcome;
+    if (match) found = match[1].toLowerCase() as AgentVerdict;
   }
   return found;
 }
@@ -46,7 +54,7 @@ export interface RunEnd {
  */
 export function taskOutcomeFor(end: RunEnd): TaskOutcome | null {
   if (end.aborted) return null;
-  if (end.failed) return "blocked";
+  if (end.failed) return "failed";
   return taskStatusMarker(end.text) ?? "done";
 }
 

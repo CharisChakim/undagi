@@ -48,7 +48,7 @@ const TRANSIENT = new RegExp([
 /**
  * Whether a failed run is worth trying again: the provider or the network
  * hiccuped. A rejected request, a missing login, a runtime that is not ready, or
- * a declined approval fail the same way every time, so those go straight to Blocked.
+ * a declined approval fail the same way every time, so those go straight to Failed.
  * A runtime's code decides when it has one the executors classify; otherwise the
  * words do (Legacy API and Codex send text, with a status in it).
  */
@@ -120,7 +120,7 @@ export async function runWithRetries(options: RetryOptions): Promise<{ report: R
   let message = options.message;
   for (let attempt = 1; ; attempt += 1) {
     const report = await send(message);
-    const error = report.outcome === "blocked" ? report.error : null;
+    const error = report.outcome === "failed" ? report.error : null;
     if (!error || !isTransientRunError(error, report.errorCode) || attempt > maxRetries || !stillWanted()) {
       return { report, attempts: attempt };
     }

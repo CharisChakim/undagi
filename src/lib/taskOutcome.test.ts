@@ -54,9 +54,18 @@ test("the marker decides between done and blocked on a run that finished", () =>
   assert.equal(taskOutcomeFor({ aborted: false, failed: false, text: "Needs an API key.\nTASK_STATUS: blocked" }), "blocked");
 });
 
-test("a failed run is blocked even when its text claims done", () => {
-  assert.equal(taskOutcomeFor({ aborted: false, failed: true, text: "TASK_STATUS: done" }), "blocked");
-  assert.equal(taskOutcomeFor({ aborted: false, failed: true, text: "" }), "blocked");
+test("a failed run is failed, even when its text claims done or blocked", () => {
+  assert.equal(taskOutcomeFor({ aborted: false, failed: true, text: "TASK_STATUS: done" }), "failed");
+  assert.equal(taskOutcomeFor({ aborted: false, failed: true, text: "TASK_STATUS: blocked" }), "failed");
+  assert.equal(taskOutcomeFor({ aborted: false, failed: true, text: "" }), "failed");
+});
+
+test("blocked is only ever the agent's own word; the run breaking is failed", () => {
+  const outcomes = [
+    taskOutcomeFor({ aborted: false, failed: false, text: "TASK_STATUS: blocked" }),
+    taskOutcomeFor({ aborted: false, failed: true, text: "TASK_STATUS: blocked" }),
+  ];
+  assert.deepEqual(outcomes, ["blocked", "failed"]);
 });
 
 test("a run the user stopped moves nothing, failed or not", () => {
@@ -88,6 +97,14 @@ test("a rerun that ends the same way with a new note still updates the card", ()
 
 test("a card still in To do after a session refresh takes the outcome too", () => {
   assert.equal(applyTaskOutcome([task("TASK-01"), task("TASK-02")], "TASK-01", "blocked")?.[0].status, "blocked");
+});
+
+test("a failed run puts the error on the card as Failed, and a rerun can clear it", () => {
+  const failed = applyTaskOutcome([task("TASK-01", "in_progress")], "TASK-01", "failed", "HTTP 503");
+  assert.equal(failed?.[0].status, "failed");
+  assert.equal(failed?.[0].agentNote, "HTTP 503");
+  const rerun = applyTaskOutcome(failed!.map((item) => ({ ...item, status: "in_progress" as const })), "TASK-01", "done", "Fixed.");
+  assert.equal(rerun?.[0].status, "done");
 });
 
 test("a card the user already marked done is left alone", () => {

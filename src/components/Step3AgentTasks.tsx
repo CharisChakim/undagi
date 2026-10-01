@@ -48,7 +48,7 @@ interface Step3AgentTasksProps {
   onSelectStep?: (step: 1 | 2 | 3) => void;
 }
 
-type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
+type TaskStatus = "todo" | "in_progress" | "done" | "blocked" | "failed";
 
 function runDate(value: string | null | undefined): string {
   if (!value) return "";
@@ -329,11 +329,20 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
       emptyHint: t('Hit "Mark in progress" on a To do task to move it here.'),
     },
     {
+      // Agent melapor ia butuh sesuatu dari manusia.
       status: "blocked" as const,
       label: t("Blocked"),
-      dot: "bg-danger",
+      dot: "bg-warn",
       tasks: tasks.filter((t) => t.status === "blocked"),
       // Kolom ini hanya tampil bila ada isinya, jadi petunjuk kosong tak pernah terbaca.
+      emptyHint: "",
+    },
+    {
+      // Run-nya sendiri yang gagal: error, timeout, atau terputus.
+      status: "failed" as const,
+      label: t("Failed"),
+      dot: "bg-danger",
+      tasks: tasks.filter((t) => t.status === "failed"),
       emptyHint: "",
     },
     {
@@ -345,8 +354,12 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
     },
   ];
 
-  // Run yang gagal atau macet mendarat di Blocked; selama kosong, board tetap tiga kolom.
-  const visibleColumns = columns.filter((column) => column.status !== "blocked" || column.tasks.length > 0);
+  // Blocked dan Failed hanya tampil bila ada isinya; selama kosong, board tetap tiga kolom.
+  const visibleColumns = columns.filter((column) => (column.status !== "blocked" && column.status !== "failed") || column.tasks.length > 0);
+  // Kelas Tailwind harus utuh agar terbaca; lima kolom baru muat di panel yang lebar.
+  const boardColumns = visibleColumns.length >= 5
+    ? "@4xl/pane:grid-cols-3 @7xl/pane:grid-cols-5"
+    : visibleColumns.length === 4 ? "@4xl/pane:grid-cols-4" : "@4xl/pane:grid-cols-3";
 
   const selectedTaskHandoffJson = selectedTask ? buildHandoffJson(session, selectedTask) : null;
   const manualTaskForm = manualFormOpen ? (
@@ -521,7 +534,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
 
           {/* VIEW 1: KANBAN BOARD */}
           {viewMode === "kanban" && (
-            <div className={`grid grid-cols-1 ${visibleColumns.length > 3 ? "@4xl/pane:grid-cols-4" : "@4xl/pane:grid-cols-3"} gap-4 items-start`}>
+            <div className={`grid grid-cols-1 ${boardColumns} gap-4 items-start`}>
               {visibleColumns.map((column) => (
                 <div
                   key={column.status}
@@ -631,7 +644,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                         )}
 
                         {/* Catatan penutup agent dari run terakhir. Di kolom lain ia sudah basi. */}
-                        {task.agentNote && (column.status === "blocked" || column.status === "done") && (
+                        {task.agentNote && (column.status === "blocked" || column.status === "failed" || column.status === "done") && (
                           // Padding di pembungkus: pada elemen ber-line-clamp, padding membiarkan baris ke-4 mengintip.
                           <div className="rounded bg-subtle px-2 py-1.5" title={task.agentNote}>
                             <p className="line-clamp-3 whitespace-pre-line text-[11px] leading-snug text-muted">{task.agentNote}</p>
@@ -657,7 +670,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                             </>
                           )}
 
-                          {(column.status === "in_progress" || column.status === "blocked") && (
+                          {(column.status === "in_progress" || column.status === "blocked" || column.status === "failed") && (
                             <>
                               <button
                                 onClick={(e) => {
@@ -891,6 +904,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                     ["todo", t("To do")],
                     ["in_progress", t("In progress")],
                     ["blocked", t("Blocked")],
+                    ["failed", t("Failed")],
                     ["done", t("Done")],
                   ] as const
                 ).map(([status, label]) => {
@@ -972,7 +986,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
               </div>
             )}
 
-            {selectedTask.agentNote && (selectedTask.status === "blocked" || selectedTask.status === "done") && (
+            {selectedTask.agentNote && (selectedTask.status === "blocked" || selectedTask.status === "failed" || selectedTask.status === "done") && (
               <section className="rounded-lg border border-line bg-subtle p-4" aria-label={t("Agent note")}>
                 <span className="field-label">{t("Agent note")}</span>
                 <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-ink">{selectedTask.agentNote}</p>

@@ -197,6 +197,7 @@ const ID: Record<string, string> = {
   "Atomic tasks ready to hand to an AI coding agent.": "Task atomik siap diberikan ke AI coding agent.",
   "Back": "Kembali",
   "Blocked": "Terblokir",
+  "Failed": "Gagal",
   "Back to the default view": "Kembali ke tampilan awal",
   "Back to plan": "Kembali ke plan",
   "Base URL": "Base URL",

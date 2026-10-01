@@ -14,7 +14,7 @@ import {
 } from "./runRetry";
 
 const done: RunReport = { outcome: "done", note: "ok", error: null, errorCode: null };
-const failed = (error: string, errorCode: string | null = null): RunReport => ({ outcome: "blocked", note: "", error, errorCode });
+const failed = (error: string, errorCode: string | null = null): RunReport => ({ outcome: "failed", note: "", error, errorCode });
 
 test("provider and network hiccups are worth retrying", () => {
   for (const message of [
@@ -170,6 +170,13 @@ test("a failure the runtime's code calls transient is retried even with no tellt
 
 test("a permanent failure goes straight to Blocked without a retry", async () => {
   const h = harness([failed("RPC_ERROR: The model is not supported.")]);
+  const result = await h.run();
+  assert.equal(result.attempts, 1);
+  assert.deepEqual(h.notices, []);
+});
+
+test("only a failed run is retried; Blocked is the agent's decision and needs a person", async () => {
+  const h = harness([{ outcome: "blocked", note: "HTTP 503 from the vendor API; I need another key.", error: null, errorCode: null }]);
   const result = await h.run();
   assert.equal(result.attempts, 1);
   assert.deepEqual(h.notices, []);

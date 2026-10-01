@@ -337,7 +337,7 @@ export interface AgentTask {
   promptInstructions: string;
   verificationSteps: string;
   acceptanceCriteria?: string;
-  status?: 'todo' | 'in_progress' | 'done' | 'blocked';
+  status?: 'todo' | 'in_progress' | 'done' | 'blocked' | 'failed';
   /** What the agent wrote at the end of its last run on this card: evidence, a blocker, or doubts. */
   agentNote?: string;
   handoffStatus?: 'handed_off';
