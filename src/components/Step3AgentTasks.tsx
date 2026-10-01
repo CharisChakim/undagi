@@ -320,7 +320,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
       label: t("In progress"),
       dot: "bg-warn animate-pulse",
       tasks: tasks.filter((t) => t.status === "in_progress"),
-      emptyHint: t('Hit "Start" on a To do task to move it here.'),
+      emptyHint: t('Hit "Mark in progress" on a To do task to move it here.'),
     },
     {
       status: "done" as const,
@@ -620,7 +620,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                                 }}
                                 className="font-medium text-accent-ink hover:brightness-110 flex items-center gap-1 shrink-0"
                               >
-                                {t("Start")} <ArrowRight className="w-3 h-3" />
+                                {t("Mark in progress")} <ArrowRight className="w-3 h-3" />
                               </button>
                             </>
                           )}
