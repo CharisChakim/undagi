@@ -159,7 +159,7 @@ h1 .em { color: var(--accent-ink); }
 .cta-row { display: flex; gap: 12px; justify-content: center; align-items: stretch; flex-wrap: wrap; margin-bottom: 14px; }
 
 .cmd {
-  display: inline-flex; align-items: center; gap: 12px;
+  display: inline-flex; align-items: center; gap: 12px; max-width: 100%;
   background: var(--surface); border: 1px solid var(--line);
   border-radius: 12px; padding: 11px 12px 11px 16px;
   box-shadow: var(--elev-2); font-size: 14px;
@@ -167,7 +167,9 @@ h1 .em { color: var(--accent-ink); }
 }
 .cmd:hover { transform: translateY(-1px); box-shadow: var(--elev-3); }
 .cmd .p { color: var(--faint); user-select: none; }
-.cmd .t { color: var(--ink); }
+/* The full command is shown so what you read is what you paste; long, so it scrolls instead of wrapping. */
+.cmd .t { color: var(--ink); white-space: nowrap; overflow-x: auto; min-width: 0; }
+@media (max-width: 720px) { .cmd .t { white-space: normal; overflow-wrap: anywhere; text-align: left; } }
 .copy {
   border: 1px solid var(--line); background: var(--subtle); color: var(--muted);
   border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 560; cursor: pointer;
@@ -360,7 +362,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
     <div class="cta-row">
       <div class="cmd">
         <span class="p mono">$</span>
-        <span class="t mono" id="cmd">bash install.sh</span>
+        <span class="t mono" id="cmd">curl -fsSLO https://raw.githubusercontent.com/CharisChakim/undagi/main/install.sh &amp;&amp; bash install.sh</span>
         <button class="copy" id="copy" data-full="curl -fsSLO https://raw.githubusercontent.com/CharisChakim/undagi/main/install.sh &amp;&amp; bash install.sh">Copy</button>
       </div>
       <a class="btn btn-ghost" href="https://github.com/CharisChakim/undagi">
@@ -368,7 +370,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
         View source
       </a>
     </div>
-    <p class="subnote">Node 22.14+ · no database to provision · no account, no telemetry</p>
+    <p class="subnote">Linux / macOS (Windows and installers: see Install) · Node 22.14+ to run from source · no account, no telemetry</p>
   </div>
 
   <div class="wrap shot-wrap">
