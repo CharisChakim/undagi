@@ -3,6 +3,10 @@ export interface AgentHarnessSettings {
   conciseAnswers: boolean;
   minimalCode: boolean;
   karpathyGuidelines: boolean;
+  // Bahasa teks yang ditulis untuk agen koding (promptInstructions,
+  // verificationSteps). Mati = Inggris; hanya terkirim ke server sebagai
+  // `agentLanguage`, tidak dipakai oleh server/agent/harness.ts.
+  agentInstructionsFollowUi: boolean;
 }
 
 const STORAGE_KEY = "ai_plan_architect_agent_harness_v1";
@@ -12,7 +16,14 @@ export const DEFAULT_AGENT_HARNESS_SETTINGS: AgentHarnessSettings = {
   conciseAnswers: true,
   minimalCode: true,
   karpathyGuidelines: true,
+  agentInstructionsFollowUi: false,
 };
+
+export type AgentLanguage = "ui" | "en";
+
+export function agentLanguageFor(settings: Pick<AgentHarnessSettings, "agentInstructionsFollowUi">): AgentLanguage {
+  return settings.agentInstructionsFollowUi ? "ui" : "en";
+}
 
 export function loadAgentHarnessSettings(): AgentHarnessSettings {
   try {
@@ -27,6 +38,8 @@ export function loadAgentHarnessSettings(): AgentHarnessSettings {
       conciseAnswers: layer(saved?.conciseAnswers),
       minimalCode: layer(saved?.minimalCode),
       karpathyGuidelines: saved?.karpathyGuidelines !== false,
+      // Kebalikan dari tombol lain: default mati, jadi hanya `true` yang menyalakan.
+      agentInstructionsFollowUi: saved?.agentInstructionsFollowUi === true,
     };
   } catch (error) {
     console.warn("Failed to load agent harness settings:", error);

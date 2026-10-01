@@ -10,6 +10,8 @@ export interface PipelineOptions {
   onProgress?: (chars: number) => void;
   /** Write the step with a local runtime instead of the HTTP connection. */
   runtime?: RuntimeTextTarget;
+  /** Language of text meant for coding agents (task instructions); defaults to English. */
+  agentLang?: Lang;
 }
 
 /**

@@ -123,7 +123,7 @@ export class DefaultMcpClient implements McpClient {
       const detail = errorText(error);
       if (this.stateValue !== "crashed") this.fail("down", detail);
       return {
-        content: `Server MCP '${this.config.name}' tidak bisa dihubungi: ${detail}`,
+        content: `MCP server '${this.config.name}' could not be reached: ${detail}`,
         isError: true,
       };
     }

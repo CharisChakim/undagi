@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { openDependencies } from "../lib/taskDependencies";
+import { agentLanguageFor, loadAgentHarnessSettings } from "../lib/agentHarness";
 import {
   attachPrdVersionToPrd,
   attachPrdVersionToTasks,
@@ -236,7 +237,11 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
       targetFiles: [],
       dependencies: [],
       promptInstructions: manualInstructions.trim() || title,
-      verificationSteps: manualVerification.trim() || t("Verify the requested outcome before marking this task done."),
+      // Read by a coding agent, so English unless the user asked for agent text in their language.
+      verificationSteps: manualVerification.trim() ||
+        (agentLanguageFor(loadAgentHarnessSettings()) === "ui"
+          ? t("Verify the requested outcome before marking this task done.")
+          : "Verify the requested outcome before marking this task done."),
       status: "todo",
     };
     onUpdateSession({ tasks: [...tasks, task] });

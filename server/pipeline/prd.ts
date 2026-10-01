@@ -1,12 +1,104 @@
 import { parseJsonFromLlm } from "../llm/json.ts";
 import type { Connection } from "../llm/types.ts";
 import type { Lang } from "../messages.ts";
+import { additionalPointTitle, EXAMPLE_VALUES_NOTE, languageDirective } from "./language.ts";
 import { generateLlmText, type PipelineOptions } from "./llm.ts";
 
-const outputLanguage = (lang: Lang): string =>
-  lang === "id"
-    ? "Gunakan Bahasa Indonesia yang profesional, jelas, dan ramah untuk SELURUH nilai teks pada JSON keluaran."
-    : "Write EVERY text value in the JSON output in professional, clear, friendly English.";
+export function buildPrdSystemPrompt(humanLang: Lang): string {
+  return `You are an experienced Technical Product Manager & Software Architect.
+${languageDirective({ humanLang })}
+Your task is to produce a detailed, structured Product Requirement Document (PRD) that MUST cover the following 7 MAIN POINTS:
+
+PRD - Project Requirements Document
+1. Overview
+2. Requirements (Functional Requirements & Non-Functional Requirements)
+3. Core Features (MUST be divided per phase: Phase 1, Phase 2, Phase 3, and Later Phases if any)
+4. User Flow
+5. Architecture (Including an explanation of the architecture)
+6. Database Schema
+7. Tech Stack
+
+ADDITIONAL POINTS (OPTIONAL, BEYOND THE 7 MANDATORY POINTS):
+- The seven points above are a minimum floor, not a ceiling.
+- If, after analyzing this project, you judge there is an important aspect not covered by those 7 points, ADD it as point 8, 9, and so on through the "additionalSections" field.
+- Examples of additional points that are often relevant: Third-Party Integrations, Data Migration Strategy, Observability & Monitoring, Compliance & Regulation, Testing Plan, Deployment & Rollback Strategy, User Permission/Role Model.
+- Only add points the project truly needs. Do not add points just to make the document look complete. If the 7 points are sufficient, return "additionalSections": [].
+- Every additional point MUST also be written in "fullMarkdownText" with the same sequence number.
+
+Special rules for the Mermaid.js Logic Diagram:
+- Use a HORIZONTAL DIAGRAM with 'graph LR' or 'flowchart LR' syntax (left to right).
+- Make sure the Mermaid syntax is VALID with no illegal characters.
+- Node and edge labels are user-facing text, so write them in the user-facing language. Keep Mermaid keywords, node ids and syntax exactly as Mermaid requires.
+
+Return the response EXACTLY in the following JSON format. ${EXAMPLE_VALUES_NOTE}
+{
+  "projectTitle": "Project Title",
+  "overview": "General explanation of the background, vision, and main goals of the project...",
+  "requirements": {
+    "functional": [
+      {
+        "id": "FR-01",
+        "category": "Authentication",
+        "description": "Users can log in using OAuth or email",
+        "acceptanceCriteria": ["Active email validation", "Redirect to Dashboard"]
+      }
+    ],
+    "nonFunctional": [
+      {
+        "category": "Performance",
+        "specification": "API response time < 300ms for 95% of requests"
+      }
+    ]
+  },
+  "coreFeatures": {
+    "phase1": ["MVP Feature 1", "MVP Feature 2"],
+    "phase2": ["Advanced Feature 1", "Advanced Feature 2"],
+    "phase3": ["Integration & Analytics Features"],
+    "futurePhases": ["Mobile App", "Multi-language Support"]
+  },
+  "userFlow": "User interaction steps from Landing Page -> Auth -> Dashboard -> Main -> Output...",
+  "architecture": "Explanation of the client-server architecture structure, API proxy, and state management...",
+  "databaseSchema": [
+    {
+      "entity": "Users",
+      "fields": [
+        { "name": "id", "type": "UUID", "description": "Primary key" },
+        { "name": "email", "type": "VARCHAR(255)", "description": "Unique user email" }
+      ]
+    }
+  ],
+  "techStack": [
+    {
+      "layer": "Frontend",
+      "technology": "React + Vite + Tailwind CSS",
+      "rationale": "Fast, modern, and responsive UI"
+    }
+  ],
+  "additionalSections": [
+    {
+      "number": 8,
+      "title": "Third-Party Integrations",
+      "content": "Content of the additional point in text/markdown. Leave this array empty if the 7 points are sufficient."
+    }
+  ],
+  "logicFlowMermaid": "graph LR\\n  A[User] -->|1. Open App| B[Landing Page]\\n  B -->|2. Enter Idea| C[Plan Generator]\\n  C -->|3. Confirm| D[PRD & Diagram Review]\\n  D -->|4. Build| E[AI Agent Tasks]",
+  "logicFlowExplanation": "Explanation of the horizontal diagram flow from left to right...",
+  "fullMarkdownText": "# PRD - Project Requirements Document\\n\\n## 1. Overview\\n...\\n\\n## 2. Requirements\\n...\\n\\n## 3. Core Features\\n- **Phase 1**:\\n  - ...\\n- **Phase 2**:\\n  - ...\\n- **Phase 3**:\\n  - ...\\n\\n## 4. User Flow\\n...\\n\\n## 5. Architecture\\n...\\n\\n## 6. Database Schema\\n...\\n\\n## 7. Tech Stack\\n...\\n\\n## 8. (Additional point, if any)\\n..."
+}`;
+}
+
+export function buildPrdPrompt(title: string, plan: any, description = ""): string {
+  return `Approved Project Plan data:
+Title: ${title}
+Description / product brief: ${description || "Not available yet"}
+Plan Summary: ${plan?.summary || ""}
+Core Features: ${JSON.stringify(plan?.specs?.coreFeatures || [])}
+Tech Stack: ${JSON.stringify(plan?.specs?.techStack || [])}
+Architecture: ${JSON.stringify(plan?.architectureDraft || {})}
+
+Compose a PRD document that MUST fully cover the 7 standard points, along with a horizontal diagram (graph LR), in the requested JSON format.
+After composing the 7 mandatory points, assess whether this project needs additional points (8, 9, etc.). Add them through "additionalSections" only if truly necessary, and make sure they are also written in "fullMarkdownText".`;
+}
 
 export async function generatePrd(
   title: string,
@@ -17,100 +109,9 @@ export async function generatePrd(
   options?: PipelineOptions,
   description = "",
 ): Promise<any> {
-  const systemInstruction = `Anda adalah Technical Product Manager & Software Architect berpengalaman.
-${outputLanguage(lang)}
-Tugas Anda adalah menghasilkan Product Requirement Document (PRD) yang detail, terstruktur, dan Wajib mencakup 7 POIN UTAMA berikut:
-
-PRD - Project Requirements Document
-1. Overview
-2. Requirements (Functional Requirements & Non-Functional Requirements)
-3. Core Features (Wajib dibagi per fase: Fase 1, Fase 2, Fase 3, dan Fase Seterusnya jika ada)
-4. User Flow
-5. Architecture (Termasuk penjelasan arsitektur)
-6. Database Schema
-7. Tech Stack
-
-POIN TAMBAHAN (OPSIONAL, DI LUAR 7 POIN WAJIB):
-- Tujuh poin di atas adalah lantai minimum, bukan plafon.
-- Jika setelah menganalisis proyek ini Anda menilai ada aspek penting yang tidak tertampung di 7 poin tersebut, TAMBAHKAN sebagai poin 8, 9, dan seterusnya melalui bidang "additionalSections".
-- Contoh poin tambahan yang sering relevan: Integrasi Pihak Ketiga, Strategi Migrasi Data, Observability & Monitoring, Kepatuhan & Regulasi, Rencana Pengujian, Strategi Deployment & Rollback, Model Perizinan/Peran Pengguna.
-- Hanya tambahkan poin yang benar-benar dibutuhkan proyek ini. Jangan menambah poin agar dokumen terlihat lengkap. Jika 7 poin sudah memadai, kembalikan "additionalSections": [].
-- Setiap poin tambahan WAJIB ikut tertulis di "fullMarkdownText" dengan nomor urut yang sama.
-
-Aturan khusus untuk Diagram Logika Mermaid.js:
-- Gunakan HORIZONTAL DIAGRAM dengan sintaks 'graph LR' atau 'flowchart LR' (kiri ke kanan).
-- Pastikan sintaks Mermaid VALID tanpa karakter ilegal.
-
-Kembalikan respon PERSIS dalam format JSON berikut:
-{
-  "projectTitle": "Judul Proyek",
-  "overview": "Penjelasan umum mengenai latar belakang, visi, dan tujuan utama proyek...",
-  "requirements": {
-    "functional": [
-      {
-        "id": "FR-01",
-        "category": "Authentication",
-        "description": "Pengguna dapat login menggunakan OAuth atau email",
-        "acceptanceCriteria": ["Validasi email aktif", "Redirect ke Dashboard"]
-      }
-    ],
-    "nonFunctional": [
-      {
-        "category": "Performa",
-        "specification": "Waktu respon API < 300ms untuk 95% request"
-      }
-    ]
-  },
-  "coreFeatures": {
-    "phase1": ["Fitur MVP 1", "Fitur MVP 2"],
-    "phase2": ["Fitur Lanjutan 1", "Fitur Lanjutan 2"],
-    "phase3": ["Fitur Integrasi & Analytics"],
-    "futurePhases": ["Mobile App", "Multi-language Support"]
-  },
-  "userFlow": "Langkah-langkah interaksi pengguna mulai dari Landing Page -> Auth -> Dashboard -> Utama -> Output...",
-  "architecture": "Penjelasan struktur arsitektur client-server, API proxy, dan manajemen state...",
-  "databaseSchema": [
-    {
-      "entity": "Users",
-      "fields": [
-        { "name": "id", "type": "UUID", "description": "Primary key" },
-        { "name": "email", "type": "VARCHAR(255)", "description": "Email unik pengguna" }
-      ]
-    }
-  ],
-  "techStack": [
-    {
-      "layer": "Frontend",
-      "technology": "React + Vite + Tailwind CSS",
-      "rationale": "UI cepat, modern, dan responsif"
-    }
-  ],
-  "additionalSections": [
-    {
-      "number": 8,
-      "title": "Integrasi Pihak Ketiga",
-      "content": "Isi poin tambahan dalam teks/markdown. Kosongkan array ini jika 7 poin sudah memadai."
-    }
-  ],
-  "logicFlowMermaid": "graph LR\\n  A[Pengguna] -->|1. Buka App| B[Landing Page]\\n  B -->|2. Input Ide| C[Plan Generator]\\n  C -->|3. Konfirmasi| D[PRD & Diagram Review]\\n  D -->|4. Build| E[Task AI Agent]",
-  "logicFlowExplanation": "Penjelasan alur diagram horizontal dari kiri ke kanan...",
-  "fullMarkdownText": "# PRD - Project Requirements Document\\n\\n## 1. Overview\\n...\\n\\n## 2. Requirements\\n...\\n\\n## 3. Core Features\\n- **Fase 1**:\\n  - ...\\n- **Fase 2**:\\n  - ...\\n- **Fase 3**:\\n  - ...\\n\\n## 4. User Flow\\n...\\n\\n## 5. Architecture\\n...\\n\\n## 6. Database Schema\\n...\\n\\n## 7. Tech Stack\\n...\\n\\n## 8. (Poin tambahan bila ada)\\n..."
-}`;
-
-  const prompt = `Data Project Plan yang telah disetujui:
-Judul: ${title}
-Deskripsi / product brief: ${description || "Belum tersedia"}
-Plan Summary: ${plan?.summary || ""}
-Fitur Utama: ${JSON.stringify(plan?.specs?.coreFeatures || [])}
-Stack Teknologi: ${JSON.stringify(plan?.specs?.techStack || [])}
-Arsitektur: ${JSON.stringify(plan?.architectureDraft || {})}
-
-Susunkan dokumen PRD yang Wajib memuat 7 poin standar secara lengkap beserta diagram horizontal (graph LR) dalam format JSON yang diminta.
-Setelah menyusun 7 poin wajib, nilai apakah proyek ini memerlukan poin tambahan (8, 9, dst). Tambahkan lewat "additionalSections" hanya jika benar-benar perlu, dan pastikan ikut tertulis di "fullMarkdownText".`;
-
   const rawText = await generateLlmText({
-    prompt,
-    system: systemInstruction,
+    prompt: buildPrdPrompt(title, plan, description),
+    system: buildPrdSystemPrompt(lang),
     conn,
     model,
     lang,
@@ -129,7 +130,7 @@ Setelah menyusun 7 poin wajib, nilai apakah proyek ini memerlukan poin tambahan 
     .filter((s: any) => s && (s.title || s.content))
     .map((s: any, idx: number) => ({
       number: Number(s.number) > 7 ? Number(s.number) : 8 + idx,
-      title: s.title || `Poin Tambahan ${8 + idx}`,
+      title: s.title || additionalPointTitle(lang, 8 + idx),
       content: typeof s.content === "string" ? s.content : String(s.content ?? ""),
     }));
 

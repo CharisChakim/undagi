@@ -7,6 +7,7 @@ import { getSession } from "../../db.ts";
 import { resolveRole, getConnection } from "../connections/store.ts";
 import { LLM_TIMEOUT_MS } from "../llm/call.ts";
 import type { Connection } from "../llm/types.ts";
+import type { Lang } from "../messages.ts";
 import {
   ensureConversationFor,
   getConversation,
@@ -284,6 +285,14 @@ function transientContext(body: Record<string, any>): { workspaceRoot?: string; 
   };
 }
 
+// `language` is the UI language (it also names UI labels in the prompt);
+// `agentLanguage` is "ui" when the user wants the model-facing instructions in
+// that same language. A missing or unknown value means English.
+export function chatLanguages(body: Record<string, any>): { humanLang: Lang; agentLang: Lang } {
+  const humanLang: Lang = body.language === "id" ? "id" : "en";
+  return { humanLang, agentLang: body.agentLanguage === "ui" ? humanLang : "en" };
+}
+
 async function chat(req: Request, res: Response): Promise<void> {
   const body = isRecord(req.body) ? req.body : {};
   let sessionId: string | null;
@@ -339,6 +348,7 @@ async function chat(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const { humanLang, agentLang } = chatLanguages(body);
   const ac = new AbortController();
   const providerSignal = AbortSignal.any([ac.signal, AbortSignal.timeout(LLM_TIMEOUT_MS)]);
   const send = makeSender(res, ac);
@@ -389,6 +399,8 @@ async function chat(req: Request, res: Response): Promise<void> {
       conn: resolved.conn,
       model: resolved.model,
       harnessSettings: parseAgentHarnessSettings(body.harnessSettings),
+      lang: humanLang,
+      agentLang,
       limits: (projectSession?.agentLimits || {}) as any,
       onEvent: (event: unknown) => send(event),
       elicit: withPermissionMode(makeElicit(convId, ac, send, ownedIds), parsePermissionMode(body.permissionMode)),

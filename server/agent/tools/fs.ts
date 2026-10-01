@@ -9,7 +9,7 @@ function sessionRoot(ctx: ToolContext): string | undefined {
 
 async function realRoot(ctx: ToolContext): Promise<string> {
   const root = sessionRoot(ctx);
-  if (!root) throw new Error("Folder kerja belum ditentukan, jadi tool berkas dan perintah tidak tersedia.");
+  if (!root) throw new Error("The working folder is not set, so file and command tools are unavailable.");
   // Root juga dilewatkan ke sandbox agar hasil relatif tidak bergantung pada symlink
   // yang mungkin dipakai pengguna sebagai nama folder kerja.
   return resolveInsideRoot(root, ".");
@@ -63,11 +63,11 @@ const listFiles: ToolSpec = {
   def: {
     name: "list_files",
     description:
-      "Daftar isi satu folder di dalam folder kerja. Pakai untuk menemukan berkas sebelum membacanya, jangan menebak nama berkas. TIDAK rekursif: hanya satu tingkat, dan setiap entri ditandai file atau dir — untuk menelusuri lebih dalam, panggil lagi dengan path dir tersebut.",
+      "List the contents of one folder inside the working folder. Use it to find files before reading them; do not guess file names. NOT recursive: one level only, and each entry is marked file or dir — to go deeper, call it again with that dir's path.",
     parameters: {
       type: "object",
       properties: {
-        dir: { type: "string", description: "Path relatif terhadap folder kerja. Kosongkan untuk akarnya." },
+        dir: { type: "string", description: "Path relative to the working folder. Leave empty for the root." },
       },
       required: [],
     },
@@ -88,13 +88,13 @@ const readFile: ToolSpec = {
   def: {
     name: "read_file",
     description:
-      "Baca isi satu berkas teks di dalam folder kerja. Hanya untuk berkas teks — berkas biner kembali sebagai karakter rusak. Isi lebih dari 60.000 karakter dipotong dan hasilnya menyertakan truncated: true; kalau itu terjadi, jangan menulis ulang berkas tersebut dari isi yang Anda terima, karena bagian yang terpotong akan hilang. startLine dan endLine opsional, 1-based dan inklusif.",
+      "Read the contents of one text file inside the working folder. Text files only — binary files come back as garbled characters. Content over 60,000 characters is cut and the result includes truncated: true; when that happens, do not rewrite the file from the content you received, because the cut part would be lost. startLine and endLine are optional, 1-based and inclusive.",
     parameters: {
       type: "object",
       properties: {
-        file: { type: "string", description: "Path relatif terhadap folder kerja." },
-        startLine: { type: "integer", minimum: 1, description: "Baris awal, 1-based dan inklusif." },
-        endLine: { type: "integer", minimum: 1, description: "Baris akhir, 1-based dan inklusif." },
+        file: { type: "string", description: "Path relative to the working folder." },
+        startLine: { type: "integer", minimum: 1, description: "Start line, 1-based and inclusive." },
+        endLine: { type: "integer", minimum: 1, description: "End line, 1-based and inclusive." },
       },
       required: ["file"],
     },
@@ -116,7 +116,7 @@ const readFile: ToolSpec = {
         startLine < 1 ||
         (endLine !== undefined && (!Number.isInteger(endLine) || endLine < startLine))
       ) {
-        throw new Error("Rentang baris tidak valid. Gunakan startLine/endLine 1-based dan inklusif.");
+        throw new Error("Invalid line range. Use 1-based, inclusive startLine/endLine.");
       }
       const lines = text.split("\n");
       content = lines.slice(startLine - 1, endLine ?? lines.length).join("\n");
@@ -135,12 +135,12 @@ const writeFile: ToolSpec = {
   def: {
     name: "write_file",
     description:
-      "Tulis berkas di dalam folder kerja untuk berkas baru atau penulisan ulang yang memang disengaja; pakai edit_file untuk mengubah berkas yang sudah ada. Folder induk yang belum ada dibuatkan sendiri.",
+      "Write a file inside the working folder, for a new file or a deliberate full rewrite; use edit_file to change an existing file. Missing parent folders are created automatically.",
     parameters: {
       type: "object",
       properties: {
-        file: { type: "string", description: "Path relatif terhadap folder kerja." },
-        content: { type: "string", description: "Isi berkas seutuhnya setelah perubahan." },
+        file: { type: "string", description: "Path relative to the working folder." },
+        content: { type: "string", description: "The complete file content after the change." },
       },
       required: ["file", "content"],
     },
@@ -153,7 +153,7 @@ const writeFile: ToolSpec = {
     const relative = displayPath(root, file);
     const approved = await requireWriteApproval(ctx, `write_file ${relative}`, root);
     if (!approved) {
-      return { error: "Pengguna menolak penulisan berkas ini.", file: relative, written: false };
+      return { error: "The user declined this file write.", file: relative, written: false };
     }
     await fs.mkdir(path.dirname(file), { recursive: true });
     await fs.writeFile(file, content, "utf8");
@@ -165,13 +165,13 @@ const globTool: ToolSpec = {
   def: {
     name: "glob",
     description:
-      "Cari berkas atau folder secara rekursif di dalam folder kerja dengan pola glob. node_modules, .git, dist, build, coverage, .next, dan .venv dipangkas saat traversal; hasil diurutkan dari mtime terbaru.",
+      "Find files or folders recursively inside the working folder with a glob pattern. node_modules, .git, dist, build, coverage, .next, and .venv are pruned during traversal; results are sorted by newest mtime.",
     parameters: {
       type: "object",
       properties: {
-        pattern: { type: "string", description: "Pola glob, misalnya **/*.ts atau **/*.{ts,tsx}." },
-        dir: { type: "string", description: "Folder awal relatif terhadap folder kerja. Kosongkan untuk akarnya." },
-        limit: { type: "integer", minimum: 1, maximum: 200, description: "Jumlah hasil maksimum, default 200." },
+        pattern: { type: "string", description: "Glob pattern, for example **/*.ts or **/*.{ts,tsx}." },
+        dir: { type: "string", description: "Starting folder relative to the working folder. Leave empty for the root." },
+        limit: { type: "integer", minimum: 1, maximum: 200, description: "Maximum number of results, default 200." },
       },
       required: ["pattern"],
     },
@@ -180,10 +180,10 @@ const globTool: ToolSpec = {
   run: async (input: any, ctx) => {
     const root = await realRoot(ctx);
     const pattern = String(input?.pattern ?? "");
-    if (!pattern) throw new Error("Pola glob kosong.");
+    if (!pattern) throw new Error("The glob pattern is empty.");
     const dir = await resolveInsideRoot(root, String(input?.dir ?? "."));
     const requestedLimit = input?.limit === undefined || input?.limit === null ? 200 : Number(input.limit);
-    if (!Number.isInteger(requestedLimit) || requestedLimit < 1) throw new Error("limit harus bilangan bulat positif.");
+    if (!Number.isInteger(requestedLimit) || requestedLimit < 1) throw new Error("limit must be a positive integer.");
     const limit = Math.min(requestedLimit, 200);
     const matches = await collectGlobMatches(root, dir, pattern, false);
     matches.sort((a, b) => b.mtimeMs - a.mtimeMs || a.file.localeCompare(b.file));
@@ -199,7 +199,7 @@ const globTool: ToolSpec = {
 function numberOption(value: unknown, fallback: number, max: number): number {
   if (value === undefined || value === null) return fallback;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0) throw new Error("Nilai opsi harus bilangan bulat tidak negatif.");
+  if (!Number.isInteger(parsed) || parsed < 0) throw new Error("The option value must be a non-negative integer.");
   return Math.min(parsed, max);
 }
 
@@ -227,16 +227,16 @@ const grepTool: ToolSpec = {
   def: {
     name: "grep",
     description:
-      "Cari pola regex di berkas teks dalam folder kerja tanpa shell. Berkas biner dan berkas lebih dari 2 MB dilewati; hasil dibatasi agar tidak membanjiri konteks.",
+      "Search text files in the working folder for a regex pattern, without a shell. Binary files and files over 2 MB are skipped; results are capped so they do not flood the context.",
     parameters: {
       type: "object",
       properties: {
-        pattern: { type: "string", description: "Pola regular expression." },
-        path: { type: "string", description: "Berkas atau folder awal relatif terhadap folder kerja." },
-        glob: { type: "string", description: "Pola glob ketika path menunjuk folder, default **/*." },
-        ignoreCase: { type: "boolean", description: "Abaikan perbedaan huruf besar-kecil." },
-        maxMatches: { type: "integer", minimum: 1, maximum: 200, description: "Jumlah kecocokan maksimum, default 200." },
-        contextLines: { type: "integer", minimum: 0, maximum: 10, description: "Jumlah baris konteks sebelum dan sesudah kecocokan." },
+        pattern: { type: "string", description: "Regular expression pattern." },
+        path: { type: "string", description: "Starting file or folder relative to the working folder." },
+        glob: { type: "string", description: "Glob pattern when path points to a folder, default **/*." },
+        ignoreCase: { type: "boolean", description: "Ignore upper/lower case differences." },
+        maxMatches: { type: "integer", minimum: 1, maximum: 200, description: "Maximum number of matches, default 200." },
+        contextLines: { type: "integer", minimum: 0, maximum: 10, description: "Number of context lines before and after a match." },
       },
       required: ["pattern"],
     },
@@ -504,19 +504,19 @@ const editFile: ToolSpec = {
   def: {
     name: "edit_file",
     description:
-      "Ubah berkas teks dengan penggantian exact-match berurutan. Baca berkas lebih dulu; setiap oldText harus salin persis termasuk spasi dan indentasi. Penolakan atau approval yang ditolak tidak menulis apa pun.",
+      "Change a text file with sequential exact-match replacements. Read the file first; every oldText must be copied exactly, including whitespace and indentation. A rejection or a declined approval writes nothing.",
     parameters: {
       type: "object",
       properties: {
-        file: { type: "string", description: "Path relatif terhadap folder kerja." },
+        file: { type: "string", description: "Path relative to the working folder." },
         edits: {
           type: "array",
           items: {
             type: "object",
             properties: {
-              oldText: { type: "string", description: "Teks lama yang harus muncul persis." },
-              newText: { type: "string", description: "Teks pengganti." },
-              replaceAll: { type: "boolean", description: "Ganti semua kemunculan jika true." },
+              oldText: { type: "string", description: "The old text, which must appear exactly." },
+              newText: { type: "string", description: "The replacement text." },
+              replaceAll: { type: "boolean", description: "Replace all occurrences if true." },
             },
             required: ["oldText", "newText"],
           },
@@ -532,24 +532,24 @@ const editFile: ToolSpec = {
     const relative = displayPath(root, file);
     const original = await fs.readFile(file, "utf8");
     const edits = Array.isArray(input?.edits) ? input.edits : [];
-    if (edits.length === 0) throw new Error("Daftar edits kosong.");
+    if (edits.length === 0) throw new Error("The edits list is empty.");
 
     let working = original;
     const records: SpliceRecord[] = [];
     for (const edit of edits) {
       const oldText = String(edit?.oldText ?? "");
       const newText = String(edit?.newText ?? "");
-      if (oldText === "") return { error: `Teks yang dicari tidak boleh kosong di ${relative}.` };
+      if (oldText === "") return { error: `The text to find must not be empty in ${relative}.` };
       const occurrences = findOccurrences(working, oldText);
       if (occurrences.length === 0) {
         return {
-          error: `Teks yang dicari tidak ditemukan di ${relative}.`,
-          hint: "Salin ulang persis dari read_file, termasuk spasi dan indentasi.",
+          error: `The text to find was not found in ${relative}.`,
+          hint: "Copy it again exactly from read_file, including whitespace and indentation.",
         };
       }
       if (occurrences.length > 1 && edit?.replaceAll !== true) {
         return {
-          error: `Teks itu muncul ${occurrences.length} kali di ${relative}.`,
+          error: `That text appears ${occurrences.length} times in ${relative}.`,
           occurrences: occurrences.length,
           atLines: occurrences.map((offset) => lineNumberAt(working, offset)),
         };
@@ -569,7 +569,7 @@ const editFile: ToolSpec = {
 
     const approved = await requireWriteApproval(ctx, `edit_file ${relative}`, root);
     if (!approved) {
-      return { error: "Pengguna menolak perubahan berkas ini.", file: relative, written: false };
+      return { error: "The user declined this file change.", file: relative, written: false };
     }
     await fs.writeFile(file, working, "utf8");
     return {
@@ -586,12 +586,12 @@ const readFiles: ToolSpec = {
   def: {
     name: "read_files",
     description:
-      "Baca beberapa berkas teks sekaligus. Maksimal 10 berkas; path yang rusak dilaporkan per entri tanpa menggagalkan berkas lain.",
+      "Read several text files at once. At most 10 files; a broken path is reported per entry without failing the other files.",
     parameters: {
       type: "object",
       properties: {
-        files: { type: "array", items: { type: "string" }, description: "Daftar maksimal 10 path relatif." },
-        maxChars: { type: "integer", minimum: 1, description: "Anggaran total karakter, dibagi rata ke setiap berkas." },
+        files: { type: "array", items: { type: "string" }, description: "List of at most 10 relative paths." },
+        maxChars: { type: "integer", minimum: 1, description: "Total character budget, split evenly across the files." },
       },
       required: ["files"],
     },
@@ -600,10 +600,10 @@ const readFiles: ToolSpec = {
   run: async (input: any, ctx) => {
     const root = await realRoot(ctx);
     const files = Array.isArray(input?.files) ? input.files : [];
-    if (files.length > 10) throw new Error("Maksimal 10 berkas per panggilan read_files.");
+    if (files.length > 10) throw new Error("At most 10 files per read_files call.");
     if (files.length === 0) return { files: [] };
     const requestedBudget = input?.maxChars === undefined || input?.maxChars === null ? ctx.limits.maxReadChars : Number(input.maxChars);
-    if (!Number.isInteger(requestedBudget) || requestedBudget < 1) throw new Error("maxChars harus bilangan bulat positif.");
+    if (!Number.isInteger(requestedBudget) || requestedBudget < 1) throw new Error("maxChars must be a positive integer.");
     const budget = Math.min(requestedBudget, ctx.limits.maxReadChars);
     const perFile = Math.max(1, Math.floor(budget / files.length));
     const results: Array<{ file: string; content: string; truncated: boolean; error?: string }> = [];

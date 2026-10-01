@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { AgentTask, FollowUpQuestion, PRDData, ProjectPlan, ProjectSession } from "../types";
+import { agentLanguageFor, loadAgentHarnessSettings } from "./agentHarness";
 import { Language, makeT } from "./i18n";
 import { legacyRuntimeSelection, type RuntimeChatSelection } from "./runtimeChat";
 
@@ -92,7 +93,11 @@ async function postJson(
       "Content-Type": "application/json",
       ...(onProgress ? { Accept: "text/event-stream" } : {}),
     },
-    body: JSON.stringify({ ...(body as Record<string, unknown>), ...targetBody(target) }),
+    body: JSON.stringify({
+      ...(body as Record<string, unknown>),
+      agentLanguage: agentLanguageFor(loadAgentHarnessSettings()),
+      ...targetBody(target),
+    }),
     signal,
   });
 

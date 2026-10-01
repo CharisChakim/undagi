@@ -8,13 +8,13 @@ export const projectTools: ToolSpec[] = [
     def: {
       name: "get_project",
       description:
-        "Baca kondisi proyek saat ini: ringkasan rencana, daftar fitur beserta sub fitur dan prioritasnya, ada atau tidaknya PRD, dan jumlah task per status. Panggil ini lebih dulu sebelum mengubah apa pun, supaya perubahan didasarkan pada isi yang sebenarnya, bukan tebakan.",
+        "Read the current state of the project: the plan summary, the feature list with sub-features and priorities, whether a PRD exists, and the number of tasks per status. Call this first before changing anything, so changes are based on the actual content, not guesses.",
       parameters: { type: "object", properties: {}, required: [] },
     },
     available: () => true,
     async run(_input: unknown, ctx: ToolContext): Promise<unknown> {
       const session = getSession(ctx.sessionId);
-      if (!session) return { error: `Sesi ${ctx.sessionId} tidak ditemukan.` };
+      if (!session) return { error: `Session ${ctx.sessionId} not found.` };
 
       return {
         title: session.input?.title || session.title || "",
@@ -36,23 +36,23 @@ export const projectTools: ToolSpec[] = [
     def: {
       name: "update_features",
       description:
-        "Ganti seluruh daftar fitur utama proyek. Kirim daftar lengkap hasil yang diinginkan, bukan hanya yang berubah — isian lama akan digantikan seutuhnya. Pemakaian ini menandai arsitektur, diagram, roadmap, dan estimasi sebagai tidak lagi sinkron, sehingga pengguna diminta menyelaraskan ulang.",
+        "Replace the entire core feature list of the project. Send the complete desired list, not only what changed — the old entries are replaced in full. Using this marks the architecture, diagram, roadmap, and estimate as no longer in sync, so the user is asked to realign them.",
       parameters: {
         type: "object",
         properties: {
           features: {
             type: "array",
-            description: "Daftar fitur lengkap setelah perubahan.",
+            description: "The complete feature list after the change.",
             items: {
               type: "object",
               properties: {
-                name: { type: "string", description: "Nama fitur, singkat." },
-                description: { type: "string", description: "Satu sampai dua kalimat." },
-                priority: { type: "string", enum: ["P0", "P1", "P2"], description: "P0 MVP, P1 penting, P2 lanjutan." },
+                name: { type: "string", description: "Feature name, short." },
+                description: { type: "string", description: "One to two sentences." },
+                priority: { type: "string", enum: ["P0", "P1", "P2"], description: "P0 MVP, P1 important, P2 later." },
                 subFeatures: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Pecahan konkret, 2-4 kata per butir.",
+                  description: "Concrete breakdown, 2-4 words per item.",
                 },
               },
               required: ["name", "description", "priority", "subFeatures"],
@@ -65,10 +65,10 @@ export const projectTools: ToolSpec[] = [
     available: () => true,
     async run(input: any, ctx: ToolContext): Promise<unknown> {
       const session = getSession(ctx.sessionId);
-      if (!session) return { error: `Sesi ${ctx.sessionId} tidak ditemukan.` };
-      if (!session.plan) return { error: "Proyek ini belum punya rencana, jadi fiturnya belum ada untuk diubah." };
+      if (!session) return { error: `Session ${ctx.sessionId} not found.` };
+      if (!session.plan) return { error: "This project has no plan yet, so there are no features to change." };
       const features = Array.isArray(input?.features) ? input.features : [];
-      if (features.length === 0) return { error: "Daftar fitur kosong. Kirim daftar lengkap hasil yang diinginkan." };
+      if (features.length === 0) return { error: "The feature list is empty. Send the complete desired list." };
 
       session.plan.specs.coreFeatures = features.map((f: any) => ({
         name: String(f?.name ?? "").trim(),
@@ -85,7 +85,7 @@ export const projectTools: ToolSpec[] = [
       return {
         ok: true,
         featureCount: session.plan.specs.coreFeatures.length,
-        note: "Fitur tersimpan. Arsitektur, diagram, roadmap, dan estimasi sekarang ditandai belum sinkron — pengguna bisa menyelaraskannya lewat tombol di halaman review.",
+        note: "Features saved. The architecture, diagram, roadmap, and estimate are now marked as out of sync — the user can realign them with the button on the review page.",
       };
     },
   },
@@ -93,11 +93,11 @@ export const projectTools: ToolSpec[] = [
     def: {
       name: "set_task_status",
       description:
-        "Pindahkan satu task di papan kanban ke kolom lain. Pakai id task persis seperti yang dikembalikan get_project.",
+        "Move one task on the kanban board to another column. Use the task id exactly as returned by get_project.",
       parameters: {
         type: "object",
         properties: {
-          taskId: { type: "string", description: "Id task, misal TASK-01." },
+          taskId: { type: "string", description: "Task id, e.g. TASK-01." },
           status: { type: "string", enum: ["todo", "in_progress", "done"] },
         },
         required: ["taskId", "status"],
@@ -106,10 +106,10 @@ export const projectTools: ToolSpec[] = [
     available: () => true,
     async run(input: any, ctx: ToolContext): Promise<unknown> {
       const session = getSession(ctx.sessionId);
-      if (!session) return { error: `Sesi ${ctx.sessionId} tidak ditemukan.` };
+      if (!session) return { error: `Session ${ctx.sessionId} not found.` };
       const tasks = session.tasks || [];
       const task = tasks.find((t: any) => t.id === input?.taskId);
-      if (!task) return { error: `Task ${input?.taskId} tidak ada. Panggil get_project untuk melihat id yang tersedia.` };
+      if (!task) return { error: `Task ${input?.taskId} does not exist. Call get_project to see the available ids.` };
 
       // Enum di skema tool hanya petunjuk untuk model, bukan aturan yang ditegakkan
       // API. Papan kanban menyaring persis ketiga nilai ini, jadi nilai lain tidak
@@ -117,7 +117,7 @@ export const projectTools: ToolSpec[] = [
       const allowed = ["todo", "in_progress", "done"];
       if (!allowed.includes(input?.status)) {
         return {
-          error: `Status "${input?.status}" tidak dikenal. Pakai salah satu dari: ${allowed.join(", ")}.`,
+          error: `Status "${input?.status}" is not recognized. Use one of: ${allowed.join(", ")}.`,
         };
       }
       task.status = input.status;

@@ -1,4 +1,5 @@
 import { ProjectSession, SessionSummary, LLMConfig, type ProjectPlan } from "../types";
+import { normalizeComplexity } from "./complexity";
 import { loadLanguage, makeT } from "./i18n";
 
 // Riwayat proyek disimpan server-side di SQLite. llmConfig tidak ikut disimpan:
@@ -16,7 +17,7 @@ const lang = () => loadLanguage();
 // Server memilih bahasa pesan errornya dari parameter ini.
 const withLang = (url: string) => `${url}${url.includes("?") ? "&" : "?"}lang=${lang()}`;
 
-function normalizeStoredPlan(value: unknown): ProjectPlan | undefined {
+export function normalizeStoredPlan(value: unknown): ProjectPlan | undefined {
   if (!value || typeof value !== "object") return undefined;
   const plan = value as Partial<ProjectPlan>;
   const specs = plan.specs && typeof plan.specs === "object" ? plan.specs : {} as ProjectPlan["specs"];
@@ -48,7 +49,7 @@ function normalizeStoredPlan(value: unknown): ProjectPlan | undefined {
     estimation: {
       ...estimation,
       totalTimeWeeks: typeof estimation.totalTimeWeeks === "string" ? estimation.totalTimeWeeks : "",
-      complexityLevel: estimation.complexityLevel ?? "Rendah",
+      complexityLevel: normalizeComplexity(estimation.complexityLevel),
       requiredResources: Array.isArray(estimation.requiredResources) ? estimation.requiredResources : [],
       potentialRisks: Array.isArray(estimation.potentialRisks) ? estimation.potentialRisks : [],
     },

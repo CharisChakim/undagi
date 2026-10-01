@@ -11,6 +11,7 @@ import { ApprovalCard } from "./ApprovalCard";
 import { Composer } from "./Composer";
 import { QuestionsCard } from "./QuestionsCard";
 import { ToolCallCard } from "./ToolCallCard";
+import { localizeToolText } from "./toolRenderers";
 import { RuntimeControls } from "./RuntimeControls";
 
 const CONTEXT_RUNTIME_NAMES: Record<string, string> = {
@@ -258,7 +259,7 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
         return (
           <div key={entry.id} className="flex items-start gap-2 rounded-xl border border-warn/30 bg-warn-soft px-3 py-2 text-xs text-warn-ink">
             <PlugZap className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span className="min-w-0 flex-1">MCP {entry.server}: {entry.message} · {t("{count} tools", { count: entry.tools })}</span>
+            <span className="min-w-0 flex-1">MCP {entry.server}: {localizeToolText(t, entry.message)} · {t("{count} tools", { count: entry.tools })}</span>
           </div>
         );
       case "turn_end":
@@ -282,7 +283,7 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
               {/* t() translates the server messages the dictionary knows and passes
                   any other text through unchanged (text with ids, paths, or the
                   provider's own words matches no key). */}
-              <span className="min-w-0 flex-1 whitespace-pre-wrap">{t(entry.message)}</span>
+              <span className="min-w-0 flex-1 whitespace-pre-wrap">{localizeToolText(t, entry.message)}</span>
               {entry.retryable && <button type="button" onClick={() => void onRetry()} disabled={busy} className="shrink-0 font-medium hover:underline disabled:opacity-50">{t("Try again")}</button>}
             </div>
           </div>

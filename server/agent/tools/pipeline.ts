@@ -5,18 +5,26 @@ import { generatePlan } from "../../pipeline/plan.ts";
 import { generatePrd } from "../../pipeline/prd.ts";
 import { generateTasks } from "../../pipeline/tasks.ts";
 import type { Lang } from "../../messages.ts";
+import { newAppTitle } from "../../pipeline/language.ts";
+import type { PipelineOptions } from "../../pipeline/llm.ts";
 import type { ToolContext, ToolSpec } from "../registry.ts";
 
 function sessionOrError(ctx: ToolContext): { session: any } | { error: string } {
   const session = getSession(ctx.sessionId);
   return session
     ? { session }
-    : { error: `Sesi ${ctx.sessionId} tidak ditemukan.` };
+    : { error: `Session ${ctx.sessionId} not found.` };
 }
 
-function languageFor(session: any): Lang {
-  const language = session?.language || session?.lang || session?.input?.language;
-  return language === "id" ? "id" : "en";
+// The chat request carries the UI language; a context without one means "en".
+export function languageFor(ctx: Pick<ToolContext, "lang">): Lang {
+  return ctx.lang === "id" ? "id" : "en";
+}
+
+// Whether the instructions the generators write for coding agents follow the UI
+// language is the user's choice; without one they stay English.
+function optionsFor(ctx: Pick<ToolContext, "agentLang">): PipelineOptions {
+  return { agentLang: ctx.agentLang === "id" ? "id" : "en" };
 }
 
 function saveArtifact(session: any): void {
@@ -38,22 +46,22 @@ function ensureDescription(session: any, value: unknown): string {
 
 const DESCRIPTION_PARAM = {
   type: "string",
-  description: "Ide proyek dari permintaan pengguna. Wajib bila deskripsi proyek belum tersimpan; diabaikan bila sudah ada.",
+  description: "The project idea from the user's request. Required if the project description is not saved yet; ignored if it already exists.",
 };
 
-function titleFor(session: any): string {
-  return String(session?.input?.title || session?.title || session?.plan?.suggestedTitle || "Aplikasi Baru");
+function titleFor(session: any, lang: Lang = "en"): string {
+  return String(session?.input?.title || session?.title || session?.plan?.suggestedTitle || newAppTitle(lang));
 }
 
 function roleConnection(role: "plan" | "prd" | "tasks"): { conn: any; model: string } | { error: string } {
   const resolved = resolveRoleOrAgent(role);
-  return resolved || { error: `Belum ada koneksi LLM aktif untuk tahap ${role}.` };
+  return resolved || { error: `There is no active LLM connection for the ${role} stage.` };
 }
 
 function shortPlanResult(plan: any): Record<string, unknown> {
   return {
     ok: true,
-    summary: plan?.summary || "Plan berhasil dibuat.",
+    summary: plan?.summary || "Plan generated.",
     suggestedTitle: plan?.suggestedTitle || null,
     featureCount: Array.isArray(plan?.specs?.coreFeatures) ? plan.specs.coreFeatures.length : 0,
   };
@@ -62,7 +70,7 @@ function shortPlanResult(plan: any): Record<string, unknown> {
 function shortPrdResult(prd: any): Record<string, unknown> {
   return {
     ok: true,
-    summary: prd?.overview || prd?.executiveSummary || "PRD berhasil dibuat.",
+    summary: prd?.overview || prd?.executiveSummary || "PRD generated.",
     projectTitle: prd?.projectTitle || null,
     additionalSections: Array.isArray(prd?.additionalSections) ? prd.additionalSections.length : 0,
   };
@@ -71,7 +79,7 @@ function shortPrdResult(prd: any): Record<string, unknown> {
 function shortTasksResult(tasks: any[]): Record<string, unknown> {
   return {
     ok: true,
-    summary: `${tasks.length} task berhasil dibuat.`,
+    summary: `${tasks.length} tasks generated.`,
     taskCount: tasks.length,
     taskIds: tasks.map((task) => task?.id).filter((id): id is string => typeof id === "string"),
   };
@@ -104,7 +112,7 @@ const getPlan: ToolSpec = {
   def: {
     name: "get_plan",
     description:
-      "Baca Project Plan lengkap: ringkasan, target pengguna, fitur dan sub fitur, prioritas, tech stack, arsitektur, alur data, diagram Mermaid, roadmap, dan estimasi. Gunakan sebelum mengerjakan task agar implementasi mengikuti rencana yang sudah disetujui.",
+      "Read the full Project Plan: summary, target users, features and sub-features, priorities, tech stack, architecture, data flow, Mermaid diagrams, roadmap, and estimate. Use it before working on a task so the implementation follows the approved plan.",
     parameters: { type: "object", properties: {}, required: [] },
   },
   available: () => true,
@@ -112,7 +120,7 @@ const getPlan: ToolSpec = {
     const found = sessionOrError(ctx);
     if ("error" in found) return found;
     const plan = found.session.plan;
-    if (!plan) return { status: "missing", message: "Plan belum dibuat." };
+    if (!plan) return { status: "missing", message: "The plan has not been created yet." };
 
     return {
       summary: plan.summary || "",
@@ -128,7 +136,7 @@ const getPrd: ToolSpec = {
   def: {
     name: "get_prd",
     description:
-      "Baca PRD lengkap beserta tujuh poin wajib: overview, requirements, core features per fase, user flow, architecture, database schema, tech stack, dan poin tambahan bila ada. Nilai requirements, database schema, dan tech stack dipertahankan apa adanya, termasuk jika sudah berupa teks hasil suntingan pengguna.",
+      "Read the full PRD with its seven mandatory points: overview, requirements, core features per phase, user flow, architecture, database schema, tech stack, and additional points if any. The requirements, database schema, and tech stack values are kept exactly as they are, including when they are already text edited by the user.",
     parameters: { type: "object", properties: {}, required: [] },
   },
   available: () => true,
@@ -136,10 +144,10 @@ const getPrd: ToolSpec = {
     const found = sessionOrError(ctx);
     if ("error" in found) return found;
     const prd = found.session.prd;
-    if (!prd) return { status: "missing", message: "PRD belum dibuat." };
+    if (!prd) return { status: "missing", message: "The PRD has not been created yet." };
 
     return {
-      projectTitle: prd.projectTitle || titleFor(found.session),
+      projectTitle: prd.projectTitle || titleFor(found.session, languageFor(ctx)),
       overview: prd.overview || prd.executiveSummary || "",
       requirements: prd.requirements ?? {
         functional: prd.functionalRequirements || [],
@@ -159,14 +167,14 @@ const getTasks: ToolSpec = {
   def: {
     name: "get_tasks",
     description:
-      "Baca seluruh papan task coding. Setiap task memuat id, fase, judul, prioritas, file target, dependensi, instruksi prompt, langkah verifikasi, dan status terkini.",
+      "Read the whole coding task board. Each task has its id, phase, title, priority, target files, dependencies, prompt instructions, verification steps, and current status.",
     parameters: { type: "object", properties: {}, required: [] },
   },
   available: () => true,
   async run(_input: unknown, ctx: ToolContext): Promise<unknown> {
     const found = sessionOrError(ctx);
     if ("error" in found) return found;
-    if (!Array.isArray(found.session.tasks)) return { status: "missing", message: "Tasks belum dibuat." };
+    if (!Array.isArray(found.session.tasks)) return { status: "missing", message: "The tasks have not been created yet." };
 
     return {
       tasks: found.session.tasks.map((task: any) => ({
@@ -188,7 +196,7 @@ const generatePlanTool: ToolSpec = {
   def: {
     name: "generate_plan",
     description:
-      "Buat atau perbarui Project Plan dari input proyek dan jawaban follow-up yang tersimpan. Gunakan role model plan, simpan hasil ke sesi, lalu kembalikan ringkasan singkat.",
+      "Create or update the Project Plan from the project input and the saved follow-up answers. Uses the plan role model, saves the result to the session, then returns a short summary.",
     parameters: { type: "object", properties: { description: DESCRIPTION_PARAM }, required: [] },
   },
   available: () => true,
@@ -196,7 +204,7 @@ const generatePlanTool: ToolSpec = {
     const found = sessionOrError(ctx);
     if ("error" in found) return found;
     const session = found.session;
-    if (!ensureDescription(session, input?.description)) return { error: "Deskripsi proyek belum diisi." };
+    if (!ensureDescription(session, input?.description)) return { error: "The project description has not been filled in yet." };
 
     const resolved = roleConnection("plan");
     if ("error" in resolved) return resolved;
@@ -211,8 +219,9 @@ const generatePlanTool: ToolSpec = {
       planInput,
       resolved.conn,
       resolved.model,
-      languageFor(session),
+      languageFor(ctx),
       lockedFeatures,
+      optionsFor(ctx),
     );
     session.plan = plan;
     session.planFeaturesEdited = false;
@@ -225,7 +234,7 @@ const generatePrdTool: ToolSpec = {
   def: {
     name: "generate_prd",
     description:
-      "Buat PRD dari Project Plan yang tersimpan menggunakan model role prd. Simpan hasil ke sesi dan kembalikan ringkasan singkat. Panggil get_plan lebih dulu bila perlu.",
+      "Create the PRD from the saved Project Plan using the prd role model. Saves the result to the session and returns a short summary. Call get_plan first if needed.",
     parameters: { type: "object", properties: {}, required: [] },
   },
   available: () => true,
@@ -233,16 +242,17 @@ const generatePrdTool: ToolSpec = {
     const found = sessionOrError(ctx);
     if ("error" in found) return found;
     const session = found.session;
-    if (!session.plan) return { error: "Plan belum dibuat. Buat plan sebelum membuat PRD." };
+    if (!session.plan) return { error: "The plan has not been created yet. Create the plan before creating the PRD." };
 
     const resolved = roleConnection("prd");
     if ("error" in resolved) return resolved;
     const prd = await generatePrd(
-      titleFor(session),
+      titleFor(session, languageFor(ctx)),
       session.plan,
       resolved.conn,
       resolved.model,
-      languageFor(session),
+      languageFor(ctx),
+      optionsFor(ctx),
     );
     session.prd = prd;
     saveArtifact(session);
@@ -254,7 +264,7 @@ const generateTasksTool: ToolSpec = {
   def: {
     name: "generate_tasks",
     description:
-      "Buat task coding atomik dari Project Plan dan PRD yang tersimpan menggunakan model role tasks. Simpan papan task ke sesi dan kembalikan ringkasan singkat.",
+      "Create atomic coding tasks from the saved Project Plan and PRD using the tasks role model. Saves the task board to the session and returns a short summary.",
     parameters: { type: "object", properties: {}, required: [] },
   },
   available: () => true,
@@ -262,20 +272,21 @@ const generateTasksTool: ToolSpec = {
     const found = sessionOrError(ctx);
     if ("error" in found) return found;
     const session = found.session;
-    if (!session.prd) return { error: "PRD belum dibuat. Buat PRD sebelum membuat tasks." };
+    if (!session.prd) return { error: "The PRD has not been created yet. Create the PRD before creating tasks." };
 
     const resolved = roleConnection("tasks");
     if ("error" in resolved) return resolved;
     const generated: any = await generateTasks(
-      titleFor(session),
+      titleFor(session, languageFor(ctx)),
       session.plan || {},
       session.prd,
       resolved.conn,
       resolved.model,
-      languageFor(session),
+      languageFor(ctx),
+      optionsFor(ctx),
     );
     const tasks = Array.isArray(generated) ? generated : generated?.tasks;
-    if (!Array.isArray(tasks)) return { error: "Pipeline tasks tidak mengembalikan daftar task yang valid." };
+    if (!Array.isArray(tasks)) return { error: "The tasks pipeline did not return a valid task list." };
 
     session.tasks = tasks.map((task: any) => ({ ...task, status: task.status || "todo" }));
     saveArtifact(session);
@@ -287,11 +298,11 @@ const askFollowups: ToolSpec = {
   def: {
     name: "ask_followups",
     description:
-      "Ajukan pertanyaan klarifikasi terarah tentang deskripsi proyek. Pertanyaan ditampilkan kepada pengguna melalui kartu interaktif; simpan jawaban pengguna ke input proyek sebelum melanjutkan ke generate_plan.",
+      "Ask targeted clarifying questions about the project description. The questions are shown to the user through an interactive card; save the user's answers to the project input before continuing to generate_plan.",
     parameters: {
       type: "object",
       properties: {
-        round: { type: "integer", description: "Ronde klarifikasi berikutnya, mulai dari 1." },
+        round: { type: "integer", description: "The next clarification round, starting from 1." },
         description: DESCRIPTION_PARAM,
       },
       required: [],
@@ -303,7 +314,7 @@ const askFollowups: ToolSpec = {
     if ("error" in found) return found;
     const session = found.session;
     const description = ensureDescription(session, input?.description);
-    if (!description) return { error: "Deskripsi proyek belum diisi." };
+    if (!description) return { error: "The project description has not been filled in yet." };
 
     const resolved = roleConnection("plan");
     if ("error" in resolved) return resolved;
@@ -322,7 +333,8 @@ const askFollowups: ToolSpec = {
       },
       resolved.conn,
       resolved.model,
-      languageFor(session),
+      languageFor(ctx),
+      optionsFor(ctx),
     );
     const questions = (Array.isArray(generated?.questions) ? generated.questions : []).map((question: any) => ({
       ...question,
@@ -339,7 +351,7 @@ const askFollowups: ToolSpec = {
       return {
         ok: true,
         needsMoreInfo: false,
-        summary: generated?.readinessNote || "Informasi proyek sudah cukup untuk membuat plan.",
+        summary: generated?.readinessNote || "There is enough project information to create the plan.",
         answers: previousAnswers,
       };
     }
@@ -350,7 +362,7 @@ const askFollowups: ToolSpec = {
       return {
         ok: false,
         needsMoreInfo: true,
-        summary: "Pertanyaan follow-up belum mendapat jawaban.",
+        summary: "The follow-up questions have not been answered.",
         questions,
       };
     }
@@ -360,7 +372,7 @@ const askFollowups: ToolSpec = {
     return {
       ok: true,
       needsMoreInfo: generated?.needsMoreInfo !== false,
-      summary: `${Object.keys(answers).length} jawaban follow-up tersimpan.`,
+      summary: `${Object.keys(answers).length} follow-up answers saved.`,
       answers,
       questions,
     };

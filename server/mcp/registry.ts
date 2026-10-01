@@ -77,13 +77,13 @@ function clientFor(server: McpServerRecord): McpClient {
 }
 
 async function listWithBudget(client: McpClient, signal: AbortSignal): Promise<Awaited<ReturnType<McpClient["listTools"]>>> {
-  if (signal.aborted) throw new Error("Permintaan dibatalkan.");
+  if (signal.aborted) throw new Error("The request was cancelled.");
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`MCP tools/list timed out after ${LIST_BUDGET_MS}ms.`)), LIST_BUDGET_MS);
   });
   const aborted = new Promise<never>((_, reject) => {
-    const onAbort = (): void => reject(new Error("Permintaan dibatalkan."));
+    const onAbort = (): void => reject(new Error("The request was cancelled."));
     signal.addEventListener("abort", onAbort, { once: true });
   });
   try {
@@ -157,7 +157,7 @@ export async function mcpToolsFor(
           server: result.server.name,
           state: result.client.state,
           tools: output.length,
-          message: "Batas 100 tool tercapai; sebagian tool MCP dibuang dari giliran ini.",
+          message: "Tool limit of 100 reached; some MCP tools were dropped from this turn.",
         });
         break;
       }

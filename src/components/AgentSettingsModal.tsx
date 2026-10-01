@@ -102,6 +102,13 @@ export const AgentSettingsModal: React.FC<AgentSettingsModalProps> = ({ isOpen, 
           <p className="px-1 text-[11px] leading-relaxed text-faint">
             {t("All are enabled by default. Switch off any layer on its own to drop just its prompt tokens. Lower runtime effort for larger token savings on simple work.")}
           </p>
+          <p className="px-1 pt-2 text-[11px] font-medium text-faint">{t("Language")}</p>
+          <Toggle
+            checked={settings.agentInstructionsFollowUi}
+            title={t("Write agent instructions in the interface language")}
+            description={t("Off (recommended): task instructions and verification steps are written in English, which Codex and Claude Code follow best. Titles and descriptions still use your language.")}
+            onChange={(agentInstructionsFollowUi) => onChange({ ...settings, agentInstructionsFollowUi })}
+          />
         </div>
       </div>
     </div>

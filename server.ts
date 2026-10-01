@@ -20,6 +20,7 @@ import { generateFollowups } from "./server/pipeline/followups.ts";
 import { generatePlan } from "./server/pipeline/plan.ts";
 import { generatePrd } from "./server/pipeline/prd.ts";
 import { generateTasks } from "./server/pipeline/tasks.ts";
+import { agentLangOf } from "./server/pipeline/language.ts";
 import { RUNTIME_CONNECTION } from "./server/pipeline/llm.ts";
 import { parseRuntimeTarget, type RuntimeTextTarget } from "./server/pipeline/runtimeText.ts";
 import type { Connection } from "./server/llm/types.ts";
@@ -148,14 +149,14 @@ app.post("/api/followup-questions", async (req, res) => {
     await streamGeneration(req, res, ({ signal, onProgress }) => {
       const lang = langOf(req);
       const { conn, model, runtime } = pipelineModel("plan", req.body, lang);
-      return generateFollowups(req.body, conn, model, lang, { signal, onProgress, runtime });
+      return generateFollowups(req.body, conn, model, lang, { signal, onProgress, runtime, agentLang: agentLangOf(req, lang) });
     });
     return;
   }
   try {
     const lang = langOf(req);
     const { conn, model, runtime } = pipelineModel("plan", req.body, lang);
-    const data = await generateFollowups(req.body, conn, model, lang, { runtime });
+    const data = await generateFollowups(req.body, conn, model, lang, { runtime, agentLang: agentLangOf(req, lang) });
     res.json(data);
   } catch (err: any) {
     console.error("Error /api/followup-questions:", err);
@@ -169,14 +170,14 @@ app.post("/api/generate-plan", async (req, res) => {
     await streamGeneration(req, res, ({ signal, onProgress }) => {
       const lang = langOf(req);
       const { conn, model, runtime } = pipelineModel("plan", req.body, lang);
-      return generatePlan(req.body, conn, model, lang, req.body?.lockedFeatures, { signal, onProgress, runtime });
+      return generatePlan(req.body, conn, model, lang, req.body?.lockedFeatures, { signal, onProgress, runtime, agentLang: agentLangOf(req, lang) });
     });
     return;
   }
   try {
     const lang = langOf(req);
     const { conn, model, runtime } = pipelineModel("plan", req.body, lang);
-    const data = await generatePlan(req.body, conn, model, lang, req.body?.lockedFeatures, { runtime });
+    const data = await generatePlan(req.body, conn, model, lang, req.body?.lockedFeatures, { runtime, agentLang: agentLangOf(req, lang) });
     res.json(data);
   } catch (err: any) {
     console.error("Error /api/generate-plan:", err);
@@ -191,7 +192,7 @@ app.post("/api/generate-prd", async (req, res) => {
       const { title, plan, description } = req.body;
       const lang = langOf(req);
       const { conn, model, runtime } = pipelineModel("prd", req.body, lang);
-      return generatePrd(title, plan, conn, model, lang, { signal, onProgress, runtime }, description);
+      return generatePrd(title, plan, conn, model, lang, { signal, onProgress, runtime, agentLang: agentLangOf(req, lang) }, description);
     });
     return;
   }
@@ -199,7 +200,7 @@ app.post("/api/generate-prd", async (req, res) => {
     const { title, plan, description } = req.body;
     const lang = langOf(req);
     const { conn, model, runtime } = pipelineModel("prd", req.body, lang);
-    const data = await generatePrd(title, plan, conn, model, lang, { runtime }, description);
+    const data = await generatePrd(title, plan, conn, model, lang, { runtime, agentLang: agentLangOf(req, lang) }, description);
     res.json(data);
   } catch (err: any) {
     console.error("Error /api/generate-prd:", err);
@@ -213,7 +214,7 @@ app.post("/api/generate-tasks", async (req, res) => {
       const { title, plan, prd } = req.body;
       const lang = langOf(req);
       const { conn, model, runtime } = pipelineModel("tasks", req.body, lang);
-      return generateTasks(title, plan, prd, conn, model, lang, { signal, onProgress, runtime });
+      return generateTasks(title, plan, prd, conn, model, lang, { signal, onProgress, runtime, agentLang: agentLangOf(req, lang) });
     });
     return;
   }
@@ -221,7 +222,7 @@ app.post("/api/generate-tasks", async (req, res) => {
     const { title, plan, prd } = req.body;
     const lang = langOf(req);
     const { conn, model, runtime } = pipelineModel("tasks", req.body, lang);
-    const tasks = await generateTasks(title, plan, prd, conn, model, lang, { runtime });
+    const tasks = await generateTasks(title, plan, prd, conn, model, lang, { runtime, agentLang: agentLangOf(req, lang) });
     res.json({ tasks });
   } catch (err: any) {
     console.error("Error /api/generate-tasks:", err);

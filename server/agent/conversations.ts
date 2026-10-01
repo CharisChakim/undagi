@@ -588,7 +588,7 @@ function missingToolCalls(assistant: Message, next: Message | undefined) {
       missing.push({
         type: "tool_result",
         toolCallId: call.id,
-        content: '{"error":"Giliran terputus."}',
+        content: '{"error":"The turn was interrupted."}',
         isError: true,
       });
     }

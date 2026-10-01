@@ -41,7 +41,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ entry, onNavigatePip
   }, [running]);
 
   const navigate = (target: ToolNavigationTarget) => onNavigatePipeline?.(targetStep[target]);
-  const title = renderer.title(entry.input, entry.result);
+  const title = renderer.title(entry.input, entry.result, t);
 
   return (
     <section className="overflow-hidden rounded-xl border border-line bg-surface" aria-label={title}>

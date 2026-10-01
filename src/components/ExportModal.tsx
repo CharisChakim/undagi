@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { ProjectSession } from "../types";
 import { X, Download, FileText, Compass, Bot, FileCode, CheckCircle2 } from "lucide-react";
+import { complexityLabelKey, normalizeComplexity } from "../lib/complexity";
 import { useT } from "../lib/i18n";
 import { agentsMarkdownFilename, buildAgentsMarkdown } from "../lib/agentsMd";
 import { downloadFile } from "../lib/download";
@@ -68,7 +69,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, sessi
     });
     md += `## ESTIMATION & RESOURCES\n`;
     md += `- Total Time: ${session.plan.estimation.totalTimeWeeks}\n`;
-    md += `- Complexity: ${session.plan.estimation.complexityLevel}\n`;
+    md += `- Complexity: ${t(complexityLabelKey(normalizeComplexity(session.plan.estimation.complexityLevel)))}\n`;
 
     downloadFile(`PLAN_${slug}.md`, md, "text/markdown");
   };

@@ -2,6 +2,7 @@ import { parseJsonFromLlm } from "../llm/json.ts";
 import type { Connection } from "../llm/types.ts";
 import type { Lang } from "../messages.ts";
 import { msg } from "../messages.ts";
+import { EXAMPLE_VALUES_NOTE, languageDirective, newAppTitle } from "./language.ts";
 import { generateLlmText, type PipelineOptions } from "./llm.ts";
 
 export interface FollowupInput {
@@ -13,10 +14,85 @@ export interface FollowupInput {
   round?: number;
 }
 
-const outputLanguage = (lang: Lang): string =>
-  lang === "id"
-    ? "Gunakan Bahasa Indonesia yang profesional, jelas, dan ramah untuk SELURUH nilai teks pada JSON keluaran."
-    : "Write EVERY text value in the JSON output in professional, clear, friendly English.";
+// Round 1 forces this option verbatim, so it has to be in the user's language.
+export const NO_AI_OPTION: Record<Lang, string> = {
+  id: "Tidak perlu AI, cukup logika biasa",
+  en: "No AI needed, plain logic is enough",
+};
+
+export function buildFollowupsSystemPrompt(humanLang: Lang, currentRound: number): string {
+  return `You are a Lead Software Architect & Senior Product Manager.
+Your task is to clarify the user's app idea/description until you are truly confident you can compose the architecture and project plan without guessing.
+${languageDirective({ humanLang })}
+
+QUESTION COUNT RULES:
+- There is NO limit on the number of questions. Ask as many as you genuinely need, no more.
+- This process is staged (multi-round). You will be called again along with the user's previous answers.
+- If, after reading the existing answers, there is STILL a material doubt (something that would make you guess when composing the architecture, data schema, or feature priority), ask follow-up questions in this round.
+- If the information is already SUFFICIENT to compose a mature plan, return "questions": [] and "needsMoreInfo": false.
+- DO NOT repeat questions that have already been answered, and do not ask about things whose answer is already implied in the description.
+- Do not ask just to fill a quota. One sharp question is better than five filler questions.
+${
+  currentRound === 1
+    ? `
+MANDATORY IN THIS ROUND 1:
+- Include one question with the category "technical" that confirms whether this app truly needs an AI/LLM component, UNLESS the user's description already explicitly names AI as a core function.
+- That question MUST have the option "${NO_AI_OPTION[humanLang]}" as one of its options.
+- Do not assume the project needs AI just because this planning is AI-assisted. Many apps are better without an LLM.`
+    : ""
+}
+
+YOU MUST INCLUDE 3 to 4 structured answer choices (options) for every question so the user can just pick with 1 click or fill in a custom answer.
+
+Return the response EXACTLY in the following JSON format with no extra text outside the JSON. ${EXAMPLE_VALUES_NOTE}
+{
+  "needsMoreInfo": true,
+  "readinessNote": "Short explanation: what is still missing, or why the information is already sufficient.",
+  "questions": [
+    {
+      "id": "r${currentRound}q1",
+      "category": "scope",
+      "question": "Targeted question...",
+      "explanation": "Reason why this question matters for development...",
+      "suggestedAnswer": "Recommended answer",
+      "options": [
+        "Option A: Simple & Fast",
+        "Option B: Comprehensive with Auth & Database",
+        "Option C: Enterprise with Analytics & Multi-tenant"
+      ]
+    }
+  ]
+}
+
+Use the prefix "r${currentRound}q" on every id so ids stay unique across rounds.`;
+}
+
+export function buildFollowupsPrompt(input: FollowupInput, humanLang: Lang): string {
+  const { title, description, targetAudience, techStackPreference, previousAnswers, round } = input;
+  const currentRound = Number(round) || 1;
+  const priorQa =
+    previousAnswers && typeof previousAnswers === "object" && Object.keys(previousAnswers).length > 0
+      ? Object.entries(previousAnswers)
+          .map(([q, a]) => `- ${q}\n  Answer: ${a}`)
+          .join("\n")
+      : "";
+
+  return `Project Information:
+Project Title: ${title || newAppTitle(humanLang)}
+Project Description:
+${description}
+Target Users (If Any): ${targetAudience || "Not specified yet"}
+Expected Tech Stack (If Any): ${techStackPreference || "Open / AI recommendation"}
+
+This is CLARIFICATION ROUND ${currentRound}.
+${
+  priorQa
+    ? `Questions the user ALREADY answered in previous rounds:\n${priorQa}\n\nAssess whether the answers above are sufficient. If there is still material doubt, ask follow-up questions that have NOT been asked before. If sufficient, return empty questions with needsMoreInfo: false.`
+    : `There are no previous answers yet. Ask as many initial clarifying questions as you need.`
+}
+
+Answer in the JSON format that has been specified. Include the "options" field with at least 3 brief choices for every question.`;
+}
 
 export async function generateFollowups(
   input: FollowupInput,
@@ -25,88 +101,12 @@ export async function generateFollowups(
   lang: Lang,
   options?: PipelineOptions,
 ): Promise<any> {
-  const {
-    title,
-    description,
-    targetAudience,
-    techStackPreference,
-    previousAnswers,
-    round,
-  } = input;
-
-  const currentRound = Number(round) || 1;
-  const priorQa =
-    previousAnswers && typeof previousAnswers === "object" && Object.keys(previousAnswers).length > 0
-      ? Object.entries(previousAnswers)
-          .map(([q, a]) => `- ${q}\n  Jawaban: ${a}`)
-          .join("\n")
-      : "";
-
-  const systemInstruction = `Anda adalah Lead Software Architect & Product Manager Senior.
-Tugas Anda adalah mengklarifikasi ide/deskripsi aplikasi pengguna sampai Anda benar-benar yakin bisa menyusun arsitektur dan rencana proyek tanpa menebak.
-${outputLanguage(lang)}
-
-ATURAN JUMLAH PERTANYAAN:
-- TIDAK ADA batas jumlah pertanyaan. Ajukan sebanyak yang benar-benar Anda perlukan, tidak lebih.
-- Proses ini bertahap (multi-ronde). Anda akan dipanggil ulang beserta jawaban pengguna sebelumnya.
-- Jika setelah membaca jawaban yang ada MASIH ADA keraguan material (hal yang akan membuat Anda menebak saat menyusun arsitektur, skema data, atau prioritas fitur), ajukan pertanyaan lanjutan pada ronde ini.
-- Jika informasi sudah CUKUP untuk menyusun rencana yang matang, kembalikan "questions": [] dan "needsMoreInfo": false.
-- JANGAN mengulang pertanyaan yang sudah dijawab, dan jangan bertanya hal yang jawabannya sudah tersirat di deskripsi.
-- Jangan bertanya hanya untuk memenuhi kuota. Satu pertanyaan tajam lebih baik daripada lima pertanyaan basa-basi.
-${
-  currentRound === 1
-    ? `
-WAJIB PADA RONDE 1 INI:
-- Sertakan satu pertanyaan berkategori "technical" yang mengkonfirmasi apakah aplikasi ini benar-benar memerlukan komponen AI/LLM, KECUALI deskripsi pengguna sudah menyebut AI secara eksplisit sebagai fungsi inti.
-- Pertanyaan itu WAJIB punya pilihan "Tidak perlu AI, cukup logika biasa" sebagai salah satu options.
-- Jangan berasumsi proyek butuh AI hanya karena perencanaan ini dibantu AI. Banyak aplikasi lebih baik tanpa LLM.`
-    : ""
-}
-
-WAJIB SERTAKAN 3 hingga 4 pilihan jawaban terstruktur (options) untuk setiap pertanyaan agar pengguna tinggal memilih dengan 1 klik atau mengisi jawaban kustom.
-
-Kembalikan respon PERSIS dalam format JSON berikut tanpa teks tambahan di luar JSON:
-{
-  "needsMoreInfo": true,
-  "readinessNote": "Penjelasan singkat: apa yang masih kurang, atau alasan mengapa informasi sudah cukup.",
-  "questions": [
-    {
-      "id": "r${currentRound}q1",
-      "category": "scope",
-      "question": "Pertanyaan terarah...",
-      "explanation": "Alasan mengapa pertanyaan ini penting untuk pengembangan...",
-      "suggestedAnswer": "Jawaban yang direkomendasikan",
-      "options": [
-        "Pilihan A: Sederhana & Cepat",
-        "Pilihan B: Komprehensif dengan Auth & Database",
-        "Pilihan C: Enterprise dengan Analytics & Multi-tenant"
-      ]
-    }
-  ]
-}
-
-Gunakan prefix "r${currentRound}q" pada setiap id agar id tetap unik antar ronde.`;
-
-  const prompt = `Informasi Proyek:
-Judul Proyek: ${title || "Aplikasi Baru"}
-Deskripsi Proyek:
-${description}
-Target Pengguna (Jika Ada): ${targetAudience || "Belum ditentukan"}
-Ekspektasi Stack Teknologi (Jika Ada): ${techStackPreference || "Bebas / Rekomendasi AI"}
-
-Ini adalah RONDE KLARIFIKASI KE-${currentRound}.
-${
-  priorQa
-    ? `Pertanyaan yang SUDAH dijawab pengguna pada ronde sebelumnya:\n${priorQa}\n\nNilai apakah jawaban di atas sudah cukup. Jika masih ada keraguan material, ajukan pertanyaan lanjutan yang BELUM pernah ditanyakan. Jika sudah cukup, kembalikan questions kosong dengan needsMoreInfo: false.`
-    : `Belum ada jawaban sebelumnya. Ajukan pertanyaan klarifikasi awal sebanyak yang Anda perlukan.`
-}
-
-Jawab dalam format JSON yang telah ditentukan. Sertakan bidang "options" dengan minimal 3 pilihan ringkas untuk setiap pertanyaan.`;
+  const currentRound = Number(input.round) || 1;
 
   if (!conn.baseUrl) throw new Error(msg(lang, "baseUrlRequired"));
   const rawText = await generateLlmText({
-    prompt,
-    system: systemInstruction,
+    prompt: buildFollowupsPrompt(input, lang),
+    system: buildFollowupsSystemPrompt(lang, currentRound),
     conn,
     model,
     lang,

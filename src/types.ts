@@ -243,9 +243,13 @@ export interface RoadmapPhase {
   deliverables: string[];
 }
 
+// Bahasa-netral. Sesi lama menyimpan 'Rendah'/'Sedang'/... — dinormalkan oleh
+// normalizeComplexity (src/lib/complexity.ts) saat dimuat.
+export type ComplexityLevel = 'low' | 'medium' | 'high' | 'very_high';
+
 export interface Estimation {
   totalTimeWeeks: string;
-  complexityLevel: 'Rendah' | 'Sedang' | 'Tinggi' | 'Sangat Tinggi';
+  complexityLevel: ComplexityLevel;
   requiredResources: string[];
   potentialRisks: { risk: string; mitigation: string }[];
 }

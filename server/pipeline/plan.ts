@@ -2,6 +2,7 @@ import { parseJsonFromLlm } from "../llm/json.ts";
 import type { Connection } from "../llm/types.ts";
 import type { Lang } from "../messages.ts";
 import { msg } from "../messages.ts";
+import { EXAMPLE_VALUES_NOTE, languageDirective } from "./language.ts";
 import { generateLlmText, type PipelineOptions } from "./llm.ts";
 
 export interface PlanInput {
@@ -12,22 +13,193 @@ export interface PlanInput {
   answers?: Record<string, unknown>;
 }
 
-const outputLanguage = (lang: Lang): string =>
-  lang === "id"
-    ? "Gunakan Bahasa Indonesia yang profesional, jelas, dan ramah untuk SELURUH nilai teks pada JSON keluaran."
-    : "Write EVERY text value in the JSON output in professional, clear, friendly English.";
+const DIAGRAM_RULES = `Critical rules for Logic / Architecture Diagrams:
+- Produce HORIZONTAL Mermaid.js syntax USING 'graph LR' OR 'flowchart LR' (left to right, not vertical).
+- Make sure the Mermaid syntax is VALID with no illegal characters.
+- Group nodes with 'subgraph' blocks per layer (e.g. Client, Backend, Data & External Services). A flat diagram without subgraphs makes the lines cross each other.
+- MAXIMUM 12 nodes. Merge similar services into one node instead of splitting them one by one.
+- Label only the edges that really need explaining. Plain edges are tidier than a repeated label such as "Query" on many lines.
+- Node and edge labels are user-facing text, so write them in the user-facing language. Keep Mermaid keywords, node ids and syntax exactly as Mermaid requires.`;
 
-const DIAGRAM_RULES = `Sangat Penting untuk Diagram Logika / Arsitektur:
-- Buatkan sintaks Mermaid.js HORIZONTAL MENGGUNAKAN 'graph LR' ATAU 'flowchart LR' (kiri ke kanan, bukan vertikal).
-- Pastikan sintaks Mermaid VALID tanpa karakter ilegal.
-- Kelompokkan node dengan blok 'subgraph' per lapisan (misal Client, Backend, Data & Layanan Eksternal). Diagram datar tanpa subgraph membuat garis saling silang.
-- MAKSIMAL 12 node. Gabungkan service sejenis menjadi satu node daripada memecahnya satu per satu.
-- Beri label hanya pada edge yang benar-benar perlu dijelaskan. Edge polos lebih rapi daripada label berulang seperti "Query" di banyak garis.`;
+const AI_RULES = `Rules for AI / LLM components:
+- Include an AI/LLM layer, component, service, or cost ONLY if the app's core function genuinely requires it (e.g. chatbot, automatic summarization, smart recommendations, semantic search).
+- If the need for AI is not evident from the user's description and clarification answers, do NOT add an "AI Engine", a model API key, or any AI service. CRUD apps, dashboards, point-of-sale, or data management apps usually do NOT need an LLM.
+- Adding AI that is not needed is a serious mistake: it raises cost, complexity, and project risk for no reason.`;
 
-const AI_RULES = `Aturan komponen AI / LLM:
-- Sertakan layer, komponen, service, atau biaya AI/LLM HANYA jika fungsi inti aplikasi memang menuntutnya (misal chatbot, ringkasan otomatis, rekomendasi cerdas, pencarian semantik).
-- Jika kebutuhan AI tidak terbukti dari deskripsi dan jawaban klarifikasi pengguna, JANGAN menambahkan "AI Engine", API key model, atau service AI apa pun. Aplikasi CRUD, dashboard, kasir, atau manajemen data biasanya TIDAK memerlukan LLM.
-- Menambahkan AI yang tidak dibutuhkan adalah kesalahan serius: menaikkan biaya, kompleksitas, dan risiko proyek tanpa alasan.`;
+const formatAnswers = (answers: PlanInput["answers"]): string =>
+  answers && typeof answers === "object"
+    ? Object.entries(answers).map(([q, a]) => `- ${q}: ${a}`).join("\n")
+    : "No additional answers from the follow-up.";
+
+export function buildPlanSystemPrompt(humanLang: Lang): string {
+  return `You are a leading System Architect & Enterprise Product Planner.
+${languageDirective({ humanLang })}
+Your task is to write a comprehensive "Project Plan & Architecture Specification" document based on the app description and the user's clarifications.
+
+${DIAGRAM_RULES}
+
+${AI_RULES}
+
+Critical rules for Sub Features:
+- Every feature in "coreFeatures" MUST be broken down into 2 to 6 sub features in the "subFeatures" field.
+- A sub feature is a concrete part that can be worked on as a separate unit, not a repetition of the feature name.
+- Keep them brief (2-4 words) like a card title, e.g. "Candlestick View", "Change Timeframe", "Configure Sync".
+- Do not write long sentences or explanations in sub features.
+
+The user only gives a one-paragraph idea; the title, target users, and stack are NOT asked through a form.
+- Infer the most suitable target users and stack yourself.
+- Propose a short project name (2-4 words) in the "suggestedTitle" field. Do not use the idea sentence as the title.
+
+Return the response EXACTLY in the following JSON format with no extra text. ${EXAMPLE_VALUES_NOTE}
+{
+  "suggestedTitle": "Short Project Name",
+  "summary": "Executive summary of the project plan...",
+  "specs": {
+    "targetAudience": "Description of the specific target users...",
+    "keyValueProposition": "The app's main selling point...",
+    "coreFeatures": [
+      {
+        "name": "Feature Name",
+        "description": "Detailed description and function of the feature...",
+        "priority": "P0", // "P0" (Required MVP), "P1" (Important), or "P2" (Optional/Later Stage)
+        "subFeatures": [
+          "Concrete sub feature that can be worked on separately",
+          "Second sub feature",
+          "Third sub feature"
+        ]
+      }
+    ],
+    "techStack": [
+      {
+        "layer": "Frontend / Backend / Database / Deployment (add AI Engine ONLY if the project truly needs it)",
+        "technology": "Technology Name (e.g. React + Tailwind, Node.js + Express, PostgreSQL)",
+        "rationale": "Reason for choosing the technology..."
+      }
+    ]
+  },
+  "architectureDraft": {
+    "overview": "Description of the overall system architecture...",
+    "components": [
+      {
+        "name": "Component Name",
+        "purpose": "Purpose of the component...",
+        "type": "Client UI / REST API / Background Worker / Database / Service"
+      }
+    ],
+    "dataFlow": "Explanation of the main data flow from the client to the server down to persistent storage...",
+    "securityAndAuth": "Security, encryption, and authentication strategy...",
+    "diagramMermaid": "graph LR\\n  subgraph Client\\n    UI[User Interface]\\n  end\\n  subgraph Backend\\n    API[Application Server]\\n    Worker[Background Worker]\\n  end\\n  subgraph Data\\n    DB[(Database)]\\n    Files[(Object Storage)]\\n  end\\n  UI -->|REST| API\\n  API --> Worker\\n  API --> DB\\n  Worker --> DB\\n  API --> Files"
+  },
+  "roadmap": [
+    {
+      "phase": "Phase 1",
+      "title": "MVP Setup & Core Mechanics",
+      "duration": "1-2 weeks",
+      "deliverables": [
+        "Repository initialization & configuration",
+        "Initial database schema",
+        "Basic UI implementation"
+      ]
+    }
+  ],
+  "estimation": {
+    "totalTimeWeeks": "4-6 weeks",
+    "complexityLevel": "medium", // exactly one of "low", "medium", "high", "very_high"
+    "requiredResources": [
+      "1 Frontend Developer",
+      "1 Backend Engineer",
+      "Hosting & domain"
+    ],
+    "potentialRisks": [
+      {
+        "risk": "Description of the technical/scope risk...",
+        "mitigation": "Preventive step/solution..."
+      }
+    ]
+  }
+}`;
+}
+
+export function buildPlanPrompt(input: PlanInput): string {
+  const { title, description, targetAudience, techStackPreference, answers } = input;
+  return `The user's idea:
+${description}
+${title ? `\nTemporary name used by the system: ${title} (replace it with your own proposal in "suggestedTitle")` : ""}
+${targetAudience ? `Target Users: ${targetAudience}` : ""}
+${techStackPreference ? `Preferred Technology: ${techStackPreference}` : ""}
+
+Additional Answers & Clarifications from the User:
+${formatAnswers(answers)}
+
+Create a mature, efficient Project Plan & Application Architecture that includes a HORIZONTAL diagram (graph LR).
+Infer the target users and stack yourself if they are not mentioned above.
+Every feature MUST have "subFeatures" containing 2-6 brief breakdowns. Answer in the JSON format according to the schema.`;
+}
+
+// Mode penyelarasan ulang. Meminta model menyalin ulang coreFeatures terbukti
+// gagal: selama bidang itu ada di skema contoh, model kecil mengisinya dengan
+// fitur karangannya sendiri lalu merancang arsitektur untuk fitur itu. Maka
+// di sini coreFeatures dihapus dari skema — model hanya diminta menurunkan
+// bagian lain, dan daftar fitur dipasang kembali oleh server.
+export function buildPlanResyncSystemPrompt(lockedFeatures: unknown[], humanLang: Lang): string {
+  return `You are a leading System Architect & Enterprise Product Planner.
+${languageDirective({ humanLang })}
+The feature list of this application is ALREADY FINAL and set by the user. You are NOT asked to compose, evaluate, add to, or change the feature list.
+Your task is ONLY to derive the architecture, stack, roadmap, and estimation that serve EXACTLY the following features:
+
+${JSON.stringify(lockedFeatures, null, 2)}
+
+You are forbidden from designing components, roadmap phases, technologies, or costs for capabilities that are not in the feature list above.
+
+${DIAGRAM_RULES}
+
+${AI_RULES}
+
+Return the response EXACTLY in the following JSON format with no extra text. Note: there is NO "coreFeatures" field in this schema. ${EXAMPLE_VALUES_NOTE}
+{
+  "suggestedTitle": "Short Project Name",
+  "summary": "Executive summary of the project plan...",
+  "specs": {
+    "targetAudience": "Description of the specific target users...",
+    "keyValueProposition": "The app's main selling point...",
+    "techStack": [
+      { "layer": "Frontend", "technology": "Technology Name", "rationale": "Reason for choosing..." }
+    ]
+  },
+  "architectureDraft": {
+    "overview": "Description of the overall system architecture...",
+    "components": [
+      { "name": "Component Name", "purpose": "Purpose of the component...", "type": "Client UI / REST API / Background Worker / Database / Service" }
+    ],
+    "dataFlow": "Explanation of the main data flow...",
+    "securityAndAuth": "Security and authentication strategy...",
+    "diagramMermaid": "graph LR\\n  subgraph Client\\n    UI[User Interface]\\n  end\\n  subgraph Backend\\n    API[Application Server]\\n  end\\n  subgraph Data\\n    DB[(Database)]\\n  end\\n  UI -->|REST| API\\n  API --> DB"
+  },
+  "roadmap": [
+    { "phase": "Phase 1", "title": "Phase title", "duration": "1-2 weeks", "deliverables": ["..."] }
+  ],
+  "estimation": {
+    "totalTimeWeeks": "4-6 weeks",
+    "complexityLevel": "medium", // exactly one of "low", "medium", "high", "very_high"
+    "requiredResources": ["1 Frontend Developer", "1 Backend Engineer"],
+    "potentialRisks": [{ "risk": "...", "mitigation": "..." }]
+  }
+}`;
+}
+
+export function buildPlanResyncPrompt(input: PlanInput): string {
+  const { description, targetAudience, techStackPreference, answers } = input;
+  return `Context of the user's original idea:
+${description}
+${targetAudience ? `Target Users: ${targetAudience}` : ""}
+${techStackPreference ? `Preferred Technology: ${techStackPreference}` : ""}
+
+Additional Answers & Clarifications from the User:
+${formatAnswers(answers)}
+
+The feature list is final (it is in the system instructions). Compose the architecture, techStack, roadmap, and estimation that serve exactly those features.
+Do not output the "coreFeatures" field. Answer in the JSON format according to the schema.`;
+}
 
 export async function generatePlan(
   input: PlanInput,
@@ -37,187 +209,21 @@ export async function generatePlan(
   lockedFeatures?: unknown[],
   options?: PipelineOptions,
 ): Promise<any> {
-  const { title, description, targetAudience, techStackPreference, answers } = input;
-
-  const answersFormatted = answers && typeof answers === "object"
-    ? Object.entries(answers).map(([q, a]) => `- ${q}: ${a}`).join("\n")
-    : "Tidak ada jawaban tambahan dari follow-up.";
-
   const hasLock = Array.isArray(lockedFeatures) && lockedFeatures.length > 0;
-
-  const systemInstruction = `Anda adalah System Architect & Enterprise Product Planner terkemuka.
-${outputLanguage(lang)}
-Tugas Anda adalah menyusun dokumen "Project Plan & Architecture Specification" yang komprehensif berdasarkan deskripsi aplikasi dan klarifikasi pengguna.
-
-${DIAGRAM_RULES}
-
-${AI_RULES}
-
-Sangat Penting untuk Sub Fitur:
-- Setiap fitur di "coreFeatures" WAJIB dipecah menjadi 2 sampai 6 sub fitur pada bidang "subFeatures".
-- Sub fitur adalah bagian konkret yang bisa dikerjakan sebagai unit terpisah, bukan pengulangan nama fitur.
-- Tulis ringkas (2-4 kata) seperti judul kartu, misal "Tampilan Candlestick", "Ganti Timeframe", "Atur Sinkron".
-- Jangan menulis kalimat panjang atau penjelasan pada sub fitur.
-
-Pengguna hanya memberi satu paragraf ide; judul, target pengguna, dan stack TIDAK ditanyakan lewat form.
-- Simpulkan sendiri target pengguna dan stack yang paling sesuai.
-- Usulkan nama proyek yang singkat (2-4 kata) pada bidang "suggestedTitle". Jangan memakai kalimat ide sebagai judul.
-
-Kembalikan respon PERSIS dalam format JSON berikut tanpa teks tambahan:
-{
-  "suggestedTitle": "Nama Proyek Singkat",
-  "summary": "Ringkasan eksekutif rencana proyek...",
-  "specs": {
-    "targetAudience": "Penjelasan target pengguna spesifik...",
-    "keyValueProposition": "Nilai jual utama aplikasi...",
-    "coreFeatures": [
-      {
-        "name": "Nama Fitur",
-        "description": "Detail deskripsi dan fungsi fitur...",
-        "priority": "P0", // "P0" (MVP Wajib), "P1" (Penting), atau "P2" (Opsional/Tahap Lanjutan)
-        "subFeatures": [
-          "Sub fitur konkret yang bisa dikerjakan terpisah",
-          "Sub fitur kedua",
-          "Sub fitur ketiga"
-        ]
-      }
-    ],
-    "techStack": [
-      {
-        "layer": "Frontend / Backend / Database / Deployment (tambahkan AI Engine HANYA bila proyek benar-benar butuh)",
-        "technology": "Nama Teknologi (misal React + Tailwind, Node.js + Express, PostgreSQL)",
-        "rationale": "Alasan pemilihan teknologi..."
-      }
-    ]
-  },
-  "architectureDraft": {
-    "overview": "Deskripsi arsitektur sistem secara menyeluruh...",
-    "components": [
-      {
-        "name": "Nama Komponen",
-        "purpose": "Tujuan komponen...",
-        "type": "Client UI / REST API / Background Worker / Database / Service"
-      }
-    ],
-    "dataFlow": "Penjelasan alur data utama dari client ke server hingga persistent storage...",
-    "securityAndAuth": "Strategi keamanan, enkripsi, dan otentikasi...",
-    "diagramMermaid": "graph LR\\n  subgraph Client\\n    UI[User Interface]\\n  end\\n  subgraph Backend\\n    API[Application Server]\\n    Worker[Background Worker]\\n  end\\n  subgraph Data\\n    DB[(Database)]\\n    Files[(Object Storage)]\\n  end\\n  UI -->|REST| API\\n  API --> Worker\\n  API --> DB\\n  Worker --> DB\\n  API --> Files"
-  },
-  "roadmap": [
-    {
-      "phase": "Fase 1",
-      "title": "MVP Setup & Core Mechanics",
-      "duration": "1-2 Minggu",
-      "deliverables": [
-        "Inisialisasi repositori & konfigurasi",
-        "Skema database awal",
-        "Implementasi UI Dasar"
-      ]
-    }
-  ],
-  "estimation": {
-    "totalTimeWeeks": "4-6 Minggu",
-    "complexityLevel": "Sedang", // "Rendah", "Sedang", "Tinggi", "Sangat Tinggi"
-    "requiredResources": [
-      "1 Frontend Developer",
-      "1 Backend Engineer",
-      "Hosting & domain"
-    ],
-    "potentialRisks": [
-      {
-        "risk": "Deskripsi risiko teknis/skop...",
-        "mitigation": "Langkah pencegahan/solusi..."
-      }
-    ]
-  }
-}`;
-
-  const prompt = `Ide dari pengguna:
-${description}
-${title ? `\nNama sementara yang dipakai sistem: ${title} (ganti dengan usulan Anda sendiri di "suggestedTitle")` : ""}
-${targetAudience ? `Target Pengguna: ${targetAudience}` : ""}
-${techStackPreference ? `Teknologi Diharapkan: ${techStackPreference}` : ""}
-
-Jawaban & Klarifikasi Tambahan dari Pengguna:
-${answersFormatted}
-
-Buatkan Project Plan & Arsitektur Aplikasi yang matang, efisien, dan menyertakan diagram HORIZONTAL (graph LR).
-Simpulkan sendiri target pengguna dan stack bila tidak disebutkan di atas.
-Setiap fitur WAJIB memiliki "subFeatures" berisi 2-6 pecahan ringkas. Jawab dalam format JSON sesuai skema.`;
-
-  // Mode penyelarasan ulang. Meminta model menyalin ulang coreFeatures terbukti
-  // gagal: selama bidang itu ada di skema contoh, model kecil mengisinya dengan
-  // fitur karangannya sendiri lalu merancang arsitektur untuk fitur itu. Maka
-  // di sini coreFeatures dihapus dari skema — model hanya diminta menurunkan
-  // bagian lain, dan daftar fitur dipasang kembali oleh server.
-  const resyncSystemInstruction = `Anda adalah System Architect & Enterprise Product Planner terkemuka.
-${outputLanguage(lang)}
-Daftar fitur aplikasi ini SUDAH FINAL dan ditetapkan pengguna. Anda TIDAK diminta menyusun, menilai, menambah, atau mengubah daftar fitur.
-Tugas Anda HANYA menurunkan arsitektur, stack, roadmap, dan estimasi yang melayani TEPAT fitur-fitur berikut:
-
-${JSON.stringify(lockedFeatures, null, 2)}
-
-Dilarang merancang komponen, tahapan roadmap, teknologi, atau biaya untuk kemampuan yang tidak ada dalam daftar fitur di atas.
-
-${DIAGRAM_RULES}
-
-${AI_RULES}
-
-Kembalikan respon PERSIS dalam format JSON berikut tanpa teks tambahan. Perhatikan: TIDAK ADA bidang "coreFeatures" di skema ini.
-{
-  "suggestedTitle": "Nama Proyek Singkat",
-  "summary": "Ringkasan eksekutif rencana proyek...",
-  "specs": {
-    "targetAudience": "Penjelasan target pengguna spesifik...",
-    "keyValueProposition": "Nilai jual utama aplikasi...",
-    "techStack": [
-      { "layer": "Frontend", "technology": "Nama Teknologi", "rationale": "Alasan pemilihan..." }
-    ]
-  },
-  "architectureDraft": {
-    "overview": "Deskripsi arsitektur sistem secara menyeluruh...",
-    "components": [
-      { "name": "Nama Komponen", "purpose": "Tujuan komponen...", "type": "Client UI / REST API / Background Worker / Database / Service" }
-    ],
-    "dataFlow": "Penjelasan alur data utama...",
-    "securityAndAuth": "Strategi keamanan dan otentikasi...",
-    "diagramMermaid": "graph LR\\n  subgraph Client\\n    UI[User Interface]\\n  end\\n  subgraph Backend\\n    API[Application Server]\\n  end\\n  subgraph Data\\n    DB[(Database)]\\n  end\\n  UI -->|REST| API\\n  API --> DB"
-  },
-  "roadmap": [
-    { "phase": "Fase 1", "title": "Judul fase", "duration": "1-2 Minggu", "deliverables": ["..."] }
-  ],
-  "estimation": {
-    "totalTimeWeeks": "4-6 Minggu",
-    "complexityLevel": "Sedang",
-    "requiredResources": ["1 Frontend Developer", "1 Backend Engineer"],
-    "potentialRisks": [{ "risk": "...", "mitigation": "..." }]
-  }
-}`;
-
-  const resyncPrompt = `Konteks ide awal pengguna:
-${description}
-${targetAudience ? `Target Pengguna: ${targetAudience}` : ""}
-${techStackPreference ? `Teknologi Diharapkan: ${techStackPreference}` : ""}
-
-Jawaban & Klarifikasi Tambahan dari Pengguna:
-${answersFormatted}
-
-Daftar fitur sudah final (ada di instruksi sistem). Susun arsitektur, techStack, roadmap, dan estimasi yang melayani tepat fitur-fitur itu.
-Jangan mengeluarkan bidang "coreFeatures". Jawab dalam format JSON sesuai skema.`;
 
   if (!conn.baseUrl) throw new Error(msg(lang, "baseUrlRequired"));
   const rawText = hasLock
     ? await generateLlmText({
-        prompt: resyncPrompt,
-        system: resyncSystemInstruction,
+        prompt: buildPlanResyncPrompt(input),
+        system: buildPlanResyncSystemPrompt(lockedFeatures, lang),
         conn,
         model,
         lang,
         ...options,
       })
     : await generateLlmText({
-        prompt,
-        system: systemInstruction,
+        prompt: buildPlanPrompt(input),
+        system: buildPlanSystemPrompt(lang),
         conn,
         model,
         lang,

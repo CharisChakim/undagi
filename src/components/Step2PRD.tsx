@@ -325,7 +325,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
         .filter((s) => s.title.trim() !== "" || s.content.trim() !== "")
         .map((s, idx) => ({
           number: 8 + idx,
-          title: s.title.trim() || `Poin Tambahan ${8 + idx}`,
+          title: s.title.trim() || t("Additional point {n}", { n: 8 + idx }),
           content: s.content,
         })),
     };

@@ -17,7 +17,7 @@ import {
   Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useT } from "../../lib/i18n";
+import { makeT, useT, type TFunction } from "../../lib/i18n";
 
 export type ToolNavigationTarget = "plan" | "prd" | "tasks";
 
@@ -27,7 +27,7 @@ export interface ToolRendererContext {
 
 export interface ToolRenderer {
   icon: LucideIcon;
-  title: (input: unknown, result?: unknown) => string;
+  title: (input: unknown, result?: unknown, t?: TFunction) => string;
   body?: (input: unknown, result: unknown, context?: ToolRendererContext) => React.ReactNode;
 }
 
@@ -71,6 +71,67 @@ function firstText(value: unknown, keys: string[], fallback = ""): string {
 function shortText(value: unknown, limit = 240): string {
   const normalized = text(value).replace(/\s+/g, " ").trim();
   return normalized.length > limit ? `${normalized.slice(0, limit - 1)}…` : normalized;
+}
+
+const ENGLISH = makeT("en");
+
+// Tool results are English because they are written for the model, and this
+// view shows some of them as they are. These are the ones with a value spliced
+// in that a card can display (file tools' errors are not shown); each is also a
+// key in the dictionary, with the same {name} placeholders.
+export const RESULT_TEMPLATES = [
+  "Session {id} not found.",
+  "Reached the limit of {count} tool rounds without a final answer.",
+  "Tool {name} is not available for this session.",
+  "Tool {name} is not recognized.",
+  "Stopped after {seconds} seconds.",
+  "Task {id} does not exist. Call get_project to see the available ids.",
+  'Status "{status}" is not recognized. Use one of: {allowed}.',
+  "There is no active LLM connection for the {role} stage.",
+  "{count} tasks generated.",
+  "{count} follow-up answers saved.",
+  "MCP server '{name}' could not be reached: {detail}",
+];
+
+const RESULT_PATTERNS = RESULT_TEMPLATES.map((template) => {
+  const names: string[] = [];
+  const source = template
+    .split(/(\{\w+\})/)
+    .map((part) => {
+      const placeholder = /^\{(\w+)\}$/.exec(part);
+      if (!placeholder) return part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      names.push(placeholder[1]);
+      return "([\\s\\S]+?)";
+    })
+    .join("");
+  return { template, names, regex: new RegExp(`^${source}$`) };
+});
+
+/**
+ * Translates a server message for display: an exact dictionary hit, or one of
+ * the templates above with its values carried over. Anything else (the
+ * provider's own words, a plan's text) comes back unchanged.
+ */
+export function localizeToolText(t: TFunction, value: string): string {
+  const exact = t(value);
+  if (exact !== value) return exact;
+  for (const { template, names, regex } of RESULT_PATTERNS) {
+    const match = regex.exec(value);
+    if (match) return t(template, Object.fromEntries(names.map((name, index) => [name, match[index + 1]])));
+  }
+  return value;
+}
+
+const MESSAGE_FIELDS = ["error", "summary", "message", "note", "hint"];
+
+function localizeResult(t: TFunction, result: unknown): unknown {
+  const data = asRecord(result);
+  if (!data) return result;
+  const localized: Record<string, unknown> = { ...data };
+  for (const key of MESSAGE_FIELDS) {
+    if (typeof localized[key] === "string") localized[key] = localizeToolText(t, localized[key] as string);
+  }
+  return localized;
 }
 
 function pathFrom(input: unknown, result?: unknown): string {
@@ -141,7 +202,7 @@ function classifyDiffLine(value: string): DiffKind {
   return "context";
 }
 
-function foldContext(lines: DiffLine[]): DiffLine[] {
+function foldContext(lines: DiffLine[], t: TFunction): DiffLine[] {
   const folded: DiffLine[] = [];
   let index = 0;
   while (index < lines.length) {
@@ -157,7 +218,7 @@ function foldContext(lines: DiffLine[]): DiffLine[] {
       folded.push(...lines.slice(start, index));
     } else {
       folded.push(...lines.slice(start, start + 3));
-      folded.push({ kind: "context", value: `… ${count - 6} baris tidak berubah` });
+      folded.push({ kind: "context", value: t("… {count} lines unchanged", { count: count - 6 }) });
       folded.push(...lines.slice(index - 3, index));
     }
   }
@@ -182,19 +243,21 @@ export interface DiffViewProps {
 }
 
 export const DiffView: React.FC<DiffViewProps> = ({ patch, path, content, className = "" }) => {
+  const { t } = useT();
   const patchText = text(patch);
   if (!patchText.trim()) {
     const fileContent = text(content);
     const lineCount = fileContent ? fileContent.split(/\r?\n/).length : 0;
     return (
       <div className={`rounded-lg border border-line bg-subtle px-3 py-2 font-mono text-xs text-muted ${className}`}>
-        Menulis {lineCount} baris ke {text(path, "file")}
+        {t("Writing {count} lines to {path}", { count: lineCount, path: text(path, "file") })}
       </div>
     );
   }
 
   const lines = foldContext(
     patchText.split(/\r?\n/).map((value): DiffLine => ({ kind: classifyDiffLine(value), value })),
+    t,
   );
   const styles: Record<DiffKind, string> = {
     added: "bg-ok-soft text-ok-ink",
@@ -223,9 +286,17 @@ export interface TerminalViewProps {
   maxLines?: number;
 }
 
+// Only these lines come from the server rather than from the command itself.
+// Everything else a command printed (for example a file that says "Settings")
+// must reach the screen untouched, even if the dictionary has that word.
+const SERVER_TERMINAL_NOTE = /^(\.\.\.\[truncated\]|Stopped after \d+ seconds\.)$/;
+export const isServerTerminalNote = (value: string): boolean => SERVER_TERMINAL_NOTE.test(value);
+
 interface TerminalLine {
   value: string;
   kind: "command" | "stdout" | "stderr";
+  /** Text the server wrote itself (not command output). */
+  server?: boolean;
 }
 
 export const TerminalView: React.FC<TerminalViewProps> = ({
@@ -247,10 +318,13 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     { kind: "command", value: `$ ${commandText || "(command unavailable)"}` },
     ...(stdoutText ? stdoutText.split(/\r?\n/).map((value) => ({ kind: "stdout" as const, value })) : []),
     ...(stderrText ? stderrText.split(/\r?\n/).map((value) => ({ kind: "stderr" as const, value })) : []),
-    ...(!stdoutText && !stderrText && errorText ? [{ kind: "stderr" as const, value: errorText }] : []),
+    ...(!stdoutText && !stderrText && errorText ? [{ kind: "stderr" as const, value: errorText, server: true }] : []),
   ];
   const [showAll, setShowAll] = useState(false);
-  const visibleLines = showAll ? lines : lines.slice(0, maxLines);
+  // The server's own notes (a truncation marker, a timeout, a declined command)
+  // are English; anything else a command printed passes through unchanged.
+  const visibleLines = (showAll ? lines : lines.slice(0, maxLines)).map((line) =>
+    line.server || isServerTerminalNote(line.value) ? { ...line, value: localizeToolText(t, line.value) } : line);
   const truncated = lines.length > maxLines;
 
   return (
@@ -390,17 +464,18 @@ function EditBody({ input, result }: { input: unknown; result: unknown }): React
 }
 
 function WriteBody({ input, result }: { input: unknown; result: unknown }): React.ReactElement {
+  const { t } = useT();
   const data = asRecord(result);
   const content = text(field(input, "content"));
   const bytes = data?.bytes ?? (content ? bytesFor(content) : 0);
-  return <p className="text-xs text-muted">Menulis {formatBytes(bytes)} ke <code className="font-mono text-ink">{pathFrom(input, result)}</code></p>;
+  return <p className="text-xs text-muted">{t("Writing {size} to", { size: formatBytes(bytes) })} <code className="font-mono text-ink">{pathFrom(input, result)}</code></p>;
 }
 
 function SummaryBody({ input, result, kind }: { input: unknown; result: unknown; kind: string }): React.ReactElement {
   const data = asRecord(result);
   const { t } = useT();
   const error = text(data?.error);
-  if (error) return <p className="text-xs text-danger-ink">{error}</p>;
+  if (error) return <p className="text-xs text-danger-ink">{localizeToolText(t, error)}</p>;
 
   if (kind === "get_project") {
     const features = asArray(data?.features).length;
@@ -433,6 +508,7 @@ function FeatureList({ label, values }: { label: string; values: string[] }): Re
 }
 
 function UpdateFeaturesBody({ input, result, context }: { input: unknown; result: unknown; context?: ToolRendererContext }): React.ReactElement {
+  const { t } = useT();
   const data = asRecord(result);
   const before = featureNames(data?.beforeFeatures ?? data?.previousFeatures ?? field(input, "beforeFeatures"));
   const after = featureNames(data?.afterFeatures ?? data?.features ?? field(input, "features"));
@@ -442,7 +518,7 @@ function UpdateFeaturesBody({ input, result, context }: { input: unknown; result
         {before.length > 0 && <FeatureList label="Before" values={before} />}
         <FeatureList label={before.length ? "After" : "Features"} values={after} />
       </div>
-      <PipelineLink label="Buka Plan →" onClick={() => context?.onNavigate?.("plan")} />
+      <PipelineLink label={t("Open Plan →")} onClick={() => context?.onNavigate?.("plan")} />
     </div>
   );
 }
@@ -452,28 +528,31 @@ function PipelineLink({ label, onClick }: { label: string; onClick: () => void }
 }
 
 function GeneratePrdBody({ result, context }: { result: unknown; context?: ToolRendererContext }): React.ReactElement {
+  const { t } = useT();
   const data = asRecord(result);
-  const summary = shortText(data?.summary || data?.overview || "PRD generated.");
+  const summary = shortText(localizeToolText(t, text(data?.summary || data?.overview || "PRD generated.")));
   const points = number(data?.pointCount ?? data?.sections, 7 + number(data?.additionalSections));
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted">{points} points · {summary}</p>
-      <PipelineLink label="Buka PRD →" onClick={() => context?.onNavigate?.("prd")} />
+      <PipelineLink label={t("Open PRD →")} onClick={() => context?.onNavigate?.("prd")} />
     </div>
   );
 }
 
 function SetTaskStatusBody({ input, result, context }: { input: unknown; result: unknown; context?: ToolRendererContext }): React.ReactElement {
+  const { t } = useT();
   const data = asRecord(result);
   return (
     <div className="space-y-2">
-      {text(data?.error) && <p className="text-xs text-danger-ink">{text(data?.error)}</p>}
-      <PipelineLink label="Buka Board →" onClick={() => context?.onNavigate?.("tasks")} />
+      {text(data?.error) && <p className="text-xs text-danger-ink">{localizeToolText(t, text(data?.error))}</p>}
+      <PipelineLink label={t("Open Board →")} onClick={() => context?.onNavigate?.("tasks")} />
     </div>
   );
 }
 
 function McpBody({ name, input, result }: { name: string; input: unknown; result: unknown }): React.ReactElement {
+  const { t } = useT();
   const match = /^mcp__([^_]+)__(.+)$/.exec(name);
   const service = match?.[1] || "mcp";
   const tool = match?.[2] || name;
@@ -483,13 +562,14 @@ function McpBody({ name, input, result }: { name: string; input: unknown; result
         <span className="rounded-full bg-accent-soft px-2 py-0.5 font-medium text-accent-ink">{service}</span>
         <code className="font-mono text-muted">{tool}</code>
       </div>
-      <JsonView value={{ input, result }} />
+      <JsonView value={{ input, result: localizeResult(t, result) }} />
     </div>
   );
 }
 
 function GenericBody({ input, result }: { input: unknown; result: unknown }): React.ReactElement {
-  return <JsonView value={{ input, result }} />;
+  const { t } = useT();
+  return <JsonView value={{ input, result: localizeResult(t, result) }} />;
 }
 
 const readFileRenderer: ToolRenderer = {
@@ -545,31 +625,31 @@ const commandRenderer: ToolRenderer = {
 
 const projectRenderer: ToolRenderer = {
   icon: Bot,
-  title: () => "Baca proyek",
+  title: (_input, _result, t = ENGLISH) => t("Read project"),
   body: (input, result) => <SummaryBody input={input} result={result} kind="get_project" />,
 };
 
 const planRenderer: ToolRenderer = {
   icon: ClipboardList,
-  title: () => "Baca plan",
+  title: (_input, _result, t = ENGLISH) => t("Read plan"),
   body: (input, result) => <SummaryBody input={input} result={result} kind="get_plan" />,
 };
 
 const prdRenderer: ToolRenderer = {
   icon: Code2,
-  title: () => "Baca PRD",
+  title: (_input, _result, t = ENGLISH) => t("Read PRD"),
   body: (input, result) => <SummaryBody input={input} result={result} kind="get_prd" />,
 };
 
 const tasksRenderer: ToolRenderer = {
   icon: ListChecks,
-  title: () => "Baca tasks",
+  title: (_input, _result, t = ENGLISH) => t("Read tasks"),
   body: (input, result) => <SummaryBody input={input} result={result} kind="get_tasks" />,
 };
 
 const updateFeaturesRenderer: ToolRenderer = {
   icon: ListTree,
-  title: (input, result) => `Ubah ${asArray(field(input, "features")).length || number(field(result, "featureCount"))} fitur`,
+  title: (input, result, t = ENGLISH) => t("Update {count} features", { count: asArray(field(input, "features")).length || number(field(result, "featureCount")) }),
   body: (input, result, context) => <UpdateFeaturesBody input={input} result={result} context={context} />,
 };
 
@@ -581,7 +661,7 @@ const setTaskStatusRenderer: ToolRenderer = {
 
 const generatePrdRenderer: ToolRenderer = {
   icon: ClipboardList,
-  title: () => "Buat PRD",
+  title: (_input, _result, t = ENGLISH) => t("Generate PRD"),
   body: (_input, result, context) => <GeneratePrdBody result={result} context={context} />,
 };
 

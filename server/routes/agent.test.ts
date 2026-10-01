@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -18,7 +19,7 @@ process.on("exit", () => {
   fs.rmSync(dataDir, { recursive: true, force: true });
 });
 const { createConversation, getConversation, linkConversationToProject } = await import("../agent/conversations.ts");
-const { router } = await import("./agent.ts");
+const { chatLanguages, router } = await import("./agent.ts");
 
 test("a Legacy API chat keeps its conversation when it becomes a project", async () => {
   // The chat ran before its session was saved, so its conversation stands alone.
@@ -72,5 +73,66 @@ test("a project's conversations can be found without a saved conversation id", a
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test("the chat body's language and agentLanguage pick the model-facing languages", () => {
+  assert.deepEqual(chatLanguages({}), { humanLang: "en", agentLang: "en" });
+  assert.deepEqual(chatLanguages({ language: "id" }), { humanLang: "id", agentLang: "en" });
+  assert.deepEqual(chatLanguages({ language: "id", agentLanguage: "ui" }), { humanLang: "id", agentLang: "id" });
+  assert.deepEqual(chatLanguages({ language: "en", agentLanguage: "ui" }), { humanLang: "en", agentLang: "en" });
+  assert.deepEqual(chatLanguages({ language: "id", agentLanguage: "en" }), { humanLang: "id", agentLang: "en" });
+  // Unknown values fall back to English rather than reaching the prompts.
+  assert.deepEqual(chatLanguages({ language: "fr", agentLanguage: "id" }), { humanLang: "en", agentLang: "en" });
+});
+
+test("a standalone chat names the planning card in the UI language the client sent", async () => {
+  const systems: string[] = [];
+  // A stand-in model endpoint that records the system prompt and then fails,
+  // so the turn ends without a real model call.
+  const model = http.createServer((req, res) => {
+    let raw = "";
+    req.on("data", (chunk) => { raw += chunk; });
+    req.on("end", () => {
+      systems.push(JSON.parse(raw).system);
+      res.writeHead(500).end("stand-in endpoint");
+    });
+  });
+  model.listen(0);
+  await new Promise<void>((resolve) => model.once("listening", resolve));
+  const modelUrl = `http://127.0.0.1:${(model.address() as AddressInfo).port}`;
+
+  const app = express();
+  app.use(express.json());
+  app.use(router);
+  const server = app.listen(0);
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const chatUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/agent/chat`;
+  const send = async (extra: Record<string, unknown>): Promise<void> => {
+    const res = await fetch(chatUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Help me plan an app.",
+        agentConfig: { baseUrl: modelUrl, model: "fixture" },
+        ...extra,
+      }),
+    });
+    await res.text();
+  };
+  try {
+    await send({ language: "id" });
+    await send({ language: "en" });
+    await send({});
+    assert.equal(systems.length, 3);
+    assert.ok(systems[0].includes('"Susun plan proyek" card'));
+    assert.ok(systems[1].includes('"Plan a project" card'));
+    assert.ok(systems[2].includes('"Plan a project" card'));
+    assert.ok(systems.every((system) => system.includes("Answer in the language the user uses.")));
+  } finally {
+    server.closeAllConnections();
+    model.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await new Promise<void>((resolve) => model.close(() => resolve()));
   }
 });

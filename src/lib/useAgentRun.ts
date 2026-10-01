@@ -8,7 +8,7 @@ import {
 } from "./runtimeChat";
 import { toTransportAnswers } from "../components/plan/followups";
 import { useT } from "./i18n";
-import type { AgentHarnessSettings } from "./agentHarness";
+import { agentLanguageFor, type AgentHarnessSettings } from "./agentHarness";
 import type { PermissionMode } from "../types";
 
 interface AgentRunOptions {
@@ -199,7 +199,7 @@ export function entriesFromStoredMessages(messages: unknown[], sequence: { curre
 // harus tetap berpasangan persis atau permintaan berikutnya ditolak.
 
 export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplied, runtimeSelection = { runtime: "legacy", model: "inherit", effort: "inherit" }, harnessSettings, permissionMode = "ask" }: AgentRunOptions): AgentRunResult {
-  const { t } = useT();
+  const { t, lang } = useT();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -373,6 +373,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
           model: runtimeSelection.model,
           effort: runtimeSelection.effort,
           harnessSettings,
+          language: lang,
+          agentLanguage: agentLanguageFor(harnessSettings),
           permissionMode,
           message,
         } : {
@@ -382,6 +384,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
           allowShell,
           history: history.current,
           harnessSettings,
+          language: lang,
+          agentLanguage: agentLanguageFor(harnessSettings),
           permissionMode,
           message,
         }),
@@ -538,7 +542,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
                 server: event.server || "MCP",
                 state: event.state || "down",
                 tools: Number(event.tools) || 0,
-                message: event.message || "Server MCP tidak tersedia.",
+                message: event.message || t("The MCP server is unavailable."),
               },
             ]);
           } else if (event.type === "history") {
@@ -613,7 +617,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     // offering it to send again, even when that turn then failed. A turn the
     // user stopped ends without "done", but its message is in the chat too.
     return ac.signal.aborted || wasMessageDelivered(nativeRuntime, sawTurn, sawDone);
-  }, [allowShell, appendError, harnessSettings, permissionMode, runtimeSelection, sessionId, t, workspaceRoot]);
+  }, [allowShell, appendError, harnessSettings, lang, permissionMode, runtimeSelection, sessionId, t, workspaceRoot]);
 
   const retry = useCallback(async (): Promise<void> => {
     if (lastSend.current) await send(lastSend.current.message, lastSend.current.options);

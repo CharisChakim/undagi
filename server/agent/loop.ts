@@ -4,6 +4,7 @@ import { systemPromptFor } from "./prompt.ts";
 import type { AgentHarnessSettings } from "./harness.ts";
 import { resolveInsideRoot } from "./sandbox.ts";
 import { streamLlm } from "../llm/stream.ts";
+import type { Lang } from "../messages.ts";
 import type { Connection, ContentBlock, StopReason } from "../llm/types.ts";
 import {
   DEFAULT_LIMITS,
@@ -62,6 +63,10 @@ export interface AgentRunOptions {
   conn: Connection;
   model: string;
   harnessSettings: AgentHarnessSettings;
+  /** UI language; names UI labels in the prompt and the language of generated artifacts. Missing means "en". */
+  lang?: Lang;
+  /** Language of model-facing instructions in tools that pass one on. Missing means "en". */
+  agentLang?: Lang;
   limits: AgentLimits;
   onEvent: (event: AgentEvent) => void;
   elicit: Elicit;
@@ -147,7 +152,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
   try {
     const initialSession = sessionFor(opts);
     if (!initialSession) {
-      opts.onEvent({ type: "error", message: `Sesi ${opts.sessionId} tidak ditemukan.` });
+      opts.onEvent({ type: "error", message: `Session ${opts.sessionId} not found.` });
       return;
     }
     if (opts.signal.aborted) {
@@ -173,7 +178,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
       // perubahan yang dibuat tool pada sesi selama giliran sebelumnya.
       const session = sessionFor(opts);
       if (!session) {
-        opts.onEvent({ type: "error", message: `Sesi ${opts.sessionId} tidak ditemukan.` });
+        opts.onEvent({ type: "error", message: `Session ${opts.sessionId} not found.` });
         return;
       }
       const specs = await toolsForTurn(session, opts.signal, (status) => {
@@ -187,6 +192,8 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
         limits,
         elicit: opts.elicit,
         signal: opts.signal,
+        lang: opts.lang,
+        agentLang: opts.agentLang,
       };
       const assistantContent: ContentBlock[] = [];
       const toolCalls: ToolCall[] = [];
@@ -199,7 +206,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
 
       const request = streamLlm(opts.conn, {
         model: opts.model,
-        system: systemPromptFor(session, opts.harnessSettings),
+        system: systemPromptFor(session, opts.harnessSettings, opts.lang),
         messages: sanitize(loadMessages(opts.conversationId)),
         tools: specs.map((spec: ToolSpec) => spec.def),
         maxTokens: limits.maxTokens,
@@ -276,7 +283,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
 
     opts.onEvent({
       type: "error",
-      message: `Batas ${limits.maxTurns} putaran tool tercapai tanpa jawaban akhir.`,
+      message: `Reached the limit of ${limits.maxTurns} tool rounds without a final answer.`,
     });
   } catch (error) {
     if (opts.signal.aborted) {
