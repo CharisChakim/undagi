@@ -355,6 +355,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     let runFailed = false;
     let runInterrupted = false;
     let runError: string | null = null;
+    let runErrorCode: string | null = null;
     const nativeRuntime = runtimeSelection.runtime !== "legacy";
     const runtimeConversationKey = conversationId.current || sessionId;
     const externalSessionId = nativeRuntime
@@ -567,6 +568,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
           } else if (event.type === "error") {
             runFailed = true;
             runError = event.message || t("The agent is unreachable.");
+            runErrorCode = typeof event.code === "string" && event.code ? event.code : null;
             pushStreamError(runError, event.retryable !== false);
           } else if (event.type === "turn") {
             sawTurn = true;
@@ -645,6 +647,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
         outcome: taskOutcomeFor({ aborted, failed, text: assistantText }),
         note: agentNoteFrom(finalText),
         error: failed && !aborted ? (runError ?? t("The run ended with an error.")) : null,
+        errorCode: failed && !aborted ? runErrorCode : null,
       });
     }
     // Delivery, not turn success, decides the draft: a message that reached

@@ -8,10 +8,22 @@ export interface RunReport {
   note: string;
   /** Why the run failed; null when it did not. */
   error: string | null;
+  /** The runtime's own code for that failure, when it sent one. */
+  errorCode: string | null;
 }
 
 /** Retries after the first attempt, so a card gets at most MAX_RETRIES + 1 tries. */
 export const MAX_RETRIES = 3;
+
+// The Claude and Antigravity executors sort their failures into codes of their
+// own, so their words are not guessed at. Of those, only a provider that is
+// overloaded or a crashed process is worth another try; a login, a billing
+// problem, a usage limit that needs time to reset or a missing model fail the
+// same way on every attempt.
+const TRANSIENT_CODES = new Set(["CLAUDE_UNAVAILABLE", "AGY_PROCESS_ERROR"]);
+const CLASSIFIED_CODE = /^(CLAUDE|AGY)_/;
+// The catch-alls say nothing about the cause, so the words still decide.
+const NO_VERDICT_CODES = new Set(["CLAUDE_RESULT_ERROR", "CLAUDE_RESULT_MISSING"]);
 
 // A turn timeout is deliberately not here: it has already cost the whole turn
 // limit, usually because an approval sat unanswered, and the next try would too.
@@ -21,7 +33,6 @@ const TRANSIENT = new RegExp([
   "overloaded",
   "rate.?limit",
   "temporarily unavailable",
-  "try again",
   "failed to fetch",
   "fetch failed",
   "network ?error",
@@ -38,8 +49,12 @@ const TRANSIENT = new RegExp([
  * Whether a failed run is worth trying again: the provider or the network
  * hiccuped. A rejected request, a missing login, a runtime that is not ready, or
  * a declined approval fail the same way every time, so those go straight to Blocked.
+ * A runtime's code decides when it has one the executors classify; otherwise the
+ * words do (Legacy API and Codex send text, with a status in it).
  */
-export function isTransientRunError(message: string): boolean {
+export function isTransientRunError(message: string, code?: string | null): boolean {
+  if (code && TRANSIENT_CODES.has(code)) return true;
+  if (code && CLASSIFIED_CODE.test(code) && !NO_VERDICT_CODES.has(code)) return false;
   return !TURN_TIMEOUT.test(message) && TRANSIENT.test(message);
 }
 
@@ -106,7 +121,7 @@ export async function runWithRetries(options: RetryOptions): Promise<{ report: R
   for (let attempt = 1; ; attempt += 1) {
     const report = await send(message);
     const error = report.outcome === "blocked" ? report.error : null;
-    if (!error || !isTransientRunError(error) || attempt > maxRetries || !stillWanted()) {
+    if (!error || !isTransientRunError(error, report.errorCode) || attempt > maxRetries || !stillWanted()) {
       return { report, attempts: attempt };
     }
     const delayMs = retryDelayMs(attempt);

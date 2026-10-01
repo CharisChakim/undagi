@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { describeClaudeFailure } from "../../server/runtimes/execution/claude.ts";
 import {
   isTransientRunError,
   MAX_RETRIES,
@@ -12,8 +13,8 @@ import {
   type RunReport,
 } from "./runRetry";
 
-const done: RunReport = { outcome: "done", note: "ok", error: null };
-const failed = (error: string): RunReport => ({ outcome: "blocked", note: "", error });
+const done: RunReport = { outcome: "done", note: "ok", error: null, errorCode: null };
+const failed = (error: string, errorCode: string | null = null): RunReport => ({ outcome: "blocked", note: "", error, errorCode });
 
 test("provider and network hiccups are worth retrying", () => {
   for (const message of [
@@ -40,6 +41,44 @@ test("a rejected request, a missing login or a declined approval is not retried"
   ]) {
     assert.equal(isTransientRunError(message), false, message);
   }
+});
+
+test("Claude's own failure codes decide, and only an overloaded provider is retried", () => {
+  // The messages come from the executor itself, so the test follows its wording.
+  const cases: Array<[Parameters<typeof describeClaudeFailure>[0], boolean]> = [
+    [{ assistantError: "overloaded" }, true],
+    [{ apiErrorStatus: 503 }, true],
+    [{ assistantError: "authentication_failed" }, false],
+    [{ apiErrorStatus: 403 }, false],
+    [{ assistantError: "account_on_hold" }, false],
+    [{ assistantError: "billing_error" }, false],
+    [{ assistantError: "rate_limit" }, false],
+    [{ assistantError: "model_not_found" }, false],
+    [{ assistantError: "cloud_credential_error" }, false],
+    [{ assistantError: "max_output_tokens" }, false],
+    [{ subtype: "error_max_turns" }, false],
+    [{ subtype: "error_max_budget_usd" }, false],
+    // The catch-all names no cause, so its own words still count.
+    [{ resultText: "read ECONNRESET while streaming" }, true],
+    [{ resultText: "something unexpected" }, false],
+  ];
+  for (const [failure, expected] of cases) {
+    const { code, message } = describeClaudeFailure(failure);
+    assert.equal(isTransientRunError(message, code), expected, `${code}: ${message}`);
+  }
+});
+
+test("Antigravity codes decide the same way, and other runtimes fall back to the words", () => {
+  assert.equal(isTransientRunError("AGY exited unexpectedly.", "AGY_PROCESS_ERROR"), true);
+  assert.equal(isTransientRunError("Sign in to Antigravity, then try again.", "AGY_AUTH_REQUIRED"), false);
+  assert.equal(isTransientRunError("unsupported version", "AGY_UNSUPPORTED_VERSION"), false);
+  assert.equal(isTransientRunError("RPC_ERROR: {\"status\":503}", "RPC_ERROR"), true);
+  assert.equal(isTransientRunError("The 'x' model is not supported.", "RPC_ERROR"), false);
+  assert.equal(isTransientRunError("Codex turn timed out.", "TURN_TIMEOUT"), false);
+});
+
+test("a sentence that only asks the user to try again is not a reason to retry", () => {
+  assert.equal(isTransientRunError("Sign in with /login, then try again."), false);
 });
 
 test("a turn timeout is not retried, even though it contains the word timed out", () => {
@@ -116,6 +155,19 @@ test("it gives up after the retry limit and reports the last failure", async () 
   assert.equal(h.notices.length, MAX_RETRIES);
 });
 
+test("a failure the runtime's code calls permanent goes straight to Blocked, whatever its words say", async () => {
+  const h = harness([failed("Claude Code is not signed in. Sign in, then try again.", "CLAUDE_AUTH_REQUIRED")]);
+  const result = await h.run();
+  assert.equal(result.attempts, 1);
+  assert.deepEqual(h.notices, []);
+});
+
+test("a failure the runtime's code calls transient is retried even with no telltale words", async () => {
+  const h = harness([failed("Claude is having a moment.", "CLAUDE_UNAVAILABLE"), done]);
+  const result = await h.run();
+  assert.equal(result.attempts, 2);
+});
+
 test("a permanent failure goes straight to Blocked without a retry", async () => {
   const h = harness([failed("RPC_ERROR: The model is not supported.")]);
   const result = await h.run();
@@ -124,9 +176,9 @@ test("a permanent failure goes straight to Blocked without a retry", async () =>
 });
 
 test("a run the user stopped, or the agent called blocked, is not retried", async () => {
-  const stopped = await harness([{ outcome: null, note: "", error: null }]).run();
+  const stopped = await harness([{ outcome: null, note: "", error: null, errorCode: null }]).run();
   assert.equal(stopped.attempts, 1);
-  const agentBlocked = await harness([{ outcome: "blocked", note: "Needs a key.", error: null }]).run();
+  const agentBlocked = await harness([{ outcome: "blocked", note: "Needs a key.", error: null, errorCode: null }]).run();
   assert.equal(agentBlocked.attempts, 1);
 });
 

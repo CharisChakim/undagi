@@ -58,3 +58,20 @@ test("the default waits for discovery only while its answer could still change",
   assert.equal(defaultAwaitsDiscovery({ last: null, legacyAvailable: false, report: report(["claude"]), loading: false }), false);
   assert.equal(defaultAwaitsDiscovery({ last: null, legacyAvailable: false, report: null, loading: false }), false);
 });
+
+test("an error keeps the runtime's code, wherever the runtime put it", () => {
+  assert.deepEqual(
+    normalizeRuntimeChatEvent({ type: "error", code: "CLAUDE_UNAVAILABLE", message: "Claude is overloaded.", retryable: true }),
+    { type: "error", message: "Claude is overloaded.", code: "CLAUDE_UNAVAILABLE", retryable: true },
+  );
+  assert.deepEqual(
+    normalizeRuntimeChatEvent({ type: "error", error: { code: "AGY_PROCESS_ERROR", message: "AGY exited." } }),
+    { type: "error", message: "AGY exited.", code: "AGY_PROCESS_ERROR", retryable: true },
+  );
+  assert.deepEqual(
+    normalizeRuntimeChatEvent({ type: "done", status: "failed", error: { code: "CLAUDE_BILLING", message: "Billing." } }),
+    { type: "error", message: "Billing.", code: "CLAUDE_BILLING", retryable: false },
+  );
+  // No code stays no code, so a Legacy or Codex error is judged by its words.
+  assert.deepEqual(normalizeRuntimeChatEvent({ type: "error", message: "x" }), { type: "error", message: "x", retryable: true });
+});

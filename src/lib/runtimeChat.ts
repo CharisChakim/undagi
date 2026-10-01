@@ -230,18 +230,22 @@ export function normalizeRuntimeChatEvent(value: unknown): RuntimeChatEvent | nu
   }
   if (kind === "error") {
     const error = record(event.error);
+    const code = text(event.code) ?? text(error?.code);
     return {
       type: "error",
       message: text(event.message) ?? text(error?.message) ?? "The runtime is unreachable.",
+      ...(code ? { code } : {}),
       retryable: event.retryable !== false && event.fatal !== true,
     };
   }
   if (kind === "result") {
     const error = record(event.error);
     if (error || event.status === "error" || event.status === "failed") {
+      const code = text(error?.code);
       return {
         type: "error",
         message: text(error?.message) ?? text(event.response) ?? "The runtime failed.",
+        ...(code ? { code } : {}),
         retryable: false,
       };
     }
@@ -250,9 +254,11 @@ export function normalizeRuntimeChatEvent(value: unknown): RuntimeChatEvent | nu
   if (kind === "done" || kind === "completed" || kind === "turn_completed") {
     const error = record(event.error);
     if (event.status === "failed" || event.status === "error" || error) {
+      const code = text(error?.code);
       return {
         type: "error",
         message: text(error?.message) ?? "The runtime failed.",
+        ...(code ? { code } : {}),
         retryable: false,
       };
     }

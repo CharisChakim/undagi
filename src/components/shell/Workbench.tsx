@@ -143,7 +143,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     // One attempt, to its end. The report arrives just before send settles; a
     // send that never started (another run is open) reports nothing.
     const attempt = async (message: string): Promise<RunReport> => {
-      let report: RunReport = { outcome: null, note: "", error: null };
+      let report: RunReport = { outcome: null, note: "", error: null, errorCode: null };
       await agentRun.send(message, { taskId: task.id, onOutcome: (next) => { report = next; } });
       return report;
     };
