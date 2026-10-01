@@ -44,6 +44,7 @@ interface Step3AgentTasksProps {
   onUpdateSession: (updated: Partial<ProjectSession>) => void;
   onRunTask?: (task: AgentTask) => void;
   runningTaskId?: string | null;
+  retryNotice?: { taskId: string; text: string } | null;
   onSelectStep?: (step: 1 | 2 | 3) => void;
 }
 
@@ -55,7 +56,7 @@ function runDate(value: string | null | undefined): string {
   return Number.isFinite(parsed) ? new Date(parsed).toLocaleString() : value;
 }
 
-export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpdateSession, onRunTask, runningTaskId, onSelectStep }) => {
+export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpdateSession, onRunTask, runningTaskId, retryNotice, onSelectStep }) => {
   const { t, lang } = useT();
   const pipelineTarget = usePipelineTarget();
   const [loading, setLoading] = useState(false);
@@ -621,6 +622,13 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                             {task.title}
                           </button>
                         </h5>
+
+                        {/* Run gagal yang sedang dicoba ulang: peringatan sementara, bukan catatan. */}
+                        {retryNotice?.taskId === task.id && column.status === "in_progress" && (
+                          <div className="rounded bg-warn-soft px-2 py-1.5" role="status">
+                            <p className="line-clamp-3 whitespace-pre-line text-[11px] leading-snug text-warn-ink" title={retryNotice.text}>{retryNotice.text}</p>
+                          </div>
+                        )}
 
                         {/* Catatan penutup agent dari run terakhir. Di kolom lain ia sudah basi. */}
                         {task.agentNote && (column.status === "blocked" || column.status === "done") && (

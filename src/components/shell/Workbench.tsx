@@ -6,6 +6,7 @@ import { LayoutMode } from "../../lib/layout";
 import { useT } from "../../lib/i18n";
 import { useAgentRun } from "../../lib/useAgentRun";
 import { applyTaskOutcome } from "../../lib/taskOutcome";
+import { readableRunError, runWithRetries, type RunReport } from "../../lib/runRetry";
 import { useRuntimeDiscovery } from "../../lib/runtimes";
 import {
   defaultAwaitsDiscovery,
@@ -67,6 +68,10 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   const { t } = useT();
   const inProgressTasks = (session.tasks ?? []).filter((task) => task.status === "in_progress").length;
   const [runningTaskId, setRunningTaskId] = React.useState<string | null>(null);
+  const [retryNotice, setRetryNotice] = React.useState<{ taskId: string; text: string } | null>(null);
+  // Read when a retry is due, not to write: the run can outlast the render that started it.
+  const sessionRef = React.useRef(session);
+  React.useEffect(() => { sessionRef.current = session; }, [session]);
   // Every chat starts asking; a wider mode is chosen per chat, never carried over.
   const [permissionState, setPermissionState] = React.useState<{ sessionId: string; mode: PermissionMode }>({ sessionId: session.id, mode: "ask" });
   const permissionMode = permissionState.sessionId === session.id ? permissionState.mode : "ask";
@@ -135,20 +140,45 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     ].join("\n\n");
 
     const sessionId = session.id;
-    void agentRun.send(prompt, {
-      taskId: task.id,
+    // One attempt, to its end. The report arrives just before send settles; a
+    // send that never started (another run is open) reports nothing.
+    const attempt = async (message: string): Promise<RunReport> => {
+      let report: RunReport = { outcome: null, note: "", error: null };
+      await agentRun.send(message, { taskId: task.id, onOutcome: (next) => { report = next; } });
+      return report;
+    };
+    // The card still waits for this run while it sits in In progress on the same project.
+    const stillWanted = (): boolean => {
+      const current = sessionRef.current;
+      return current.id === sessionId && current.tasks?.find((item) => item.id === task.id)?.status === "in_progress";
+    };
+
+    void runWithRetries({
+      message: prompt,
+      send: attempt,
+      stillWanted,
+      onRetry: ({ attempt: failed, total, error }) => setRetryNotice({
+        taskId: task.id,
+        text: t("Attempt {attempt} of {total} failed, trying again: {error}", { attempt: failed, total, error: readableRunError(error) }),
+      }),
+    }).then(({ report, attempts }) => {
+      if (!report.outcome) return;
+      const failure = report.error ? readableRunError(report.error) : null;
+      const note = failure
+        ? (attempts > 1 ? t("Failed after {count} attempts: {error}", { count: attempts, error: failure }) : failure)
+        : report.note;
       // The run can end long after this render, on a different open session,
       // so the card is moved from the session as it is by then.
-      onOutcome: (outcome, note) => {
-        if (!outcome) return;
-        onUpdateSession((current) => {
-          if (current.id !== sessionId) return null;
-          const tasks = applyTaskOutcome(current.tasks ?? [], task.id, outcome, note);
-          return tasks ? { tasks } : null;
-        });
-      },
-    }).finally(() => setRunningTaskId(null));
-  }, [agentRun.busy, agentRun.send, onLayoutModeChange, onUpdateSession, session.id]);
+      onUpdateSession((current) => {
+        if (current.id !== sessionId) return null;
+        const tasks = applyTaskOutcome(current.tasks ?? [], task.id, report.outcome!, note);
+        return tasks ? { tasks } : null;
+      });
+    }).finally(() => {
+      setRunningTaskId(null);
+      setRetryNotice(null);
+    });
+  }, [agentRun.busy, agentRun.send, onLayoutModeChange, onUpdateSession, session.id, t]);
 
   const openPipeline = (step: Step) => {
     if (!isStepReachable(step, session)) return;
@@ -226,6 +256,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
                 onSelectAgent={() => onLayoutModeChange("agent")}
                 onRunTask={handleRunTask}
                 runningTaskId={agentRun.busy ? runningTaskId ?? "__agent_busy__" : runningTaskId}
+                retryNotice={retryNotice}
                 generationTarget={pipelineSelection}
                 modelControl={(
                   <div className="inline-flex min-w-0 max-w-full rounded-lg border border-line bg-canvas px-1">

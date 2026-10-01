@@ -9,7 +9,8 @@ import {
 import { toTransportAnswers } from "../components/plan/followups";
 import { useT } from "./i18n";
 import { agentLanguageFor, type AgentHarnessSettings } from "./agentHarness";
-import { agentNoteFrom, taskOutcomeFor, type TaskOutcome } from "./taskOutcome";
+import { agentNoteFrom, taskOutcomeFor } from "./taskOutcome";
+import type { RunReport } from "./runRetry";
 import type { PermissionMode } from "../types";
 
 interface AgentRunOptions {
@@ -35,8 +36,8 @@ interface AgentRunResult {
 
 interface AgentSendOptions {
   taskId?: string | null;
-  /** Called once the run has ended: where its task card should go (null when the user stopped it) and the agent's closing note. */
-  onOutcome?: (outcome: TaskOutcome | null, note: string) => void;
+  /** Called once the run has ended, with where its task card should go, the agent's note, and why it failed if it did. */
+  onOutcome?: (report: RunReport) => void;
 }
 
 function nextEntryId(sequence: { current: number }): string {
@@ -353,6 +354,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     let finalText = "";
     let runFailed = false;
     let runInterrupted = false;
+    let runError: string | null = null;
     const nativeRuntime = runtimeSelection.runtime !== "legacy";
     const runtimeConversationKey = conversationId.current || sessionId;
     const externalSessionId = nativeRuntime
@@ -564,17 +566,19 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
             history.current = event.history;
           } else if (event.type === "error") {
             runFailed = true;
-            pushStreamError(
-              event.message || t("The agent is unreachable."),
-              event.retryable !== false,
-            );
+            runError = event.message || t("The agent is unreachable.");
+            pushStreamError(runError, event.retryable !== false);
           } else if (event.type === "turn") {
             sawTurn = true;
             turnStartedAt = Date.now();
             turnToolCount = 0;
           } else if (event.type === "done") {
             sawDone = true;
-            if (event.runStatus === "failed" || event.stop === "max_tokens") runFailed = true;
+            if (event.runStatus === "failed") runFailed = true;
+            if (event.stop === "max_tokens") {
+              runFailed = true;
+              runError ??= t("The model's answer was cut off.");
+            }
             if (event.runStatus === "interrupted") runInterrupted = true;
             const endedAt = Date.now();
             setEntries((prev) => {
@@ -606,7 +610,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     } catch (err) {
       if (!ac.signal.aborted) {
         runFailed = true;
-        pushStreamError(errorText(err, t("The agent is unreachable.")), true);
+        runError = errorText(err, t("The agent is unreachable."));
+        pushStreamError(runError, true);
       }
     } finally {
       // Stop, or a stream that broke, ends the turn with no done event. Settle
@@ -634,11 +639,13 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
       if (toolTouchedSession) {
         try { await onToolAppliedRef.current(); } catch { /* the refresh reports its own failure */ }
       }
-      options?.onOutcome?.(taskOutcomeFor({
-        aborted: ac.signal.aborted || runInterrupted,
-        failed: runFailed || !sawDone,
-        text: assistantText,
-      }), agentNoteFrom(finalText));
+      const aborted = ac.signal.aborted || runInterrupted;
+      const failed = runFailed || !sawDone;
+      options?.onOutcome?.({
+        outcome: taskOutcomeFor({ aborted, failed, text: assistantText }),
+        note: agentNoteFrom(finalText),
+        error: failed && !aborted ? (runError ?? t("The run ended with an error.")) : null,
+      });
     }
     // Delivery, not turn success, decides the draft: a message that reached
     // the server shows in the chat, so the composer lets go of it instead of
