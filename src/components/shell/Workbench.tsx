@@ -65,7 +65,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   harnessSettings,
 }) => {
   const { t } = useT();
-  const completedTasks = (session.tasks ?? []).filter((task) => task.status === "done").length;
+  const inProgressTasks = (session.tasks ?? []).filter((task) => task.status === "in_progress").length;
   const [runningTaskId, setRunningTaskId] = React.useState<string | null>(null);
   // Every chat starts asking; a wider mode is chosen per chat, never carried over.
   const [permissionState, setPermissionState] = React.useState<{ sessionId: string; mode: PermissionMode }>({ sessionId: session.id, mode: "ask" });
@@ -255,7 +255,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
             className="lift absolute bottom-4 right-4 z-20 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-2 text-xs font-medium text-ink shadow-elev-3 hover:border-accent"
           >
             <Bot className="h-3.5 w-3.5 text-accent-ink" />
-            {t("Agent")} · {completedTasks} {t("In progress")}
+            {t("Agent")} · {inProgressTasks} {t("In progress")}
           </button>
         )}
       </div>
