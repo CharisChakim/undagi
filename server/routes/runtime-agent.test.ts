@@ -274,6 +274,24 @@ test("a runtime session that is new to a chat is told what was said before it", 
   });
 });
 
+test("a run started from a task card is asked to report its status; a plain chat is not", async () => {
+  const provider = new ProviderFixture(async function* () {
+    yield { type: "text", text: "ok", threadId: "thread_card", turnId: "turn_card", itemId: null };
+    yield { ...done, threadId: "thread_card", turnId: "turn_card" };
+  });
+  const { sessionId, taskId } = project();
+
+  await withServer(provider, async (url) => {
+    await chat(url, { sessionId, taskId, idempotencyKey: "card-run" });
+    await chat(url, { sessionId, idempotencyKey: "plain-chat" });
+
+    const [fromCard, plain] = provider.turns.map((turn) => turn.prompt);
+    assert.match(fromCard!, /TASK_STATUS: done/);
+    assert.match(fromCard!, /TASK_STATUS: blocked/);
+    assert.doesNotMatch(plain!, /TASK_STATUS/);
+  });
+});
+
 test("a chosen model and effort reach the provider and are recorded on the run", async () => {
   const provider = new ProviderFixture(async function* () { yield done; });
   const catalogued: RuntimeDetection = {

@@ -622,6 +622,14 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                           </button>
                         </h5>
 
+                        {/* Catatan penutup agent dari run terakhir. Di kolom lain ia sudah basi. */}
+                        {task.agentNote && (column.status === "blocked" || column.status === "done") && (
+                          // Padding di pembungkus: pada elemen ber-line-clamp, padding membiarkan baris ke-4 mengintip.
+                          <div className="rounded bg-subtle px-2 py-1.5" title={task.agentNote}>
+                            <p className="line-clamp-3 whitespace-pre-line text-[11px] leading-snug text-muted">{task.agentNote}</p>
+                          </div>
+                        )}
+
                         <div className="pt-2 border-t border-line flex flex-wrap items-center justify-between gap-2 text-xs">
                           <span className="flex min-w-0 items-center gap-1.5 text-faint">
                             <span>{t("{count} target files", { count: task.targetFiles?.length || 0 })}</span>
@@ -956,6 +964,13 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
               </div>
             )}
 
+            {selectedTask.agentNote && (selectedTask.status === "blocked" || selectedTask.status === "done") && (
+              <section className="rounded-lg border border-line bg-subtle p-4" aria-label={t("Agent note")}>
+                <span className="field-label">{t("Agent note")}</span>
+                <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-ink">{selectedTask.agentNote}</p>
+              </section>
+            )}
+
             <section className="rounded-lg border border-line bg-subtle p-4" aria-label={t("Review and evidence")}>
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -995,11 +1010,11 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-mono text-[10px] text-faint">{run.id}</span>
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            run.status === "completed" ? "bg-warn-soft text-warn-ink" :
+                            run.status === "completed" ? "bg-ok-soft text-ok-ink" :
                             run.status === "failed" || run.status === "cancelled" || run.status === "interrupted" ? "bg-danger-soft text-danger-ink" :
                             "bg-subtle text-muted"
                           }`}>
-                            {run.status === "completed" ? `${run.status} · ${t("Review")}` : run.status}
+                            {run.status}
                           </span>
                         </div>
                         <p className="mt-1 text-[10px] text-faint">{runDate(run.updatedAt || run.createdAt)}</p>

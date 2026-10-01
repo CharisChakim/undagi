@@ -1,4 +1,4 @@
-import { agentHarnessPrompt, type AgentHarnessSettings } from "./harness.ts";
+import { agentHarnessPrompt, type AgentHarnessOptions, type AgentHarnessSettings } from "./harness.ts";
 import type { Lang } from "../messages.ts";
 
 // The scaffolding is English for every UI language; only the name of the start
@@ -12,10 +12,15 @@ const PLAN_CARD_LABEL: Record<Lang, string> = {
 const LANGUAGE_NOTE =
   "Answer in the language the user uses. Instructions and tool results are in English; that does not change the language of your replies.";
 
-export function systemPromptFor(session: any, harnessSettings?: AgentHarnessSettings, lang: Lang = "en"): string {
+export function systemPromptFor(
+  session: any,
+  harnessSettings?: AgentHarnessSettings,
+  lang: Lang = "en",
+  harnessOptions: AgentHarnessOptions = {},
+): string {
   const root = session?.workspaceRoot?.trim();
   const basePrompt = session?.id ? SYSTEM_PROMPT : standaloneSystemPrompt(lang);
-  const harnessPrompt = harnessSettings ? agentHarnessPrompt(harnessSettings) : "";
+  const harnessPrompt = harnessSettings ? agentHarnessPrompt(harnessSettings, harnessOptions) : "";
   const prompt = harnessPrompt ? `${basePrompt}\n\n${harnessPrompt}` : basePrompt;
   if (!root) return prompt;
 

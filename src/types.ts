@@ -338,6 +338,8 @@ export interface AgentTask {
   verificationSteps: string;
   acceptanceCriteria?: string;
   status?: 'todo' | 'in_progress' | 'done' | 'blocked';
+  /** What the agent wrote at the end of its last run on this card: evidence, a blocker, or doubts. */
+  agentNote?: string;
   handoffStatus?: 'handed_off';
   handedOffAt?: string;
   /** Snapshot of the PRD used to generate this task, when applicable. */

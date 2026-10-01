@@ -5,7 +5,7 @@ import { isStepReachable, Step } from "../../lib/routing";
 import { LayoutMode } from "../../lib/layout";
 import { useT } from "../../lib/i18n";
 import { useAgentRun } from "../../lib/useAgentRun";
-import { applyTaskOutcome, TASK_STATUS_INSTRUCTION } from "../../lib/taskOutcome";
+import { applyTaskOutcome } from "../../lib/taskOutcome";
 import { useRuntimeDiscovery } from "../../lib/runtimes";
 import {
   defaultAwaitsDiscovery,
@@ -131,7 +131,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       `Dependencies: ${(task.dependencies || []).join(", ") || "None"}`,
       `Instructions:\n${task.promptInstructions}`,
       `Verification steps:\n${task.verificationSteps}`,
-      TASK_STATUS_INSTRUCTION,
+      "Report the implementation and verification evidence.",
     ].join("\n\n");
 
     const sessionId = session.id;
@@ -139,11 +139,11 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       taskId: task.id,
       // The run can end long after this render, on a different open session,
       // so the card is moved from the session as it is by then.
-      onOutcome: (outcome) => {
+      onOutcome: (outcome, note) => {
         if (!outcome) return;
         onUpdateSession((current) => {
           if (current.id !== sessionId) return null;
-          const tasks = applyTaskOutcome(current.tasks ?? [], task.id, outcome);
+          const tasks = applyTaskOutcome(current.tasks ?? [], task.id, outcome, note);
           return tasks ? { tasks } : null;
         });
       },

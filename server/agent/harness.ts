@@ -23,7 +23,19 @@ export function parseAgentHarnessSettings(value: unknown): AgentHarnessSettings 
   };
 }
 
-export function agentHarnessPrompt(settings: AgentHarnessSettings): string {
+export interface AgentHarnessOptions {
+  /** The run belongs to a task card on the board. */
+  task?: boolean;
+}
+
+// Not a setting: the board moves the card on this line, so it joins the harness
+// block exactly when a card is attached, whichever layers are switched off.
+// Keep the marker in sync with src/lib/taskOutcome.ts, which reads it.
+const TASK_REPORT = `Task report:
+- This run works on one task card. End your final message with one line: \`TASK_STATUS: done\` if the task is complete and its verification steps passed, or \`TASK_STATUS: blocked\` if you could not finish it.
+- Above that line, write a short note for the card: the evidence that it works, what blocked you, or anything you are not sure about.`;
+
+export function agentHarnessPrompt(settings: AgentHarnessSettings, options: AgentHarnessOptions = {}): string {
   const sections: string[] = [];
   // Ketiga lapis efisiensi dinyalakan terpisah, jadi judulnya ditulis sekali
   // dan hanya bullet yang aktif menyusul. Menyalakan satu lapis tidak boleh
@@ -53,11 +65,12 @@ export function agentHarnessPrompt(settings: AgentHarnessSettings): string {
 - Ask when harmful ambiguity remains. Prefer the simplest solution and a surgical diff.
 - Do not reformat or clean unrelated code. Verify the requested outcome and report concrete evidence.`);
   }
+  if (options.task) sections.push(TASK_REPORT);
   return sections.join("\n\n");
 }
 
-export function applyAgentHarness(message: string, settings: AgentHarnessSettings): string {
-  const prompt = agentHarnessPrompt(settings);
+export function applyAgentHarness(message: string, settings: AgentHarnessSettings, options: AgentHarnessOptions = {}): string {
+  const prompt = agentHarnessPrompt(settings, options);
   if (!prompt) return message;
   return `<agent_harness>\n${prompt}\n</agent_harness>\n\n<user_request>\n${message}\n</user_request>`;
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AgentTask } from "../types";
-import { applyTaskOutcome, TASK_STATUS_INSTRUCTION, taskOutcomeFor, taskStatusMarker } from "./taskOutcome";
+import { agentNoteFrom, applyTaskOutcome, taskOutcomeFor, taskStatusMarker } from "./taskOutcome";
 
 function task(id: string, status?: AgentTask["status"]): AgentTask {
   return {
@@ -32,9 +32,17 @@ test("the last marker wins, and a mention inside a sentence is not a marker", ()
   assert.equal(taskStatusMarker(""), null);
 });
 
-test("the run prompt asks for both verdicts the parser understands", () => {
-  assert.ok(TASK_STATUS_INSTRUCTION.includes("TASK_STATUS: done"));
-  assert.ok(TASK_STATUS_INSTRUCTION.includes("TASK_STATUS: blocked"));
+test("the note is the closing message without the marker line", () => {
+  assert.equal(agentNoteFrom("Ran the suite, 12 pass.\nNot sure about the retry path.\n\n`TASK_STATUS: done`"), "Ran the suite, 12 pass.\nNot sure about the retry path.");
+  assert.equal(agentNoteFrom("TASK_STATUS: blocked"), "");
+  assert.equal(agentNoteFrom(""), "");
+});
+
+test("a long note is cut with an ellipsis, and blank runs are collapsed", () => {
+  assert.equal(agentNoteFrom("a\n\n\n\nb"), "a\n\nb");
+  const cut = agentNoteFrom("x".repeat(5000));
+  assert.equal(cut.length, 2001);
+  assert.ok(cut.endsWith("…"));
 });
 
 test("a run that finished without a marker counts as done", () => {
@@ -61,6 +69,21 @@ test("the outcome moves only the card that ran", () => {
   const next = applyTaskOutcome(tasks, "TASK-01", "done");
   assert.deepEqual(next?.map((item) => item.status), ["done", "todo"]);
   assert.equal(tasks[0].status, "in_progress", "the input list is not mutated");
+});
+
+test("the agent's note lands on the card and replaces the previous run's", () => {
+  const first = applyTaskOutcome([task("TASK-01", "in_progress")], "TASK-01", "blocked", "  Needs an API key.  ");
+  assert.equal(first?.[0].agentNote, "Needs an API key.");
+  const second = applyTaskOutcome(first!, "TASK-01", "done", "Key added, tests pass.");
+  assert.equal(second?.[0].agentNote, "Key added, tests pass.");
+  const third = applyTaskOutcome(second!.map((item) => ({ ...item, status: "in_progress" as const })), "TASK-01", "done");
+  assert.equal(third?.[0].agentNote, undefined, "a run that wrote nothing clears the old note");
+});
+
+test("a rerun that ends the same way with a new note still updates the card", () => {
+  const blocked = [{ ...task("TASK-01", "blocked"), agentNote: "Old reason." }];
+  assert.equal(applyTaskOutcome(blocked, "TASK-01", "blocked", "Old reason."), null);
+  assert.equal(applyTaskOutcome(blocked, "TASK-01", "blocked", "New reason.")?.[0].agentNote, "New reason.");
 });
 
 test("a card still in To do after a session refresh takes the outcome too", () => {

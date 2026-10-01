@@ -76,6 +76,7 @@ const ID: Record<string, string> = {
   "Open a template": "Buka template",
   "That question card is no longer valid.": "Kartu pertanyaan itu sudah tidak berlaku.",
   "Agent": "Agent",
+  "Agent note": "Catatan agent",
   "Agent settings": "Pengaturan agent",
   "Efficiency stack": "Stack efisiensi",
   "RTK · Compact terminal": "RTK · Terminal ringkas",

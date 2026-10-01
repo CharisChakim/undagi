@@ -63,6 +63,8 @@ export interface AgentRunOptions {
   conn: Connection;
   model: string;
   harnessSettings: AgentHarnessSettings;
+  /** The turn was started from a task card, so the model reports back to the board. */
+  taskRun?: boolean;
   /** UI language; names UI labels in the prompt and the language of generated artifacts. Missing means "en". */
   lang?: Lang;
   /** Language of model-facing instructions in tools that pass one on. Missing means "en". */
@@ -206,7 +208,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
 
       const request = streamLlm(opts.conn, {
         model: opts.model,
-        system: systemPromptFor(session, opts.harnessSettings, opts.lang),
+        system: systemPromptFor(session, opts.harnessSettings, opts.lang, { task: opts.taskRun }),
         messages: sanitize(loadMessages(opts.conversationId)),
         tools: specs.map((spec: ToolSpec) => spec.def),
         maxTokens: limits.maxTokens,

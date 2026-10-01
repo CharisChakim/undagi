@@ -630,7 +630,7 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
       conversationId,
       body.runtime,
       body.externalSessionId ?? null,
-      applyAgentHarness(body.message, body.harnessSettings),
+      applyAgentHarness(body.message, body.harnessSettings, { task: Boolean(body.taskId) }),
     );
     // The chat says so when a runtime is handed earlier messages: it gets
     // their text, not the tool results or the state of the other session.

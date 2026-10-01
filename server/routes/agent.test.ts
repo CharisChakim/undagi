@@ -86,6 +86,48 @@ test("the chat body's language and agentLanguage pick the model-facing languages
   assert.deepEqual(chatLanguages({ language: "fr", agentLanguage: "id" }), { humanLang: "en", agentLang: "en" });
 });
 
+test("a Legacy API turn started from a task card is asked to report its status; a plain one is not", async () => {
+  const systems: string[] = [];
+  const model = http.createServer((req, res) => {
+    let raw = "";
+    req.on("data", (chunk) => { raw += chunk; });
+    req.on("end", () => {
+      systems.push(JSON.parse(raw).system);
+      res.writeHead(500).end("stand-in endpoint");
+    });
+  });
+  model.listen(0);
+  await new Promise<void>((resolve) => model.once("listening", resolve));
+  const modelUrl = `http://127.0.0.1:${(model.address() as AddressInfo).port}`;
+
+  const app = express();
+  app.use(express.json());
+  app.use(router);
+  const server = app.listen(0);
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const chatUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/agent/chat`;
+  const send = async (extra: Record<string, unknown>): Promise<void> => {
+    const res = await fetch(chatUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Do the task.", agentConfig: { baseUrl: modelUrl, model: "fixture" }, ...extra }),
+    });
+    await res.text();
+  };
+  try {
+    await send({ taskId: "TASK-01" });
+    await send({});
+    assert.equal(systems.length, 2);
+    assert.match(systems[0], /TASK_STATUS: blocked/);
+    assert.doesNotMatch(systems[1], /TASK_STATUS/);
+  } finally {
+    server.closeAllConnections();
+    model.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await new Promise<void>((resolve) => model.close(() => resolve()));
+  }
+});
+
 test("a standalone chat names the planning card in the UI language the client sent", async () => {
   const systems: string[] = [];
   // A stand-in model endpoint that records the system prompt and then fails,

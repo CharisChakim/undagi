@@ -38,6 +38,23 @@ test("agent harness emits only enabled instruction groups", () => {
   assert.equal(applyAgentHarness("Keep this exact request", ALL_OFF), "Keep this exact request");
 });
 
+test("a run tied to a task card is asked to end with a status line, whatever the layers", () => {
+  const task = agentHarnessPrompt(ALL_OFF, { task: true });
+  assert.match(task, /TASK_STATUS: done/);
+  assert.match(task, /TASK_STATUS: blocked/);
+  assert.doesNotMatch(task, /Efficiency stack|Karpathy/);
+
+  const withLayers = agentHarnessPrompt({ ...ALL_OFF, minimalCode: true }, { task: true });
+  assert.match(withLayers, /Efficiency stack/);
+  assert.match(withLayers, /Task report:/);
+});
+
+test("a run without a task card is not asked to report a status", () => {
+  assert.doesNotMatch(agentHarnessPrompt({ ...ALL_OFF, minimalCode: true }), /TASK_STATUS/);
+  assert.equal(agentHarnessPrompt(ALL_OFF, {}), "");
+  assert.match(applyAgentHarness("Run it", ALL_OFF, { task: true }), /<user_request>\nRun it\n<\/user_request>/);
+});
+
 test("each efficiency layer can be enabled on its own", () => {
   const answersOnly = agentHarnessPrompt({ ...ALL_OFF, conciseAnswers: true });
   assert.match(answersOnly, /Efficiency stack/);

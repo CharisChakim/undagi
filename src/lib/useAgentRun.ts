@@ -9,7 +9,7 @@ import {
 import { toTransportAnswers } from "../components/plan/followups";
 import { useT } from "./i18n";
 import { agentLanguageFor, type AgentHarnessSettings } from "./agentHarness";
-import { taskOutcomeFor, type TaskOutcome } from "./taskOutcome";
+import { agentNoteFrom, taskOutcomeFor, type TaskOutcome } from "./taskOutcome";
 import type { PermissionMode } from "../types";
 
 interface AgentRunOptions {
@@ -35,8 +35,8 @@ interface AgentRunResult {
 
 interface AgentSendOptions {
   taskId?: string | null;
-  /** Called once the run has ended, with where its task card should go; null when the user stopped it. */
-  onOutcome?: (outcome: TaskOutcome | null) => void;
+  /** Called once the run has ended: where its task card should go (null when the user stopped it) and the agent's closing note. */
+  onOutcome?: (outcome: TaskOutcome | null, note: string) => void;
 }
 
 function nextEntryId(sequence: { current: number }): string {
@@ -349,6 +349,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     let sawTurn = false;
     // What the run amounted to, for the task card it was started from.
     let assistantText = "";
+    // Only the words after the last tool call: the narration before is not the card's note.
+    let finalText = "";
     let runFailed = false;
     let runInterrupted = false;
     const nativeRuntime = runtimeSelection.runtime !== "legacy";
@@ -387,6 +389,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
         } : {
           sessionId,
           ...(conversationId.current ? { conversationId: conversationId.current } : {}),
+          ...(options?.taskId ? { taskId: options.taskId } : {}),
           workspaceRoot,
           allowShell,
           history: history.current,
@@ -444,7 +447,10 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
               saveConversationId(sessionId, event.conversationId);
             }
           } else if (event.type === "text") {
-            if (typeof event.text === "string") assistantText += event.text;
+            if (typeof event.text === "string") {
+              assistantText += event.text;
+              finalText += event.text;
+            }
             setEntries((prev) => {
               const last = prev[prev.length - 1];
               if (last?.kind === "assistant") {
@@ -459,6 +465,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
               ];
             });
           } else if (event.type === "tool_start") {
+            finalText = "";
             turnToolCount += 1;
             setEntries((prev) => [
               ...prev,
@@ -631,7 +638,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
         aborted: ac.signal.aborted || runInterrupted,
         failed: runFailed || !sawDone,
         text: assistantText,
-      }));
+      }), agentNoteFrom(finalText));
     }
     // Delivery, not turn success, decides the draft: a message that reached
     // the server shows in the chat, so the composer lets go of it instead of
