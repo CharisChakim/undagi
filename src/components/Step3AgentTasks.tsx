@@ -560,11 +560,11 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                           draggingId === task.id ? "opacity-40" : ""
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-subtle text-muted">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="shrink-0 whitespace-nowrap text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-subtle text-muted">
                             {task.id}
                           </span>
-                          <div className="flex items-center gap-1">
+                          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
                             <span className="max-w-28 truncate text-[10px] font-medium rounded bg-subtle px-1.5 py-0.5 text-muted">
                               {task.phase || t("Main phase")}
                             </span>
@@ -577,7 +577,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                               </span>
                             )}
                             {openDependencies(task, tasks).length > 0 && column.status !== "done" && (
-                              <span className="text-[10px] font-semibold rounded bg-subtle px-1.5 py-0.5 text-muted" title={blockedTitle(task)}>
+                              <span className="whitespace-nowrap text-[10px] font-semibold rounded bg-subtle px-1.5 py-0.5 text-muted" title={blockedTitle(task)}>
                                 {t("Waiting on {tasks}", { tasks: openDependencies(task, tasks).join(", ") })}
                               </span>
                             )}
