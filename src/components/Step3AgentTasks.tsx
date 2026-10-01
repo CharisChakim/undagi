@@ -47,7 +47,7 @@ interface Step3AgentTasksProps {
   onSelectStep?: (step: 1 | 2 | 3) => void;
 }
 
-type TaskStatus = "todo" | "in_progress" | "done";
+type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
 
 function runDate(value: string | null | undefined): string {
   if (!value) return "";
@@ -310,7 +310,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
     setTimeout(() => setCopiedAll(false), 2000);
   };
 
-  // Ketiga kolom board dirender dari satu kerangka yang sama; hanya isi,
+  // Kolom board dirender dari satu kerangka yang sama; hanya isi,
   // warna penanda, dan aksi di kaki kartunya yang berbeda per status.
   const columns = [
     {
@@ -328,6 +328,14 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
       emptyHint: t('Hit "Mark in progress" on a To do task to move it here.'),
     },
     {
+      status: "blocked" as const,
+      label: t("Blocked"),
+      dot: "bg-danger",
+      tasks: tasks.filter((t) => t.status === "blocked"),
+      // Kolom ini hanya tampil bila ada isinya, jadi petunjuk kosong tak pernah terbaca.
+      emptyHint: "",
+    },
+    {
       status: "done" as const,
       label: t("Done"),
       dot: "bg-ok",
@@ -335,6 +343,9 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
       emptyHint: t("Tasks the AI agent has verified show up here."),
     },
   ];
+
+  // Run yang gagal atau macet mendarat di Blocked; selama kosong, board tetap tiga kolom.
+  const visibleColumns = columns.filter((column) => column.status !== "blocked" || column.tasks.length > 0);
 
   const selectedTaskHandoffJson = selectedTask ? buildHandoffJson(session, selectedTask) : null;
   const manualTaskForm = manualFormOpen ? (
@@ -509,8 +520,8 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
 
           {/* VIEW 1: KANBAN BOARD */}
           {viewMode === "kanban" && (
-            <div className="grid grid-cols-1 @4xl/pane:grid-cols-3 gap-4 items-start">
-              {columns.map((column) => (
+            <div className={`grid grid-cols-1 ${visibleColumns.length > 3 ? "@4xl/pane:grid-cols-4" : "@4xl/pane:grid-cols-3"} gap-4 items-start`}>
+              {visibleColumns.map((column) => (
                 <div
                   key={column.status}
                   onDragOver={(e) => {
@@ -630,7 +641,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                             </>
                           )}
 
-                          {column.status === "in_progress" && (
+                          {(column.status === "in_progress" || column.status === "blocked") && (
                             <>
                               <button
                                 onClick={(e) => {
@@ -863,6 +874,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                   [
                     ["todo", t("To do")],
                     ["in_progress", t("In progress")],
+                    ["blocked", t("Blocked")],
                     ["done", t("Done")],
                   ] as const
                 ).map(([status, label]) => {

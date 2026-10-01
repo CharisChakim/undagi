@@ -1,10 +1,11 @@
 import React from "react";
 import { AlertTriangle, Bot } from "lucide-react";
-import type { AgentTask, PermissionMode, ProjectSession } from "../../types";
+import type { AgentTask, PermissionMode, ProjectSession, SessionUpdate } from "../../types";
 import { isStepReachable, Step } from "../../lib/routing";
 import { LayoutMode } from "../../lib/layout";
 import { useT } from "../../lib/i18n";
 import { useAgentRun } from "../../lib/useAgentRun";
+import { applyTaskOutcome, TASK_STATUS_INSTRUCTION } from "../../lib/taskOutcome";
 import { useRuntimeDiscovery } from "../../lib/runtimes";
 import {
   defaultAwaitsDiscovery,
@@ -28,7 +29,7 @@ export interface WorkbenchProps {
   session: ProjectSession;
   storeError?: string | null;
   onDismissStoreError?: () => void;
-  onUpdateSession: (updated: Partial<ProjectSession>) => void;
+  onUpdateSession: (update: SessionUpdate) => void;
   onWorkspaceSelected: (workspaceRoot: string) => void | Promise<void>;
   onSelectStep: (step: Step) => void;
   onToolApplied?: () => void | Promise<void>;
@@ -106,9 +107,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     setPipelineState({ sessionId: session.id, selection });
     savePipelineSelection(session.id, selection);
   }, [session.id]);
-  const handleToolApplied = React.useCallback(() => {
-    void onToolApplied?.();
-  }, [onToolApplied]);
+  const handleToolApplied = React.useCallback(() => onToolApplied?.(), [onToolApplied]);
+
   const agentRun = useAgentRun({
     sessionId: session.id,
     workspaceRoot: session.workspaceRoot || "",
@@ -131,11 +131,24 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       `Dependencies: ${(task.dependencies || []).join(", ") || "None"}`,
       `Instructions:\n${task.promptInstructions}`,
       `Verification steps:\n${task.verificationSteps}`,
-      "Report the implementation and verification evidence. The task remains in Review until the user accepts it as Done.",
+      TASK_STATUS_INSTRUCTION,
     ].join("\n\n");
 
-    void agentRun.send(prompt, { taskId: task.id }).finally(() => setRunningTaskId(null));
-  }, [agentRun.busy, agentRun.send, onLayoutModeChange]);
+    const sessionId = session.id;
+    void agentRun.send(prompt, {
+      taskId: task.id,
+      // The run can end long after this render, on a different open session,
+      // so the card is moved from the session as it is by then.
+      onOutcome: (outcome) => {
+        if (!outcome) return;
+        onUpdateSession((current) => {
+          if (current.id !== sessionId) return null;
+          const tasks = applyTaskOutcome(current.tasks ?? [], task.id, outcome);
+          return tasks ? { tasks } : null;
+        });
+      },
+    }).finally(() => setRunningTaskId(null));
+  }, [agentRun.busy, agentRun.send, onLayoutModeChange, onUpdateSession, session.id]);
 
   const openPipeline = (step: Step) => {
     if (!isStepReachable(step, session)) return;

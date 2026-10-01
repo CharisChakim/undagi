@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ProjectSession, SessionSummary } from "./types";
+import { ProjectSession, SessionSummary, SessionUpdate } from "./types";
 import {
   createEmptySession,
   loadSavedLLMConfig,
@@ -225,16 +225,17 @@ export default function App() {
       .catch((err: Error) => setStoreError(err.message));
   }, [session]);
 
-  const handleUpdateSession = (updatedFields: Partial<ProjectSession>) => {
-    setSession((prev) =>
-      prev
-        ? {
-            ...prev,
-            ...updatedFields,
-            updatedAt: new Date().toISOString(),
-          }
-        : prev
-    );
+  const handleUpdateSession = (update: SessionUpdate) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const updatedFields = typeof update === "function" ? update(prev) : update;
+      if (!updatedFields) return prev;
+      return {
+        ...prev,
+        ...updatedFields,
+        updatedAt: new Date().toISOString(),
+      };
+    });
   };
 
   const handleSelectStep = (step: Step) => {

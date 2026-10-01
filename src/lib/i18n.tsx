@@ -191,6 +191,7 @@ const ID: Record<string, string> = {
   "Assembling the PRD & diagram...": "Menyusun PRD & diagram...",
   "Atomic tasks ready to hand to an AI coding agent.": "Task atomik siap diberikan ke AI coding agent.",
   "Back": "Kembali",
+  "Blocked": "Terblokir",
   "Back to the default view": "Kembali ke tampilan awal",
   "Back to plan": "Kembali ke plan",
   "Base URL": "Base URL",

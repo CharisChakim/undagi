@@ -9,13 +9,14 @@ import {
 import { toTransportAnswers } from "../components/plan/followups";
 import { useT } from "./i18n";
 import { agentLanguageFor, type AgentHarnessSettings } from "./agentHarness";
+import { taskOutcomeFor, type TaskOutcome } from "./taskOutcome";
 import type { PermissionMode } from "../types";
 
 interface AgentRunOptions {
   sessionId: string;
   workspaceRoot: string;
   allowShell: boolean;
-  onToolApplied: () => void;
+  onToolApplied: () => void | Promise<void>;
   runtimeSelection?: RuntimeChatSelection;
   harnessSettings: AgentHarnessSettings;
   permissionMode?: PermissionMode;
@@ -34,6 +35,8 @@ interface AgentRunResult {
 
 interface AgentSendOptions {
   taskId?: string | null;
+  /** Called once the run has ended, with where its task card should go; null when the user stopped it. */
+  onOutcome?: (outcome: TaskOutcome | null) => void;
 }
 
 function nextEntryId(sequence: { current: number }): string {
@@ -344,6 +347,10 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     let turnToolCount = 0;
     let sawDone = false;
     let sawTurn = false;
+    // What the run amounted to, for the task card it was started from.
+    let assistantText = "";
+    let runFailed = false;
+    let runInterrupted = false;
     const nativeRuntime = runtimeSelection.runtime !== "legacy";
     const runtimeConversationKey = conversationId.current || sessionId;
     const externalSessionId = nativeRuntime
@@ -437,6 +444,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
               saveConversationId(sessionId, event.conversationId);
             }
           } else if (event.type === "text") {
+            if (typeof event.text === "string") assistantText += event.text;
             setEntries((prev) => {
               const last = prev[prev.length - 1];
               if (last?.kind === "assistant") {
@@ -548,6 +556,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
           } else if (event.type === "history") {
             history.current = event.history;
           } else if (event.type === "error") {
+            runFailed = true;
             pushStreamError(
               event.message || t("The agent is unreachable."),
               event.retryable !== false,
@@ -558,6 +567,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
             turnToolCount = 0;
           } else if (event.type === "done") {
             sawDone = true;
+            if (event.runStatus === "failed" || event.stop === "max_tokens") runFailed = true;
+            if (event.runStatus === "interrupted") runInterrupted = true;
             const endedAt = Date.now();
             setEntries((prev) => {
               // A tool the provider never finished, such as a command the user
@@ -587,6 +598,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
       }
     } catch (err) {
       if (!ac.signal.aborted) {
+        runFailed = true;
         pushStreamError(errorText(err, t("The agent is unreachable.")), true);
       }
     } finally {
@@ -610,7 +622,16 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
         controller.current = null;
         setBusy(false);
       }
-      if (toolTouchedSession) onToolAppliedRef.current();
+      // The refresh replaces the session with the server's copy, so the card
+      // moves only after it, not before.
+      if (toolTouchedSession) {
+        try { await onToolAppliedRef.current(); } catch { /* the refresh reports its own failure */ }
+      }
+      options?.onOutcome?.(taskOutcomeFor({
+        aborted: ac.signal.aborted || runInterrupted,
+        failed: runFailed || !sawDone,
+        text: assistantText,
+      }));
     }
     // Delivery, not turn success, decides the draft: a message that reached
     // the server shows in the chat, so the composer lets go of it instead of

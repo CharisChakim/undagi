@@ -337,7 +337,7 @@ export interface AgentTask {
   promptInstructions: string;
   verificationSteps: string;
   acceptanceCriteria?: string;
-  status?: 'todo' | 'in_progress' | 'done';
+  status?: 'todo' | 'in_progress' | 'done' | 'blocked';
   handoffStatus?: 'handed_off';
   handedOffAt?: string;
   /** Snapshot of the PRD used to generate this task, when applicable. */
@@ -351,6 +351,13 @@ export interface AgentTask {
   syncStatus?: 'current' | 'needs_sync';
   needsSync?: boolean;
 }
+
+/**
+ * A change to the open session: fields to merge, or a function that reads the
+ * session as it is now and returns them (null for no change). A run that ends
+ * minutes after it started needs the second form.
+ */
+export type SessionUpdate = Partial<ProjectSession> | ((current: ProjectSession) => Partial<ProjectSession> | null);
 
 export interface ProjectSession {
   id: string;

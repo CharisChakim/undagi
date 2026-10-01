@@ -98,7 +98,7 @@ export const projectTools: ToolSpec[] = [
         type: "object",
         properties: {
           taskId: { type: "string", description: "Task id, e.g. TASK-01." },
-          status: { type: "string", enum: ["todo", "in_progress", "done"] },
+          status: { type: "string", enum: ["todo", "in_progress", "blocked", "done"] },
         },
         required: ["taskId", "status"],
       },
@@ -114,7 +114,7 @@ export const projectTools: ToolSpec[] = [
       // Enum di skema tool hanya petunjuk untuk model, bukan aturan yang ditegakkan
       // API. Papan kanban menyaring persis ketiga nilai ini, jadi nilai lain tidak
       // membuat kartunya salah kolom — kartunya lenyap dari papan sama sekali.
-      const allowed = ["todo", "in_progress", "done"];
+      const allowed = ["todo", "in_progress", "blocked", "done"];
       if (!allowed.includes(input?.status)) {
         return {
           error: `Status "${input?.status}" is not recognized. Use one of: ${allowed.join(", ")}.`,
