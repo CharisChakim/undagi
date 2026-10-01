@@ -294,6 +294,30 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
 .rv { opacity: 0; transform: translateY(14px); transition: opacity 620ms var(--ease), transform 620ms var(--ease); }
 .rv.in { opacity: 1; transform: none; }
 
+/* comparison */
+.cmp-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--elev-1); }
+table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14.5px; }
+.cmp th, .cmp td { text-align: left; vertical-align: top; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.cmp thead th { font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); font-weight: 640; background: var(--subtle); }
+.cmp tbody tr:last-child td { border-bottom: none; }
+.cmp td { color: var(--muted); }
+.cmp td:first-child { width: 22%; color: var(--ink); font-weight: 600; }
+.cmp td:last-child { color: var(--ink); }
+.cmp a { color: var(--accent-ink); text-decoration: none; }
+.cmp a:hover { text-decoration: underline; }
+.cmp-note { margin: 14px 0 0; font-size: 13px; color: var(--faint); }
+/* On phones the table becomes one card per tool, so no column hides off-screen. */
+@media (max-width: 720px) {
+  .cmp-wrap { overflow: visible; border: none; background: none; box-shadow: none; }
+  table.cmp, .cmp tbody, .cmp tr, .cmp td { display: block; min-width: 0; width: auto; }
+  .cmp thead { display: none; }
+  .cmp tr { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--elev-1); padding: 4px 0; margin-bottom: 14px; }
+  .cmp td, .cmp td:first-child { width: auto; border-bottom: none; padding: 10px 18px; }
+  .cmp td[data-label]::before { content: attr(data-label); display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); font-weight: 640; margin-bottom: 4px; }
+}
+.callout ul { margin: 10px 0 0; padding-left: 18px; font-size: 14.5px; color: var(--ink); }
+.callout li { margin-bottom: 5px; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
@@ -309,6 +333,7 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
     <a class="brand" href="#top"><span class="mark"><svg viewBox="0 0 100 100" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M30 25V73H70V35" fill="none" stroke="currentColor" stroke-width="8" stroke-linejoin="round"/><rect x="20" y="15" width="20" height="20" rx="5"/><rect x="40" y="63" width="20" height="20" rx="5"/><rect x="61.5" y="16.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="5"/></svg></span> Undagi</a>
     <span class="nav-sp"></span>
     <a class="nav-link nav-hide" href="#how">How it works</a>
+    <a class="nav-link nav-hide" href="#compare">Compare</a>
     <a class="nav-link nav-hide" href="#models">Models</a>
     <a class="nav-link nav-hide" href="#trust">Boundaries</a>
     <a class="nav-link nav-hide" href="#install">Install</a>
@@ -328,7 +353,8 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
     <p class="lede">
       Undagi interviews you about the idea until the gaps are closed, drafts the architecture,
       then splits it into atomic tasks — each with target files, dependencies, and verification steps.
-      Download <code>AGENTS.md</code> and hand it to Claude Code, Codex, or Cursor.
+      Run the tasks right here with Claude Code, Codex, Antigravity or your own model — or download
+      <code>AGENTS.md</code> and hand it to any agent that reads it.
     </p>
 
     <div class="cta-row">
@@ -349,7 +375,7 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
     <div class="shot" id="heroShot">
       <img class="themed" data-light="assets/board-light.png" data-dark="assets/board-dark.png"
            src="assets/board-dark.png"
-           alt="Undagi kanban workspace: nine generated tasks in a To do column, each with an ID, phase, priority and target file count, plus a Download AGENTS.md button."
+           alt="Undagi kanban workspace: nine generated tasks across To do, In progress and Done, each with an ID, phase, priority and target file count, plus a Download AGENTS.md button."
            width="2880" height="1800" />
     </div>
   </div>
@@ -422,10 +448,58 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
     <figure>
       <div class="shot"><img class="themed" data-light="assets/plan-light.png" data-dark="assets/plan-dark.png"
            src="assets/plan-light.png"
-           alt="Split view: the agent chat on the left, and on the right the generated plan with an architecture summary and an interactive feature-structure diagram."
+           alt="The generated plan for a small-shop inventory app: a summary, a model picker with a Continue to the PRD button, and an interactive feature-structure diagram."
            width="2880" height="1800" loading="lazy" /></div>
-      <figcaption>Split view — chat on the left, the living plan document on the right.</figcaption>
+      <figcaption>The plan step — an editable summary and feature structure you review before the PRD.</figcaption>
     </figure>
+  </div>
+</section>
+
+<section id="compare">
+  <div class="wrap">
+    <p class="kicker">How it compares</p>
+    <h2>Planning tools are everywhere. Here is where Undagi fits.</h2>
+    <p class="section-lede">
+      Other tools cover parts of this path. Undagi's bet is one visual flow from a rough idea to a
+      board you can run, on whichever model or agent you already use.
+    </p>
+
+    <div class="cmp-wrap">
+      <table class="cmp">
+        <thead>
+          <tr><th>If you use</th><th>What it does</th><th>How Undagi differs</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="https://kiro.dev">Kiro</a></td>
+            <td data-label="What it does">A spec-driven IDE: requirements, design and task files, run in dependency waves. It runs on its own model catalogue, billed in credits; bring-your-own-key is still an <a href="https://github.com/kirodotdev/Kiro/issues/9367">open request</a>.</td>
+            <td data-label="How Undagi differs">Uses any endpoint you configure, local models included, or the Codex, Claude Code or Antigravity CLI you already have. Free, MIT, no account.</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/github/spec-kit">Spec Kit</a>, <a href="https://github.com/bmad-code-org/BMAD-METHOD">BMAD-METHOD</a>, <a href="https://github.com/eyaltoledano/claude-task-master">Task Master</a></td>
+            <td data-label="What it does">Add planning to the agent you already use, as commands, skills or a CLI. The output is Markdown or JSON files in your repository.</td>
+            <td data-label="How Undagi differs">The same idea &rarr; PRD &rarr; tasks path as a visual app, with a board you run tasks from. The trade-off: those files live in git, Undagi keeps plans in a local database &mdash; export <code>AGENTS.md</code>, the PRD or a bundle to keep them beside the code.</td>
+          </tr>
+          <tr>
+            <td><a href="https://www.conductor.build">Conductor</a>, <a href="https://github.com/smtg-ai/claude-squad">Claude Squad</a>, <a href="https://github.com/cline/kanban">Cline Kanban</a></td>
+            <td data-label="What it does">Run several coding-agent sessions side by side, each in its own git worktree. Cline Kanban also links cards into dependency chains.</td>
+            <td data-label="How Undagi differs">Focuses on what those sessions should build: the plan, the PRD, and tasks with target files and verification steps. It does not do worktrees, parallel agents or pull-request loops, so it works alongside them rather than instead.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cmp-note">Checked on 30 September 2026 against each project's public pages. These tools change quickly; if something here is out of date, please open an issue.</p>
+
+    <div class="callout">
+      <p><strong>Where Undagi is not the right tool.</strong></p>
+      <ul>
+        <li>It is a beta, single-user and local: no accounts, no sync, no team features.</li>
+        <li>Packaged installers are for Windows and Linux and are unsigned; macOS runs from the install script.</li>
+        <li>It plans a new project from an idea. It does not analyse an existing codebase to plan changes to it.</li>
+        <li>No parallel agents, git worktrees or pull-request loop.</li>
+        <li>Approvals and path checks are not an OS sandbox. &ldquo;Full access&rdquo; means you trust the agent.</li>
+      </ul>
+    </div>
   </div>
 </section>
 
@@ -442,8 +516,9 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
       <div class="tile">
         <h3>Route by role, not by app</h3>
         <p>
-          Bind a different connection to each stage. A strong model drafts the architecture; a cheap,
-          fast one fills in the task board. The app does not care which is which.
+          Bind a different connection to each stage, and pick the model for Plan, PRD and Tasks right
+          where you generate them. A strong model drafts the architecture; a cheap, fast one fills in
+          the task board. The app does not care which is which.
         </p>
         <div class="chips">
           <span class="chip">Agent</span><span class="chip">Plan</span><span class="chip">PRD</span><span class="chip">Tasks</span>
@@ -510,7 +585,8 @@ footer a:hover { color: var(--ink); text-decoration: underline; }
         <h3>Your data stays local</h3>
         <p>
           Sessions, connections, and MCP definitions live in a SQLite file on disk. There is no
-          account, no sync, and no telemetry. Deleting <code>data/</code> deletes everything.
+          account, no sync, and no telemetry. Deleting <code>data/</code> deletes everything. Prompts
+          still go to the model provider you choose; with a local model, nothing leaves your machine.
         </p>
       </div>
       <div class="tile">
@@ -571,7 +647,7 @@ npm run dev   <span class="c"># http://localhost:3000</span></pre>
 
 <footer>
   <div class="wrap foot-in">
-    <span class="mark" style="width:22px;height:22px;border-radius:7px;font-size:12px">A</span>
+    <span class="mark" style="width:22px;height:22px;border-radius:7px"><svg viewBox="0 0 100 100" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M30 25V73H70V35" fill="none" stroke="currentColor" stroke-width="8" stroke-linejoin="round"/><rect x="20" y="15" width="20" height="20" rx="5"/><rect x="40" y="63" width="20" height="20" rx="5"/><rect x="61.5" y="16.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="5"/></svg></span>
     <span>Undagi</span>
     <span class="nav-sp"></span>
     <a href="https://github.com/CharisChakim/undagi">GitHub</a>
@@ -639,7 +715,7 @@ npm run dev   <span class="c"># http://localhost:3000</span></pre>
   // intersecting, which leaves that content invisible for good. Re-checking
   // every pending element on each frame cannot strand anything, and with ~17
   // elements the cost is irrelevant.
-  var pending = [].slice.call(document.querySelectorAll('.brk, .step, .tile, figure, .callout'));
+  var pending = [].slice.call(document.querySelectorAll('.brk, .step, .tile, figure, .callout, .cmp-wrap'));
   pending.forEach(function (el) { el.classList.add('rv'); });
 
   var ticking = false;
