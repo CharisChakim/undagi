@@ -1,3 +1,5 @@
+import type { Lang } from "../messages.ts";
+
 export interface AgentHarnessSettings {
   compactTerminal: boolean;
   conciseAnswers: boolean;
@@ -26,14 +28,25 @@ export function parseAgentHarnessSettings(value: unknown): AgentHarnessSettings 
 export interface AgentHarnessOptions {
   /** The run belongs to a task card on the board. */
   task?: boolean;
+  /** The UI language; the card's note is written in it. Missing means no instruction. */
+  noteLang?: Lang;
 }
+
+const LANGUAGE_NAME: Record<Lang, string> = { en: "English", id: "Indonesian" };
 
 // Not a setting: the board moves the card on this line, so it joins the harness
 // block exactly when a card is attached, whichever layers are switched off.
 // Keep the marker in sync with src/lib/taskOutcome.ts, which reads it.
-const TASK_REPORT = `Task report:
+// The note is read in the UI, so it follows the UI language, whatever language the
+// runtime's own configuration (the user's CLAUDE.md, say) asks for in a chat.
+function taskReport(noteLang?: Lang): string {
+  const language = noteLang
+    ? ` Write the note in ${LANGUAGE_NAME[noteLang]}; the TASK_STATUS line stays exactly as written.`
+    : "";
+  return `Task report:
 - This run works on one task card. End your final message with one line: \`TASK_STATUS: done\` if the task is complete and its verification steps passed, or \`TASK_STATUS: blocked\` if you could not finish it.
-- Above that line, write a short note for the card: the evidence that it works, what blocked you, or anything you are not sure about.`;
+- Above that line, write a short note for the card: the evidence that it works, what blocked you, or anything you are not sure about.${language}`;
+}
 
 export function agentHarnessPrompt(settings: AgentHarnessSettings, options: AgentHarnessOptions = {}): string {
   const sections: string[] = [];
@@ -65,7 +78,7 @@ export function agentHarnessPrompt(settings: AgentHarnessSettings, options: Agen
 - Ask when harmful ambiguity remains. Prefer the simplest solution and a surgical diff.
 - Do not reformat or clean unrelated code. Verify the requested outcome and report concrete evidence.`);
   }
-  if (options.task) sections.push(TASK_REPORT);
+  if (options.task) sections.push(taskReport(options.noteLang));
   return sections.join("\n\n");
 }
 

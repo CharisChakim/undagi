@@ -208,7 +208,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
 
       const request = streamLlm(opts.conn, {
         model: opts.model,
-        system: systemPromptFor(session, opts.harnessSettings, opts.lang, { task: opts.taskRun }),
+        system: systemPromptFor(session, opts.harnessSettings, opts.lang, { task: opts.taskRun, noteLang: opts.lang }),
         messages: sanitize(loadMessages(opts.conversationId)),
         tools: specs.map((spec: ToolSpec) => spec.def),
         maxTokens: limits.maxTokens,

@@ -283,12 +283,16 @@ test("a run started from a task card is asked to report its status; a plain chat
 
   await withServer(provider, async (url) => {
     await chat(url, { sessionId, taskId, idempotencyKey: "card-run" });
+    await chat(url, { sessionId, taskId, language: "id", idempotencyKey: "card-run-id" });
     await chat(url, { sessionId, idempotencyKey: "plain-chat" });
 
-    const [fromCard, plain] = provider.turns.map((turn) => turn.prompt);
+    const [fromCard, fromCardId, plain] = provider.turns.map((turn) => turn.prompt);
     assert.match(fromCard!, /TASK_STATUS: done/);
     assert.match(fromCard!, /TASK_STATUS: blocked/);
-    assert.doesNotMatch(plain!, /TASK_STATUS/);
+    // The note follows the UI language the client sent; English when it sent none.
+    assert.match(fromCard!, /Write the note in English/);
+    assert.match(fromCardId!, /Write the note in Indonesian/);
+    assert.doesNotMatch(plain!, /TASK_STATUS|Write the note in/);
   });
 });
 

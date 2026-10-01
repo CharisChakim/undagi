@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import express, { type Request, type Response } from "express";
 
 import { getSession } from "../../db.ts";
+import type { Lang } from "../messages.ts";
 import { adoptChatWorkspace, chatWorkspaceEvent, ensureChatWorkspace } from "../agent/chatWorkspace.ts";
 import {
   appendMessage,
@@ -77,6 +78,8 @@ interface RuntimeAgentBody {
   idempotencyKey?: string | null;
   harnessSettings: AgentHarnessSettings;
   permissionMode: PermissionMode;
+  /** The UI language, which the card's note is written in. */
+  language: Lang;
 }
 
 interface NormalizedUiEvent extends Record<string, unknown> {
@@ -133,6 +136,7 @@ function parseBody(value: unknown): RuntimeAgentBody {
     idempotencyKey: optionalText(value.idempotencyKey, "idempotencyKey"),
     harnessSettings: parseAgentHarnessSettings(value.harnessSettings),
     permissionMode: parsePermissionMode(value.permissionMode),
+    language: value.language === "id" ? "id" : "en",
   };
 }
 
@@ -630,7 +634,7 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
       conversationId,
       body.runtime,
       body.externalSessionId ?? null,
-      applyAgentHarness(body.message, body.harnessSettings, { task: Boolean(body.taskId) }),
+      applyAgentHarness(body.message, body.harnessSettings, { task: Boolean(body.taskId), noteLang: body.language }),
     );
     // The chat says so when a runtime is handed earlier messages: it gets
     // their text, not the tool results or the state of the other session.

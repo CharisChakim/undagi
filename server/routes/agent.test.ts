@@ -116,10 +116,13 @@ test("a Legacy API turn started from a task card is asked to report its status; 
   };
   try {
     await send({ taskId: "TASK-01" });
+    await send({ taskId: "TASK-01", language: "id" });
     await send({});
-    assert.equal(systems.length, 2);
+    assert.equal(systems.length, 3);
     assert.match(systems[0], /TASK_STATUS: blocked/);
-    assert.doesNotMatch(systems[1], /TASK_STATUS/);
+    assert.match(systems[0], /Write the note in English/);
+    assert.match(systems[1], /Write the note in Indonesian/);
+    assert.doesNotMatch(systems[2], /TASK_STATUS/);
   } finally {
     server.closeAllConnections();
     model.closeAllConnections();
