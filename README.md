@@ -133,9 +133,6 @@ Download an installer from the [v1.0.1-beta release](https://github.com/CharisCh
 | Linux | `Undagi-<version>-x86_64.AppImage` | Portable. `chmod +x` it, then run it. |
 | Linux (Debian/Ubuntu) | `Undagi-<version>-amd64.deb` | `sudo apt install ./<file>.deb` |
 
-Undagi was called The Architech until after 1.0.1-beta, so that release's files
-are still named `TheArchitech-*`.
-
 The desktop build runs the same local server, picks a free port instead of
 3000, and listens on `127.0.0.1` only. It keeps its data outside the install
 directory:
