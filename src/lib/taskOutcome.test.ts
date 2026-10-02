@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AgentTask } from "../types";
-import { agentNoteFrom, applyTaskOutcome, markTaskStopped, runFailedAtDone, taskOutcomeFor, taskStatusMarker } from "./taskOutcome";
+import { agentNoteFrom, applyTaskOutcome, markTaskStopped, memoryFactsFrom, runFailedAtDone, taskOutcomeFor, taskStatusMarker } from "./taskOutcome";
 
 function task(id: string, status?: AgentTask["status"]): AgentTask {
   return {
@@ -35,6 +35,7 @@ test("the last marker wins, and a mention inside a sentence is not a marker", ()
 test("the note is the closing message without the marker line", () => {
   assert.equal(agentNoteFrom("Ran the suite, 12 pass.\nNot sure about the retry path.\n\n`TASK_STATUS: done`"), "Ran the suite, 12 pass.\nNot sure about the retry path.");
   assert.equal(agentNoteFrom("TASK_STATUS: blocked"), "");
+  assert.equal(agentNoteFrom("Tests pass.\nMEMORY: Use pnpm, not npm.\nTASK_STATUS: done"), "Tests pass.");
   assert.equal(agentNoteFrom(""), "");
 });
 
@@ -140,4 +141,19 @@ test("without a run status, the stream so far stands, and a cut-off answer alway
   assert.equal(runFailedAtDone(false, { stop: "end_turn" }), false);
   assert.equal(runFailedAtDone(false, { stop: "max_tokens" }), true);
   assert.equal(runFailedAtDone(false, { runStatus: "completed", stop: "max_tokens" }), true);
+});
+
+test("the facts an agent leaves for later tasks are read from its MEMORY lines, each once", () => {
+  const reply = [
+    "Added the endpoint.",
+    "MEMORY: Tests run with `npm test -- auth`.",
+    "- **memory:** Use pnpm, not npm",
+    "MEMORY: Use pnpm, not npm",
+    "MEMORY:   ",
+    "TASK_STATUS: done",
+  ].join("\n");
+  assert.deepEqual(memoryFactsFrom(reply), ["Tests run with `npm test -- auth`.", "Use pnpm, not npm"]);
+  assert.deepEqual(memoryFactsFrom("No facts here.\nTASK_STATUS: done"), []);
+  assert.deepEqual(memoryFactsFrom("`MEMORY: Seed with make seed`\nMEMORY: Run `npm test`"), ["Seed with make seed", "Run `npm test`"]);
+  assert.ok(memoryFactsFrom(`MEMORY: ${"x".repeat(400)}`)[0].length <= 301);
 });

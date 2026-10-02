@@ -10,6 +10,8 @@ export interface RunReport {
   error: string | null;
   /** The runtime's own code for that failure, when it sent one. */
   errorCode: string | null;
+  /** Facts the agent left for later tasks on MEMORY lines. */
+  memory?: string[];
 }
 
 /** Retries after the first attempt, so a card gets at most MAX_RETRIES + 1 tries. */

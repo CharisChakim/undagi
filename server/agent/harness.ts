@@ -57,7 +57,8 @@ function taskReport(noteLang?: Lang): string {
     : "";
   return `Task report:
 - This run works on one task card. End your final message with one line: \`TASK_STATUS: done\` if the task is complete and its verification steps passed, or \`TASK_STATUS: blocked\` if you could not finish it.
-- Above that line, write a short note for the card: the evidence that it works, what blocked you, or anything you are not sure about.${language}`;
+- Above that line, write a short note for the card: the evidence that it works, what blocked you, or anything you are not sure about.${language}
+- If you learned something later tasks in this project need to know (a command that works, a convention, a constraint), add one line per fact above the TASK_STATUS line: \`MEMORY: <fact>\`. Leave it out when there is nothing new.`;
 }
 
 export function agentHarnessPrompt(settings: AgentHarnessSettings, options: AgentHarnessOptions = {}): string {

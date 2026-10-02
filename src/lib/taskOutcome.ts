@@ -27,11 +27,28 @@ export function taskStatusMarker(text: string): AgentVerdict | null {
 
 const NOTE_LIMIT = 2000;
 
-/** The agent's closing words for the card: its final message without the marker line. */
+// A fact the agent wants later tasks in this project to know, one per line.
+// server/agent/harness.ts asks for it; keep them in sync.
+const MEMORY = /^[\s>*_`-]*memory[*_`]*\s*:[\s*_`]*(.*?)[\s*_]*$/i;
+const FACT_LIMIT = 300;
+
+/** The facts the agent wrote on MEMORY lines, each once. */
+export function memoryFactsFrom(text: string): string[] {
+  const facts = new Set<string>();
+  for (const line of text.split("\n")) {
+    let fact = MEMORY.exec(line)?.[1]?.trim() ?? "";
+    // A line wrapped in backticks leaves its closing one; code inside the fact keeps its pair.
+    if (fact.endsWith("`") && (fact.match(/`/g)?.length ?? 0) % 2 === 1) fact = fact.slice(0, -1).trimEnd();
+    if (fact) facts.add(fact.length > FACT_LIMIT ? `${fact.slice(0, FACT_LIMIT).trimEnd()}…` : fact);
+  }
+  return [...facts];
+}
+
+/** The agent's closing words for the card: its final message without the marker and MEMORY lines. */
 export function agentNoteFrom(text: string): string {
   const note = text
     .split("\n")
-    .filter((line) => !MARKER.test(line))
+    .filter((line) => !MARKER.test(line) && !MEMORY.test(line))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

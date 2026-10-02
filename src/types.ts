@@ -391,6 +391,17 @@ export interface ProjectSession {
   // Menjalankan perintah adalah kewenangan terpisah dari membaca dan menulis
   // berkas, jadi izinnya juga terpisah dan mati secara bawaan.
   allowShell?: boolean;
+  /** Facts task runs left for later tasks (their MEMORY lines), oldest first. */
+  projectMemory?: ProjectMemoryEntry[];
+}
+
+/** One fact a task run wrote for the tasks after it. */
+export interface ProjectMemoryEntry {
+  id: string;
+  text: string;
+  /** The card whose run wrote it. */
+  taskId: string;
+  createdAt: string;
 }
 
 // Baris riwayat dari SQLite — cukup untuk daftar, tanpa memuat payload penuh.

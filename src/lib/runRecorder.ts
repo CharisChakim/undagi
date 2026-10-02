@@ -1,6 +1,6 @@
 import type { TFunction } from "./i18n";
 import type { RunReport } from "./runRetry";
-import { agentNoteFrom, runFailedAtDone, taskOutcomeFor } from "./taskOutcome";
+import { agentNoteFrom, memoryFactsFrom, runFailedAtDone, taskOutcomeFor } from "./taskOutcome";
 
 /**
  * Follows one run's stream and says, once it has ended, what it amounted to for
@@ -54,6 +54,7 @@ export class RunRecorder {
     return {
       outcome: taskOutcomeFor({ aborted: stopped, failed, text: this.finalText }),
       note: agentNoteFrom(this.finalText),
+      memory: memoryFactsFrom(this.finalText),
       error: failure ? (this.error ?? this.t("The run ended with an error.")) : null,
       errorCode: failure ? this.errorCode : null,
     };

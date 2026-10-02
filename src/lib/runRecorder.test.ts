@@ -16,6 +16,7 @@ test("a run that ends well goes where its closing line says, with that message a
   assert.deepEqual(run.report(false), {
     outcome: "blocked",
     note: "Added the route and its test.",
+    memory: [],
     error: null,
     errorCode: null,
   });
@@ -40,6 +41,7 @@ test("a failed run carries the runtime's message and code", () => {
   assert.deepEqual(run.report(false), {
     outcome: "failed",
     note: "",
+    memory: [],
     error: "Model request failed (503)",
     errorCode: "RPC_ERROR",
   });
@@ -75,7 +77,7 @@ test("without a run status (the Legacy API), an error event still fails the run"
 test("a run the user stopped, or the server interrupted, moves nothing and reports no error", () => {
   const stopped = recorder();
   stopped.fail("The request was cancelled.");
-  assert.deepEqual(stopped.report(true), { outcome: null, note: "", error: null, errorCode: null });
+  assert.deepEqual(stopped.report(true), { outcome: null, note: "", memory: [], error: null, errorCode: null });
 
   const interrupted = recorder();
   interrupted.done({ runStatus: "interrupted" });

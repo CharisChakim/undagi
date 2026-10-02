@@ -6,6 +6,7 @@ import { LayoutMode } from "../../lib/layout";
 import { useT } from "../../lib/i18n";
 import { useAgentRun } from "../../lib/useAgentRun";
 import { applyTaskOutcome, markTaskStopped } from "../../lib/taskOutcome";
+import { rememberFacts } from "../../lib/projectMemory";
 import { readableRunError, runWithRetries, type RunReport } from "../../lib/runRetry";
 import { useRuntimeDiscovery } from "../../lib/runtimes";
 import {
@@ -176,6 +177,16 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         return tasks ? { tasks } : null;
       });
     };
+    // What a run left for later tasks is kept however its card ends up, a card
+    // moved by hand included. A stopped run's partial reply leaves nothing.
+    const remember = (report: RunReport): void => {
+      if (!report.outcome || !report.memory?.length) return;
+      onUpdateSession((current) => {
+        if (current.id !== sessionId) return null;
+        const projectMemory = rememberFacts(current.projectMemory, report.memory, task.id);
+        return projectMemory ? { projectMemory } : null;
+      });
+    };
     // Once the loop below is over, the chat's "Try again" can send this same message
     // again with the same options; that run has no loop to hand its report to, so it
     // moves the card itself. A move by hand during such a rerun is not tracked.
@@ -188,6 +199,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         taskId: task.id,
         onOutcome: (next) => {
           report = next;
+          remember(next);
           if (loopEnded) moveCard(next, 1);
         },
       });
