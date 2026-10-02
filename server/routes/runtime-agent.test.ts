@@ -261,7 +261,7 @@ test("a runtime session that is new to a chat is told what was said before it", 
     const [first, second, third] = provider.turns.map((turn) => turn.prompt);
     assert.doesNotMatch(first!, /<conversation_context>/);
     assert.match(second!, /User: Use Postgres for storage\.\n\nAssistant: answer 1/);
-    assert.match(second!, /<user_request>\nAdd a users table\.\n<\/user_request>$/);
+    assert.match(second!, /<\/conversation_context>\n\nAdd a users table\.$/);
     // Back in the first session: only what it missed, not its own turn again.
     assert.match(third!, /User: Add a users table\.\n\nAssistant: answer 2/);
     assert.doesNotMatch(third!, /Use Postgres/);
@@ -293,6 +293,25 @@ test("a run started from a task card is asked to report its status; a plain chat
     assert.match(fromCard!, /Write the note in English/);
     assert.match(fromCardId!, /Write the note in Indonesian/);
     assert.doesNotMatch(plain!, /TASK_STATUS|Write the note in/);
+  });
+});
+
+test("a native runtime gets no style layers, even with every toggle on, and a card still gets its report", async () => {
+  const provider = new ProviderFixture(async function* () {
+    yield { type: "text", text: "ok", threadId: "thread_layers", turnId: "turn_layers", itemId: null };
+    yield { ...done, threadId: "thread_layers", turnId: "turn_layers" };
+  });
+  const { sessionId, taskId } = project();
+  const harnessSettings = { compactTerminal: true, conciseAnswers: true, minimalCode: true, karpathyGuidelines: true };
+
+  await withServer(provider, async (url) => {
+    await chat(url, { sessionId, taskId, harnessSettings, idempotencyKey: "layers-card" });
+    await chat(url, { sessionId, harnessSettings, idempotencyKey: "layers-plain" });
+
+    const [fromCard, plain] = provider.turns.map((turn) => turn.prompt);
+    assert.doesNotMatch(fromCard!, /Efficiency stack|Karpathy/);
+    assert.match(fromCard!, /Task report:/);
+    assert.doesNotMatch(plain!, /Efficiency stack|Karpathy|agent_harness/);
   });
 });
 

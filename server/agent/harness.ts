@@ -15,6 +15,19 @@ export const DEFAULT_AGENT_HARNESS_SETTINGS: AgentHarnessSettings = {
   karpathyGuidelines: true,
 };
 
+/**
+ * What a Codex, Claude Code or Antigravity run gets: no style layer, only the
+ * Task report. Those runtimes bring their own system prompt, and often the
+ * user's own skills for the same rules, so the layers would arrive twice. The
+ * toggles apply to the built-in loop behind API connections.
+ */
+export const NATIVE_RUNTIME_HARNESS_SETTINGS: AgentHarnessSettings = {
+  compactTerminal: false,
+  conciseAnswers: false,
+  minimalCode: false,
+  karpathyGuidelines: false,
+};
+
 export function parseAgentHarnessSettings(value: unknown): AgentHarnessSettings {
   if (!value || typeof value !== "object" || Array.isArray(value)) return DEFAULT_AGENT_HARNESS_SETTINGS;
   const settings = value as Record<string, unknown>;

@@ -400,7 +400,6 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
           allowShell,
           model: runtimeSelection.model,
           effort: runtimeSelection.effort,
-          harnessSettings,
           language: lang,
           agentLanguage: agentLanguageFor(harnessSettings),
           permissionMode,

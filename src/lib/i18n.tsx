@@ -85,6 +85,7 @@ const ID: Record<string, string> = {
   "Efficiency stack": "Stack efisiensi",
   "RTK · Compact terminal": "RTK · Terminal ringkas",
   "Targeted commands, rg-first search, capped output, and summarized logs instead of raw dumps.": "Perintah tertarget, cari dengan rg lebih dulu, output dibatasi, dan log diringkas alih-alih ditumpahkan mentah.",
+  "For API connections only. Codex, Claude Code and Antigravity follow their own system prompt and your own setup for these.": "Hanya untuk koneksi API. Untuk hal-hal ini, Codex, Claude Code, dan Antigravity mengikuti system prompt mereka sendiri dan konfigurasi Anda.",
   "Caveman · Concise answers": "Caveman · Jawaban padat",
   "Answers only what was asked: no preambles, repetition, or unsolicited alternatives. Code, paths, numbers, and warnings stay verbatim.": "Menjawab hanya yang ditanya: tanpa preamble, pengulangan, atau alternatif yang tidak diminta. Kode, path, angka, dan peringatan tetap verbatim.",
   "Ponytail · Minimal code": "Ponytail · Kode minimal",

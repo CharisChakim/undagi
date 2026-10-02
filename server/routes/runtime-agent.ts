@@ -45,8 +45,7 @@ import {
 } from "../runtime-runner/index.ts";
 import {
   applyAgentHarness,
-  parseAgentHarnessSettings,
-  type AgentHarnessSettings,
+  NATIVE_RUNTIME_HARNESS_SETTINGS,
 } from "../agent/harness.ts";
 
 const router = express.Router();
@@ -76,7 +75,6 @@ interface RuntimeAgentBody {
   effort?: string | null;
   externalSessionId?: string | null;
   idempotencyKey?: string | null;
-  harnessSettings: AgentHarnessSettings;
   permissionMode: PermissionMode;
   /** The UI language, which the card's note is written in. */
   language: Lang;
@@ -134,7 +132,6 @@ function parseBody(value: unknown): RuntimeAgentBody {
     effort: preference(value.effort, "effort"),
     externalSessionId: optionalText(value.externalSessionId, "externalSessionId"),
     idempotencyKey: optionalText(value.idempotencyKey, "idempotencyKey"),
-    harnessSettings: parseAgentHarnessSettings(value.harnessSettings),
     permissionMode: parsePermissionMode(value.permissionMode),
     language: langOf({ body: value }),
   };
@@ -636,7 +633,7 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
       conversationId,
       body.runtime,
       body.externalSessionId ?? null,
-      applyAgentHarness(body.message, body.harnessSettings, { task: Boolean(body.taskId), noteLang: body.language }),
+      applyAgentHarness(body.message, NATIVE_RUNTIME_HARNESS_SETTINGS, { task: Boolean(body.taskId), noteLang: body.language }),
     );
     // The chat says so when a runtime is handed earlier messages: it gets
     // their text, not the tool results or the state of the other session.
