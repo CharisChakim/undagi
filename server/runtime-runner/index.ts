@@ -116,6 +116,12 @@ export interface RuntimeRunnerInput {
   dependencies?: RuntimeRunnerDependencies;
   approvalHandler?: RuntimeApprovalHandler;
   claudeSdk?: ClaudeSdkModule;
+  /**
+   * Run without the user's own runtime configuration. Only Claude supports it
+   * (ClaudeExecutionRequest.isolateSettings); Codex and Antigravity have no
+   * verified way to do it and ignore the flag.
+   */
+  isolateSettings?: boolean;
 }
 
 export interface RuntimeRunnerOutput {
@@ -384,6 +390,7 @@ class ClaudeRuntimeExecutor implements RuntimeExecutor {
     private readonly adapter: ClaudeExecutionAdapter,
     private readonly signal: AbortSignal,
     private readonly approvalHandler?: RuntimeApprovalHandler,
+    private readonly isolateSettings = false,
   ) {}
 
   startTurn(request: Parameters<RuntimeExecutor["startTurn"]>[0]): AsyncIterable<RuntimeEvent> {
@@ -392,6 +399,7 @@ class ClaudeRuntimeExecutor implements RuntimeExecutor {
       cwd: request.cwd,
       model: explicitSelection(request.model),
       effort: explicitSelection(request.effort),
+      isolateSettings: this.isolateSettings,
       signal: this.signal,
       onApproval: this.approvalHandler ? async (approval) => claudeDecision(this.approvalHandler!, {
         requestId: approval.toolUseId ?? `claude-request-${Date.now()}`,
@@ -414,6 +422,7 @@ class ClaudeRuntimeExecutor implements RuntimeExecutor {
       cwd: request.cwd,
       model: explicitSelection(request.model),
       effort: explicitSelection(request.effort),
+      isolateSettings: this.isolateSettings,
       signal: this.signal,
       onApproval: this.approvalHandler ? async (approval) => claudeDecision(this.approvalHandler!, {
         requestId: approval.toolUseId ?? `claude-request-${Date.now()}`,
@@ -640,7 +649,7 @@ export async function createRuntimeRunnerAsync(input: RuntimeRunnerInput): Promi
   const dependencies = input.dependencies ?? defaultRuntimeRunnerDependencies;
   const sdk = input.claudeSdk ?? await (dependencies.loadClaudeSdk ?? loadClaudeSdkModule)();
   const adapter = new ClaudeExecutionAdapter({ factory: sdk.query, executablePath: detection.binaryPath });
-  const executor = new ClaudeRuntimeExecutor(adapter, input.signal, input.approvalHandler);
+  const executor = new ClaudeRuntimeExecutor(adapter, input.signal, input.approvalHandler, input.isolateSettings);
   const events = input.externalSessionId
     ? executor.resumeTurn({
         threadId: input.externalSessionId,

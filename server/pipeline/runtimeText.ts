@@ -35,7 +35,9 @@ export interface RuntimeTextOptions {
 /**
  * One runtime turn that only writes text. It runs in an empty folder and
  * every approval is declined, so the runtime cannot touch a project while it
- * drafts a plan, PRD, or task list.
+ * drafts a plan, PRD, or task list. On Claude it also reads none of the
+ * user's own settings: the plan is a document for this app, and a personal
+ * CLAUDE.md once turned an English plan summary Indonesian.
  */
 export async function generateRuntimeText(options: RuntimeTextOptions): Promise<string> {
   const { target } = options;
@@ -61,6 +63,7 @@ export async function generateRuntimeText(options: RuntimeTextOptions): Promise<
       dependencies: options.dependencies,
       claudeSdk,
       approvalHandler: async () => "decline" as const,
+      isolateSettings: true,
     });
     close = () => runner.executor.close();
     let output = "";

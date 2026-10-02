@@ -221,6 +221,30 @@ test("runtime runner passes a chosen Claude model and effort to the SDK", async 
   assert.equal(query?.options.effort, "high");
 });
 
+test("runtime runner isolates Claude from the user's settings only when asked", async () => {
+  const queries: ClaudeQueryFixture[] = [];
+  const sdk: ClaudeSdkModule = {
+    query: ({ options }) => {
+      const query = new ClaudeQueryFixture(options as ClaudeSdkQueryOptions);
+      queries.push(query);
+      return query;
+    },
+  };
+  for (const isolateSettings of [true, false]) {
+    const result = await createRuntimeRunnerAsync({
+      runtime: "claude",
+      prompt: "hello Claude",
+      detection: detectionFor("claude"),
+      signal: new AbortController().signal,
+      dependencies: { createCodexExecutor: () => new FixtureExecutor(), loadClaudeSdk: () => sdk },
+      isolateSettings,
+    });
+    for await (const _event of result.events) { /* drain */ }
+  }
+  assert.deepEqual(queries[0]?.options.settingSources, []);
+  assert.equal(queries[1]?.options.settingSources, undefined);
+});
+
 test("runtime runner passes a chosen Antigravity model and effort to the CLI", async () => {
   let fixture: AntigravityFixture | null = null;
   const result = createRuntimeRunner({

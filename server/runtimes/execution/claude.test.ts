@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import {
   ClaudeExecutionAdapter,
   buildClaudeSdkOptions,
+  carriedClaudeSettings,
   normalizeClaudeSdkMessage,
   type ClaudeSdkQuery,
   type ClaudeSdkQueryOptions,
@@ -63,6 +67,36 @@ test("Claude SDK options omit inherited settings and keep permissions enabled", 
   assert.equal(selected.model, "claude-sonnet");
   assert.equal(selected.effort, "high");
   assert.equal(selected.resume, "session_fixture_1");
+});
+
+test("isolated Claude options read no settings file but keep the user's sign-in and model", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "undagi-claude-config-"));
+  writeFileSync(path.join(dir, "settings.json"), JSON.stringify({
+    apiKeyHelper: "/fixture/key-helper",
+    env: { ANTHROPIC_BASE_URL: "https://gateway.example" },
+    model: "claude-fixture",
+    language: "Indonesian",
+    hooks: { PreToolUse: [] },
+  }));
+  const previous = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = dir;
+  try {
+    const isolated = buildClaudeSdkOptions({ isolateSettings: true });
+    assert.deepEqual(isolated.settingSources, []);
+    assert.deepEqual(isolated.settings, {
+      apiKeyHelper: "/fixture/key-helper",
+      env: { ANTHROPIC_BASE_URL: "https://gateway.example" },
+      model: "claude-fixture",
+    });
+    const shared = buildClaudeSdkOptions({});
+    assert.equal("settingSources" in shared, false);
+    assert.equal("settings" in shared, false);
+  } finally {
+    if (previous === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = previous;
+    rmSync(dir, { recursive: true, force: true });
+  }
+  assert.equal(carriedClaudeSettings(path.join(dir, "missing")), undefined);
 });
 
 test("normalizes assistant, tool progress, result, and malformed messages", () => {

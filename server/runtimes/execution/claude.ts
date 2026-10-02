@@ -7,6 +7,10 @@
  * tests work before the SDK is installed, and avoids a second provider loop.
  */
 
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
 export type ClaudeSdkValue = Record<string, unknown>;
 
 export interface ClaudeSdkQuery {
@@ -39,6 +43,8 @@ export interface ClaudeSdkQueryOptions extends Record<string, unknown> {
   effort?: string;
   resume?: string;
   env?: Record<string, string | undefined>;
+  settingSources?: string[];
+  settings?: Record<string, unknown>;
 }
 
 export interface ClaudeSdkPermissionDetails extends Record<string, unknown> {
@@ -123,6 +129,12 @@ export interface ClaudeExecutionRequest extends ClaudeExecutionCallbacks {
   effort?: string | null;
   /** Used by `start` only when the caller explicitly wants to resume. */
   resumeSessionId?: string | null;
+  /**
+   * Read none of the user's settings files, so no CLAUDE.md, hooks, skills,
+   * plugins, MCP servers or language reach the run. Only the keys that sign
+   * in and pick the default model carry over (see carriedClaudeSettings).
+   */
+  isolateSettings?: boolean;
   signal?: AbortSignal;
 }
 
@@ -656,8 +668,30 @@ function inputResult(response: ClaudeInputCallbackResponse, input: unknown): Cla
  * function never sets `permissionMode: bypassPermissions` or an equivalent
  * dangerous flag.
  */
+// With settingSources: [] Claude Code reads no settings file, so a user who
+// signs in through settings.json (an apiKeyHelper, a cloud credential helper,
+// or ANTHROPIC_* variables under env) would be signed out. These keys carry
+// over through the SDK's flag settings; `model` keeps "runtime default"
+// meaning the model the user chose. Everything else stays behind.
+const CARRIED_SETTINGS = ["apiKeyHelper", "awsAuthRefresh", "awsCredentialExport", "gcpAuthRefresh", "env", "model"];
+
+export function carriedClaudeSettings(
+  configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude"),
+): Record<string, unknown> | undefined {
+  let settings: unknown;
+  try {
+    settings = JSON.parse(fs.readFileSync(path.join(configDir, "settings.json"), "utf8"));
+  } catch {
+    return undefined;
+  }
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) return undefined;
+  const source = settings as Record<string, unknown>;
+  const carried = Object.fromEntries(CARRIED_SETTINGS.filter((key) => key in source).map((key) => [key, source[key]]));
+  return Object.keys(carried).length > 0 ? carried : undefined;
+}
+
 export function buildClaudeSdkOptions(
-  request: Pick<ClaudeExecutionRequest, "cwd" | "model" | "effort" | "resumeSessionId">,
+  request: Pick<ClaudeExecutionRequest, "cwd" | "model" | "effort" | "resumeSessionId" | "isolateSettings">,
   callbacks: ClaudeExecutionCallbacks = {},
 ): ClaudeSdkQueryOptions {
   const options: ClaudeSdkQueryOptions = {
@@ -708,6 +742,11 @@ export function buildClaudeSdkOptions(
   if (selected(request.model)) options.model = request.model;
   if (selected(request.effort)) options.effort = request.effort;
   if (selected(request.resumeSessionId)) options.resume = request.resumeSessionId;
+  if (request.isolateSettings) {
+    options.settingSources = [];
+    const carried = carriedClaudeSettings();
+    if (carried) options.settings = carried;
+  }
   return options;
 }
 
