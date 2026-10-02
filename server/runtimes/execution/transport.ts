@@ -272,6 +272,11 @@ export class CodexAppServerTransport implements AppServerTransport {
     // stderr is diagnostic-only; drain it so provider logging cannot block the
     // JSONL protocol. Raw provider output never enters the runtime contract.
     child.stderr?.on("data", () => undefined);
+    // A write to an app-server that closed its stdin also emits EPIPE here, and
+    // unhandled that kills the whole server. write() already rejects through its
+    // callback (WRITE_ERROR) and processClosed() reports an exit, so the
+    // listener only has to exist.
+    child.stdin?.on("error", () => undefined);
     child.once("error", (error) => this.processFailed(error));
     child.once("close", () => this.processClosed());
 

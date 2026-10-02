@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn, type ChildProcess } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
@@ -7,6 +8,7 @@ import {
   buildAntigravityArgs,
   parseAntigravityJsonLine,
   startAntigravityExecution,
+  type AntigravityChild,
 } from "./antigravity.ts";
 
 test("builds stream args and omits inherited model/effort", () => {
@@ -78,6 +80,7 @@ test("spawns safely, sends stream prompt, and resolves a normalized result", asy
     stdin: {
       write(data: string) { writes.push(data); return true; },
       end() { return undefined; },
+      on() { return this; },
     },
     stdout,
     stderr,
@@ -120,6 +123,23 @@ test("spawns safely, sends stream prompt, and resolves a normalized result", asy
   closeListener?.(0, null);
   await closing;
   assert.equal(killed, "SIGTERM");
+});
+
+test("a CLI that stopped reading its stdin fails the run instead of crashing Undagi", async () => {
+  let child: ChildProcess | undefined;
+  const run = startAntigravityExecution({
+    spawn(_command, _args, options) {
+      // Closes its stdin, says it is ready, and stays alive, so the prompt write gets EPIPE.
+      child = spawn(process.execPath, ["-e", "require('fs').closeSync(0); process.stderr.write('ready'); setTimeout(() => {}, 5000)"], options);
+      return child as unknown as AntigravityChild;
+    },
+  });
+  await new Promise((resolve) => child?.stderr?.once("data", resolve));
+  run.sendPrompt("Reply with one word.");
+  const result = await run.result;
+  assert.equal(result.status, "failed");
+  assert.equal(result.error?.code, "AGY_PROCESS_EXITED");
+  await run.close();
 });
 
 test("a failed result names the fix when the cause is known and keeps AGY's words otherwise", () => {

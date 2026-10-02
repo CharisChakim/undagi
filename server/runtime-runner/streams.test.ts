@@ -247,7 +247,7 @@ class AgyChild {
   readonly stdout = new PassThrough();
   readonly stderr = new PassThrough();
   readonly signals: (NodeJS.Signals | undefined)[] = [];
-  readonly stdin = { write: () => true, end: () => undefined };
+  readonly stdin = { write: () => true, end: () => undefined, on: () => undefined };
   private closeListener: ((code: number | null, signal: NodeJS.Signals | null) => void) | undefined;
 
   once(event: "error" | "close", listener: (...args: any[]) => void): this {

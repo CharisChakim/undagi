@@ -145,6 +145,7 @@ export interface AntigravityChild {
   stdin: {
     write(data: string): boolean;
     end(): unknown;
+    on(event: "error", listener: (error: unknown) => void): unknown;
   };
   stdout: {
     on(event: "data", listener: (chunk: Buffer | string) => void): unknown;
@@ -611,6 +612,9 @@ export class AntigravityExecution implements AntigravityExecutionHandle {
 
     this.child.stdout.on("data", (chunk) => this.handleEvents(this.parser.push(chunk)));
     this.child.stderr.on("data", (chunk) => this.captureStderr(chunk));
+    // Writing the prompt to a CLI that already closed its stdin emits EPIPE
+    // here; unhandled, that kills the whole server.
+    this.child.stdin.on("error", (error) => this.handleChildError(error));
     this.child.once("error", (error) => this.handleChildError(error));
     this.child.once("close", (code, signal) => this.handleClose(code, signal));
     if (options.signal) {

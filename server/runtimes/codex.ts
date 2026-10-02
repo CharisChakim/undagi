@@ -161,6 +161,11 @@ export function queryCodexAppServer(
         newline = buffer.indexOf("\n");
       }
     });
+    // Menulis ke app-server yang sudah menutup stdin-nya memancarkan EPIPE di
+    // sini; tanpa listener, error itu mematikan seluruh server. Proses yang tak
+    // bisa lagi ditulisi tidak akan menyelesaikan handshake, jadi hentikan dan
+    // biarkan "close" yang melaporkannya.
+    child.stdin?.on("error", () => child.kill("SIGTERM"));
     child.once("error", () => {
       finish({
         ok: false,

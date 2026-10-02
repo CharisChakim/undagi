@@ -95,6 +95,20 @@ test("transport spawns without a shell and survives a malformed line during a re
   await transport.close();
 });
 
+test("transport rejects connect, without crashing, when app-server stops reading its stdin", async () => {
+  const transport = new CodexAppServerTransport({
+    executable: process.execPath,
+    // Answers initialize after closing its stdin, so the `initialized` write gets EPIPE.
+    args: ["-e", "require('fs').closeSync(0); process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: 1, result: {} }) + '\\n'); setTimeout(() => {}, 5000)"],
+  });
+  try {
+    await assert.rejects(transport.connect(), (error: unknown) =>
+      error instanceof RuntimeTransportError && error.code === "WRITE_ERROR");
+  } finally {
+    await transport.close();
+  }
+});
+
 test("transport rejects connect when initialize never answers", async () => {
   const timeoutFixture = fixtureSpawn(() => undefined);
   const timeoutTransport = new CodexAppServerTransport({
