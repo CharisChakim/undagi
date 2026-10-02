@@ -208,6 +208,76 @@ test("codex: a repeated turn completion and repeated approval request each take 
   await executor.close();
 });
 
+test("codex: a file change's approval names the files the change touches", async () => {
+  // The approval request carries only the item id; without the item announced
+  // before it, the card asked to approve an empty command (seen live).
+  const server = appServer();
+  const approvals: RuntimeApprovalRequest[] = [];
+  const executor = executorFor(server.spawn, (request) => {
+    approvals.push(request);
+    return "accept";
+  });
+  const { events } = await startedTurn(server, executor);
+
+  // The shapes Codex sent in the 2026-10-02 live run.
+  server.child.send(notification("item/started", {
+    item: {
+      type: "fileChange",
+      id: "exec_1",
+      status: "inProgress",
+      changes: [
+        { path: "/workspace/hello.txt", kind: { type: "add" }, diff: "hello\n" },
+        { path: "/workspace/README.md", kind: { type: "update", move_path: null }, diff: "@@ -1 +1,2 @@\n # App\n+Files: hello.txt\n" },
+        { path: "/workspace/old.md", kind: { type: "update", move_path: "/workspace/new.md" }, diff: "" },
+      ],
+    },
+  }));
+  server.child.send({
+    id: 7,
+    method: "item/fileChange/requestApproval",
+    params: { threadId: THREAD, turnId: TURN, itemId: "exec_1", reason: null, grantRoot: null },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  server.child.send(turnCompleted);
+  await events;
+
+  assert.equal(approvals.length, 1);
+  assert.equal(approvals[0]?.kind, "file_change");
+  assert.deepEqual(approvals[0]?.files, [
+    { path: "/workspace/hello.txt", kind: "add", diff: "hello\n" },
+    { path: "/workspace/README.md", kind: "update", diff: "@@ -1 +1,2 @@\n # App\n+Files: hello.txt\n" },
+    { path: "/workspace/old.md", kind: "update", movePath: "/workspace/new.md", diff: "" },
+  ]);
+  await executor.close();
+});
+
+test("codex: a file change approval without a known item has no file list, and a command approval never has one", async () => {
+  const server = appServer();
+  const approvals: RuntimeApprovalRequest[] = [];
+  const executor = executorFor(server.spawn, (request) => {
+    approvals.push(request);
+    return "accept";
+  });
+  const { events } = await startedTurn(server, executor);
+
+  server.child.send({
+    id: 8,
+    method: "item/fileChange/requestApproval",
+    params: { threadId: THREAD, turnId: TURN, itemId: "exec_unknown" },
+  });
+  server.child.send({
+    id: 9,
+    method: "item/commandExecution/requestApproval",
+    params: { threadId: THREAD, turnId: TURN, itemId: "cmd_1", command: "npm test" },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  server.child.send(turnCompleted);
+  await events;
+
+  assert.deepEqual(approvals.map((approval) => [approval.kind, approval.files]), [["file_change", undefined], ["command", undefined]]);
+  await executor.close();
+});
+
 test("codex: a thread in a workspace may write there and asks before commands, whatever the user's config", async () => {
   // Without these, a folder Codex does not trust started read-only: edits
   // failed and nothing was asked (seen in the live smoke run).

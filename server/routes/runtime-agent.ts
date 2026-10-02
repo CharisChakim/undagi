@@ -296,6 +296,8 @@ function waitForRuntimeApproval(
     approvalId: stored.id,
     elicitId: stored.id,
     command: approval.command ?? "",
+    kind: approval.kind,
+    ...(approval.files?.length ? { files: approval.files } : {}),
     ...(approval.cwd ? { cwd: approval.cwd } : {}),
     message: approval.reason ?? "Runtime meminta izin untuk menjalankan tool ini.",
     details: approval.details,

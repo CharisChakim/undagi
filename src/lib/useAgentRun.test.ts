@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { entriesFromStoredMessages, wasMessageDelivered } from "./useAgentRun";
+import { approvalFiles, entriesFromStoredMessages, wasMessageDelivered } from "./useAgentRun";
 
 const text = (role: "user" | "assistant", value: string) => ({ role, content: [{ type: "text", text: value }] });
 
@@ -41,4 +41,26 @@ test("runtime chat counts the message delivered once the run finishes, success o
   // An unready runtime is refused before the run starts, so it never sends
   // "done"; the message never reached the server.
   assert.equal(wasMessageDelivered(true, false, false), false);
+});
+
+test("a file-change approval carries its files; a command approval carries none", () => {
+  const files = approvalFiles({
+    kind: "file_change",
+    files: [
+      { path: "/w/hello.txt", kind: "add", diff: "hello\n" },
+      { path: "/w/old.md", kind: "update", movePath: "/w/new.md", diff: "" },
+      { path: "/w/odd", kind: "rename" },
+      { kind: "add", diff: "no path" },
+      "not a file",
+    ],
+  });
+  assert.deepEqual(files, [
+    { path: "/w/hello.txt", kind: "add", diff: "hello\n" },
+    { path: "/w/old.md", kind: "update", movePath: "/w/new.md", diff: "" },
+    { path: "/w/odd", kind: "other", diff: "" },
+  ]);
+  // A file change the runtime did not describe is still a file change, with no files to list.
+  assert.deepEqual(approvalFiles({ kind: "file_change" }), []);
+  assert.equal(approvalFiles({ kind: "command", command: "npm test" }), undefined);
+  assert.equal(approvalFiles({ command: "npm test" }), undefined);
 });

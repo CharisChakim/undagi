@@ -21,6 +21,7 @@ import type {
   RuntimeErrorEvent,
   RuntimeEvent,
   RuntimeExecutor,
+  RuntimeFileChange,
   RuntimeResumeTurnRequest,
   RuntimeToolEvent,
   RuntimeTurnRequest,
@@ -187,7 +188,23 @@ export function normalizeCodexNotification(
   return null;
 }
 
-function normalizeApproval(message: JsonRpcRequest): RuntimeApprovalRequest {
+/** The files a fileChange item touches, or null for any other item. */
+export function fileChangesOf(item: Record<string, unknown> | null): RuntimeFileChange[] | null {
+  if (recordString(item, "type") !== "fileChange" || !Array.isArray(item?.changes)) return null;
+  return item.changes.flatMap((value): RuntimeFileChange[] => {
+    const change = asRecord(value);
+    const path = recordString(change, "path");
+    if (!path) return [];
+    // `kind` is { type, move_path } in the app-server protocol; a bare string is read too.
+    const kindRecord = asRecord(change?.kind);
+    const type = recordString(kindRecord, "type") ?? recordString(change, "kind");
+    const kind = type === "add" || type === "update" || type === "delete" ? type : "other";
+    const movePath = recordString(kindRecord, "move_path");
+    return [{ path, kind, ...(movePath ? { movePath } : {}), diff: recordString(change, "diff") ?? "" }];
+  });
+}
+
+function normalizeApproval(message: JsonRpcRequest, files?: RuntimeFileChange[]): RuntimeApprovalRequest {
   const params = asRecord(message.params) ?? {};
   const ids = idsFromParams(params);
   const kind = message.method === "item/commandExecution/requestApproval"
@@ -204,6 +221,7 @@ function normalizeApproval(message: JsonRpcRequest): RuntimeApprovalRequest {
     command: recordString(params, "command"),
     cwd: recordString(params, "cwd"),
     reason: recordString(params, "reason"),
+    ...(kind === "file_change" && files?.length ? { files } : {}),
     details: { ...params, method: message.method },
   };
 }
@@ -247,6 +265,9 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
   private readonly pendingByTurn = new Map<string, RuntimeEvent[]>();
   private readonly turns = new Map<string, TurnState>();
   private readonly seenApprovalRequests = new Set<string | number>();
+  // A file change's approval request names only its item. The item, announced
+  // just before it, says which files it touches.
+  private readonly fileChanges = new Map<string, RuntimeFileChange[]>();
   private activeTurn: TurnState | null = null;
   private initialized = false;
   private disposed = false;
@@ -374,6 +395,11 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
 
   private onNotification(message: JsonRpcNotification): void {
     const ids = idsFromParams(message.params);
+    const files = fileChangesOf(asRecord(asRecord(message.params)?.item));
+    if (files && ids.itemId) {
+      if (message.method === "item/completed") this.fileChanges.delete(ids.itemId);
+      else this.fileChanges.set(ids.itemId, files);
+    }
     const event = normalizeCodexNotification(message);
     if (!event) return;
     const turnId = "turnId" in event ? event.turnId : ids.turnId;
@@ -391,7 +417,8 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
   private onServerRequest(message: JsonRpcRequest): void {
     if (this.seenApprovalRequests.has(message.id)) return;
     this.seenApprovalRequests.add(message.id);
-    const approval = normalizeApproval(message);
+    const { itemId } = idsFromParams(message.params);
+    const approval = normalizeApproval(message, itemId ? this.fileChanges.get(itemId) : undefined);
     const event: RuntimeEvent = { type: "approval", ...approval };
     const state = approval.turnId ? this.turns.get(approval.turnId) : null;
     if (state) this.pushEvent(state, event);

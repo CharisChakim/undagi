@@ -36,6 +36,16 @@ export type RuntimeApprovalDecision =
       };
     };
 
+/** One file a file-change approval would touch, as the approval card shows it. */
+export interface RuntimeFileChange {
+  path: string;
+  kind: "add" | "update" | "delete" | "other";
+  /** The new path when the change moves the file. */
+  movePath?: string;
+  /** A unified diff for an update, the full content for an added file. */
+  diff: string;
+}
+
 export interface RuntimeApprovalRequest {
   requestId: string | number;
   kind: "command" | "file_change" | "other";
@@ -45,6 +55,8 @@ export interface RuntimeApprovalRequest {
   command: string | null;
   cwd: string | null;
   reason: string | null;
+  /** For a file change: the files it touches, when the runtime has said which. */
+  files?: RuntimeFileChange[];
   /** Provider fields are retained for rendering, but never executed here. */
   details: Record<string, unknown>;
 }

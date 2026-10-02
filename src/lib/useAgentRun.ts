@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Entry } from "./agentEvents";
+import type { ApprovalFile, Entry } from "./agentEvents";
 import {
   loadExternalRuntimeSession,
   normalizeRuntimeChatEvent,
@@ -58,6 +58,29 @@ function approvalBlockedPath(event: Record<string, any>): string | undefined {
   const details = event.details;
   const value = details && typeof details === "object" ? (details as Record<string, unknown>).blockedPath : undefined;
   return typeof value === "string" && value ? value : undefined;
+}
+
+const FILE_KINDS = new Set<ApprovalFile["kind"]>(["add", "update", "delete", "other"]);
+
+/**
+ * A file-change approval asks to write files, not to run a command, so it has no
+ * command to show. Its files come along when the runtime named them (Codex does);
+ * undefined means the approval is not a file change.
+ */
+export function approvalFiles(event: Record<string, any>): ApprovalFile[] | undefined {
+  if (event.kind !== "file_change") return undefined;
+  if (!Array.isArray(event.files)) return [];
+  return event.files.flatMap((value: unknown): ApprovalFile[] => {
+    const file = value && typeof value === "object" ? value as Record<string, unknown> : null;
+    if (!file || typeof file.path !== "string" || !file.path) return [];
+    const kind = FILE_KINDS.has(file.kind as ApprovalFile["kind"]) ? file.kind as ApprovalFile["kind"] : "other";
+    return [{
+      path: file.path,
+      kind,
+      ...(typeof file.movePath === "string" && file.movePath ? { movePath: file.movePath } : {}),
+      diff: typeof file.diff === "string" ? file.diff : "",
+    }];
+  });
 }
 
 const CONVERSATION_STORAGE_PREFIX = "ai_plan_architect_agent_conversation_v1";
@@ -500,6 +523,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
               approvalRunIds.current.set(elicitId, event.runId);
             }
             const blockedPath = approvalBlockedPath(event);
+            const files = approvalFiles(event);
             setEntries((prev) => [
               ...prev,
               {
@@ -509,6 +533,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
                 command: event.command || "",
                 ...(event.cwd ? { cwd: event.cwd } : {}),
                 ...(blockedPath ? { blockedPath } : {}),
+                ...(files ? { files } : {}),
                 decided: false,
               },
             ]);

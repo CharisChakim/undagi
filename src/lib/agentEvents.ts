@@ -2,6 +2,16 @@ import type { FollowUpQuestion } from "../types";
 
 export type ToolState = "running" | "ok" | "error" | "denied" | "stopped";
 
+/** One file a file-change approval would touch. */
+export interface ApprovalFile {
+  path: string;
+  kind: "add" | "update" | "delete" | "other";
+  /** The new path when the change moves the file. */
+  movePath?: string;
+  /** A unified diff for an update, the full content for an added file. */
+  diff: string;
+}
+
 export type Entry =
   | { kind: "user"; id: string; text: string }
   | { kind: "assistant"; id: string; text: string; streaming: boolean }
@@ -21,6 +31,8 @@ export type Entry =
       elicitId: string;
       command: string;
       cwd?: string;
+      /** Set for a file-change approval: the files it touches, empty when the runtime did not say. */
+      files?: ApprovalFile[];
       decided: boolean;
       approved?: boolean;
     }
