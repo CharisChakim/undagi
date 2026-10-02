@@ -12,8 +12,33 @@ permissions:
   contents: write
 
 jobs:
+  # The same checks as ci.yml, so an installer is never built from a commit
+  # whose tests fail. They run on Linux only: the suite has never run on
+  # Windows, and some tests rely on Linux pipe behaviour.
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
   build:
     name: ${{ matrix.name }}
+    needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
