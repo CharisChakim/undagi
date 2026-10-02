@@ -292,7 +292,9 @@ export const Workbench: React.FC<WorkbenchProps> = ({
           {layoutMode === "split" && <Splitter ratio={ratio} onRatioChange={onRatioChange} onCommit={onRatioCommit} />}
 
           {layoutMode !== "agent" && (
-            <div className="min-h-0 min-w-0 flex-1" style={{ width: layoutMode === "split" ? `${(1 - ratio) * 100}%` : "100%" }}>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ width: layoutMode === "split" ? `${(1 - ratio) * 100}%` : "100%" }}>
+              {/* A flex column, so the pane's flex-1 and min-h-0 hold it to this height
+                  and it scrolls itself instead of overflowing the row. */}
               <PipelinePane
                 step={session.currentStep}
                 session={session}
