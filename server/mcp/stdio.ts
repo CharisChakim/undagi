@@ -55,6 +55,14 @@ export function createStdioTransport(config: StdioConfig): StdioTransport {
     }
   });
   child.stdout.on("error", (error) => peer.close(error));
+  // Menulis ke server yang sudah menutup stdin-nya (misalnya perintah yang
+  // langsung keluar) memancarkan EPIPE di sini; tanpa listener, error itu tidak
+  // tertangani dan mematikan seluruh proses Undagi.
+  child.stdin.on("error", (error) => {
+    const failure = new Error(`Could not write to the MCP server: ${error.message}`);
+    if (!closing) config.onExit?.(failure);
+    peer.close(failure);
+  });
   child.stderr.on("data", (chunk: Buffer | string) => {
     const text = chunk.toString();
     stderrBuffer = `${stderrBuffer}${text}`.split(/\r?\n/).slice(-2).join("\n");
