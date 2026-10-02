@@ -3,6 +3,7 @@
 const { app, BrowserWindow, shell, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
+const { execFileSync } = require("node:child_process");
 
 // Dua instance akan memperebutkan database yang sama, jadi yang kedua cukup
 // memunculkan jendela yang sudah ada lalu keluar.
@@ -35,6 +36,26 @@ function migrateLegacyUserData(target) {
     });
   } catch (error) {
     console.error("Could not copy data from The Architech:", error);
+  }
+}
+
+// Aplikasi yang dibuka dari Finder atau Dock mendapat PATH launchd
+// (/usr/bin:/bin:/usr/sbin:/sbin), bukan PATH terminal pengguna, sehingga
+// codex, claude, dan agy tidak ditemukan, begitu pula node yang dibutuhkan
+// skrip codex dari npm. PATH diambil dari login shell pengguna. Kalau gagal
+// atau lewat 5 detik, PATH bawaan tetap dipakai, dan path runtime masih bisa
+// diisi sendiri di Connections.
+if (process.platform === "darwin") {
+  try {
+    const output = execFileSync(
+      process.env.SHELL || "/bin/zsh",
+      ["-ilc", 'printf "\\n__UNDAGI_PATH__%s__UNDAGI_PATH__" "$PATH"'],
+      { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }
+    );
+    const shellPath = /__UNDAGI_PATH__(.*)__UNDAGI_PATH__/.exec(output)?.[1];
+    if (shellPath) process.env.PATH = shellPath;
+  } catch (error) {
+    console.error("Could not read PATH from the login shell:", error);
   }
 }
 
