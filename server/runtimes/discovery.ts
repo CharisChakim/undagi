@@ -19,7 +19,13 @@ const BINARY_CANDIDATES: Record<RuntimeId, readonly string[]> = {
 // lokal seperti dua runtime lain, jadi ia diukur 2,6–4,6 detik pada koneksi yang
 // sehat. Anggaran 5 detik yang cukup untuk metadata lokal membuat runtime ini
 // gagal sebagai timeout setiap kali jaringan sedang lambat.
+// `codex app-server` harus menyala dulu sebelum menjawab `model/list`: diukur
+// 3,2 detik saat dingin dan 0,2–0,5 detik saat hangat pada mesin yang diam
+// (2026-10-02), dan lewat 5 detik saat server dev sedang compile atau generate
+// lain berjalan. Setiap run dan generate menemukan ulang runtime-nya, jadi
+// timeout di sini menggagalkan run yang sebenarnya bisa jalan.
 const METADATA_TIMEOUT_OVERRIDES: Partial<Record<RuntimeId, number>> = {
+  codex: 20_000,
   antigravity: 20_000,
 };
 
@@ -164,7 +170,7 @@ async function discoverOne(
       metadata = await queryCodexAppServer(binaryPath, {
         cwd: options.cwd,
         env: options.env,
-        timeoutMs: options.timeoutMs,
+        timeoutMs: options.timeoutMs ?? METADATA_TIMEOUT_OVERRIDES.codex,
       });
     } else if (runtime === "claude") {
       metadata = await queryClaudeSdk(options.claudeSdk);
