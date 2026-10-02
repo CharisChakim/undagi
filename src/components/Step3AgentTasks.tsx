@@ -45,6 +45,8 @@ interface Step3AgentTasksProps {
   onRunTask?: (task: AgentTask) => void;
   runningTaskId?: string | null;
   retryNotice?: { taskId: string; text: string } | null;
+  /** The user moved a card to another column by hand. */
+  onTaskMoved?: (taskId: string, status: TaskStatus) => void;
   onSelectStep?: (step: 1 | 2 | 3) => void;
 }
 
@@ -56,7 +58,7 @@ function runDate(value: string | null | undefined): string {
   return Number.isFinite(parsed) ? new Date(parsed).toLocaleString() : value;
 }
 
-export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpdateSession, onRunTask, runningTaskId, retryNotice, onSelectStep }) => {
+export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpdateSession, onRunTask, runningTaskId, retryNotice, onTaskMoved, onSelectStep }) => {
   const { t, lang } = useT();
   const pipelineTarget = usePipelineTarget();
   const [loading, setLoading] = useState(false);
@@ -214,6 +216,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
   const handleTaskStatusChange = (taskId: string, newStatus: TaskStatus) => {
     const updated = tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
     onUpdateSession({ tasks: updated });
+    onTaskMoved?.(taskId, newStatus);
     if (selectedTask && selectedTask.id === taskId) {
       setSelectedTask({ ...selectedTask, status: newStatus });
     }

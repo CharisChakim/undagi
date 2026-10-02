@@ -25,6 +25,7 @@ export interface PipelinePaneProps {
   runningTaskId?: string | null;
   /** A warning for the card whose run failed and is being tried again. */
   retryNotice?: { taskId: string; text: string } | null;
+  onTaskMoved?: (taskId: string, status: NonNullable<AgentTask["status"]>) => void;
   /** The model Plan, PRD, and tasks are generated with, and its picker. */
   generationTarget?: RuntimeChatSelection;
   modelControl?: React.ReactNode;
@@ -113,6 +114,7 @@ export const PipelinePane: React.FC<PipelinePaneProps> = ({
   onRunTask,
   runningTaskId,
   retryNotice,
+  onTaskMoved,
   generationTarget = legacyRuntimeSelection(),
   modelControl,
 }) => (
@@ -139,6 +141,7 @@ export const PipelinePane: React.FC<PipelinePaneProps> = ({
             onRunTask={onRunTask}
             runningTaskId={runningTaskId}
             retryNotice={retryNotice}
+            onTaskMoved={onTaskMoved}
             onSelectStep={onSelectStep}
           />
         )}

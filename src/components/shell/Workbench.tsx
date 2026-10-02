@@ -74,6 +74,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   React.useEffect(() => { sessionRef.current = session; }, [session]);
   // Stop also has to end a task's pause between retries, when no run is open to abort.
   const retryStop = React.useRef<AbortController | null>(null);
+  // The task run in flight, and whether the user has since moved its card by hand.
+  const activeTaskRun = React.useRef<{ taskId: string; movedByUser: boolean } | null>(null);
   // Every chat starts asking; a wider mode is chosen per chat, never carried over.
   const [permissionState, setPermissionState] = React.useState<{ sessionId: string; mode: PermissionMode }>({ sessionId: session.id, mode: "ask" });
   const permissionMode = permissionState.sessionId === session.id ? permissionState.mode : "ask";
@@ -132,6 +134,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({
 
   const handleRunTask = React.useCallback((task: AgentTask): void => {
     if (agentRun.busy) return;
+    const run = { taskId: task.id, movedByUser: false };
+    activeTaskRun.current = run;
     setRunningTaskId(task.id);
     // Di layar sempit split dipetakan App menjadi board, jadi agent dibuka
     // langsung agar klik Run tetap menghasilkan permukaan kerja yang terlihat.
@@ -163,7 +167,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     };
     // Once the loop below is over, the chat's "Try again" can send this same message
     // again with the same options; that run has no loop to hand its report to, so it
-    // moves the card itself.
+    // moves the card itself. A move by hand during such a rerun is not tracked.
     let loopEnded = false;
     // One attempt, to its end. The report arrives just before send settles; a
     // send that never started (another run is open) reports nothing.
@@ -197,13 +201,23 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       }),
     }).then(({ report, attempts }) => {
       loopEnded = true;
-      moveCard(report, attempts);
+      // A card the user placed by hand while the run went on stays where they put it.
+      // (A card that only reads To do because the session refresh lost In progress
+      // was not moved by hand, so it still takes the outcome.)
+      if (!run.movedByUser) moveCard(report, attempts);
     }).finally(() => {
       if (retryStop.current === stopRetries) retryStop.current = null;
+      if (activeTaskRun.current === run) activeTaskRun.current = null;
       setRunningTaskId(null);
       setRetryNotice(null);
     });
   }, [agentRun.busy, onLayoutModeChange, onUpdateSession, session.id, t]);
+
+  // Moving the card back to In progress hands it to the run again.
+  const handleTaskMoved = React.useCallback((taskId: string, status: NonNullable<AgentTask["status"]>): void => {
+    const run = activeTaskRun.current;
+    if (run?.taskId === taskId) run.movedByUser = status !== "in_progress";
+  }, []);
 
   const handleStop = React.useCallback((): void => {
     retryStop.current?.abort();
@@ -289,6 +303,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
                 onRunTask={handleRunTask}
                 runningTaskId={agentRun.busy ? runningTaskId ?? "__agent_busy__" : runningTaskId}
                 retryNotice={retryNotice}
+                onTaskMoved={handleTaskMoved}
                 generationTarget={pipelineSelection}
                 modelControl={(
                   <div className="inline-flex min-w-0 max-w-full rounded-lg border border-line bg-canvas px-1">
