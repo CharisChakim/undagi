@@ -1,6 +1,0 @@
-{
-  "name": "Undagi",
-  "description": "Aplikasi AI Planning untuk membuat Spesifikasi Proyek, Roadmap, PRD dengan Diagram Logika, dan Task List AI Agent.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
