@@ -320,7 +320,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
       label: t("To do"),
       dot: "bg-faint",
       tasks: tasks.filter((t) => !t.status || t.status === "todo"),
-      emptyHint: t("Every task has been dealt with."),
+      emptyHint: t("No task is waiting to start."),
     },
     {
       status: "in_progress" as const,

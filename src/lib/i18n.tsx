@@ -377,7 +377,7 @@ const ID: Record<string, string> = {
   "Enter a project description first.": "Silakan masukkan deskripsi proyek terlebih dahulu.",
   "Error": "Error",
   "Estimate & resources": "Estimasi & sumber daya",
-  "Every task has been dealt with.": "Semua task sudah dikerjakan.",
+  "No task is waiting to start.": "Tidak ada task yang menunggu dimulai.",
   "Exit full screen": "Keluar layar penuh",
   "Expand sidebar": "Perlebar sidebar",
   "Empty — no file access": "Kosong — tanpa akses berkas",
