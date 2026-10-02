@@ -112,7 +112,7 @@ export const projectTools: ToolSpec[] = [
       if (!task) return { error: `Task ${input?.taskId} does not exist. Call get_project to see the available ids.` };
 
       // Enum di skema tool hanya petunjuk untuk model, bukan aturan yang ditegakkan
-      // API. Papan kanban menyaring persis ketiga nilai ini, jadi nilai lain tidak
+      // API. Papan kanban menyaring persis kelima nilai ini, jadi nilai lain tidak
       // membuat kartunya salah kolom — kartunya lenyap dari papan sama sekali.
       const allowed = ["todo", "in_progress", "blocked", "failed", "done"];
       if (!allowed.includes(input?.status)) {
