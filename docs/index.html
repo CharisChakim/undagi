@@ -442,6 +442,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
           <li>Stable ID, priority, phase</li>
           <li>Target files and dependencies</li>
           <li>Instructions and verification steps</li>
+          <li>Run it here: the card moves to Done or Blocked, with the agent's note</li>
           <li>Export as <code>AGENTS.md</code></li>
         </ul>
       </div>
@@ -496,9 +497,10 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
       <p><strong>Where Undagi is not the right tool.</strong></p>
       <ul>
         <li>It is a beta, single-user and local: no accounts, no sync, no team features.</li>
-        <li>Packaged installers are for Windows and Linux and are unsigned; macOS runs from the install script.</li>
+        <li>Packaged installers are for Windows, Linux and Apple Silicon Macs, and none carries a verified publisher signature; on a Mac the first launch needs Open Anyway in Privacy &amp; Security.</li>
         <li>It plans a new project from an idea. It does not analyse an existing codebase to plan changes to it.</li>
         <li>No parallel agents, git worktrees or pull-request loop.</li>
+        <li>A task counts as Done when the agent says so. Undagi does not run the verification steps itself.</li>
         <li>Approvals and path checks are not an OS sandbox. &ldquo;Full access&rdquo; means you trust the agent.</li>
       </ul>
     </div>
@@ -570,17 +572,26 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
       <div class="tile">
         <h3>No workspace, no file access</h3>
         <p>
-          The agent gets no file tools at all until you select a working folder. Paths are then
-          resolved to their real location and checked against that folder, so <code>../</code>, an
+          The built-in agent gets no file tools at all until you select a working folder. Paths are
+          then resolved to their real location and checked against that folder, so <code>../</code>, an
           absolute path, and a symlink pointing outside are all refused.
+        </p>
+        <p>
+          Codex, Claude Code and Antigravity bring their own file tools. Without a folder they start in
+          an empty one made for that chat.
         </p>
       </div>
       <div class="tile">
         <h3>Shell is a separate switch</h3>
         <p>
-          Off by default, and only available once a folder is set. Every command is shown to you and
-          waits for approval before it runs. Refusing tells the model the command did not run, so it
-          can suggest something else.
+          Off by default, and only available once a folder is set. In Ask and Auto mode every command
+          is shown to you and waits for approval before it runs; Full access runs it without asking.
+          Refusing tells the model the command did not run, so it can suggest something else.
+        </p>
+        <p>
+          Codex and Claude Code ask through the same approval cards, though Claude Code does not ask
+          for what its own settings already allow. Antigravity cannot ask, so it refuses any tool its
+          own settings do not already allow.
         </p>
       </div>
       <div class="tile">
@@ -590,12 +601,19 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
           account, no sync, and no telemetry. Deleting <code>data/</code> deletes everything. Prompts
           still go to the model provider you choose; with a local model, nothing leaves your machine.
         </p>
+        <p>
+          The server listens on <code>127.0.0.1</code> only and refuses requests from other websites.
+        </p>
       </div>
       <div class="tile">
         <h3>Permissions come from the project</h3>
         <p>
-          They are read from saved project state, never from the request, so a client cannot widen its
-          own access mid-conversation.
+          A project's working folder and shell switch are read from its saved state, never from the
+          request, so a client cannot widen its own access mid-conversation. A chat outside a project
+          may only pick a folder inside a trusted root.
+        </p>
+        <p>
+          The permission mode you pick per chat only answers approvals. It widens no sandbox.
         </p>
       </div>
     </div>
@@ -614,11 +632,28 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
 <section id="install">
   <div class="wrap">
     <p class="kicker">Install</p>
-    <h2>Two commands, then it is running.</h2>
+    <h2>Download the app, or run two commands.</h2>
     <p class="section-lede">
       There is no database to install or run — everything is stored in a single file on disk.
-      Running the installer again keeps your existing <code>data/</code> and <code>.env</code>.
+      Running the install script again keeps your existing <code>data/</code> and <code>.env</code>.
     </p>
+
+    <div class="tile" style="margin-bottom:22px">
+      <h3>Desktop app</h3>
+      <p>
+        Installers for Windows (<code>.exe</code>), Linux (<code>.AppImage</code>, <code>.deb</code>) and
+        Apple Silicon Macs (<code>.dmg</code>) are on the
+        <a href="https://github.com/CharisChakim/undagi/releases/tag/v1.0.3-beta">v1.0.3-beta release</a>.
+        They bundle their own runtime, so you do not need Node.
+      </p>
+      <p>
+        None is signed by a verified publisher. On Windows, SmartScreen warns on first run: click
+        &ldquo;More info&rdquo;, then &ldquo;Run anyway&rdquo;. On a Mac the first launch is refused: open
+        System Settings &rarr; Privacy &amp; Security and click Open Anyway, or run
+        <code>xattr -dr com.apple.quarantine /Applications/Undagi.app</code>. There is no Intel Mac build;
+        use the install script below.
+      </p>
+    </div>
 
     <div class="grid2">
       <div>
