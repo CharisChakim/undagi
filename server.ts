@@ -43,7 +43,10 @@ app.use(mcpRouter);
 // bentrok dengan apa pun yang sudah memakai 3000, lalu membaca port sebenarnya
 // dari nilai yang di-resolve startServer().
 const PORT = Number(process.env.PORT ?? 3000);
-const HOST = process.env.HOST ?? "0.0.0.0";
+// API ini tanpa login dan bisa menjalankan perintah (server MCP stdio, tool
+// shell), jadi default-nya hanya terjangkau dari mesin ini. HOST=0.0.0.0
+// membukanya ke jaringan untuk siapa pun yang bisa menjangkau port-nya.
+const HOST = process.env.HOST ?? "127.0.0.1";
 const PRODUCTION = process.env.NODE_ENV === "production" || process.argv.includes("--production");
 
 // Route lama tetap memakai signature ini supaya klien dan keempat generator tidak

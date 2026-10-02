@@ -195,6 +195,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000), configure a model connection, and start a project. Sessions are created automatically once a project has a title.
 
+The server listens on `127.0.0.1` only. `HOST=0.0.0.0` makes it reachable from the network. Do that only on a network you trust: the API has no login, and it can start processes and run commands on this machine.
+
 ### Production build
 
 ```bash
