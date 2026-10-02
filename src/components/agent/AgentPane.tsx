@@ -259,7 +259,7 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
         return (
           <div key={entry.id} className="flex items-start gap-2 rounded-xl border border-warn/30 bg-warn-soft px-3 py-2 text-xs text-warn-ink">
             <PlugZap className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span className="min-w-0 flex-1">MCP {entry.server}: {localizeToolText(t, entry.message)} · {t("{count} tools", { count: entry.tools })}</span>
+            <span className="min-w-0 flex-1">MCP {entry.server}: {localizeToolText(t, entry.message)} · {t("Tools: {count}", { count: entry.tools })}</span>
           </div>
         );
       case "turn_end":
@@ -271,7 +271,7 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
                 ? <Circle className="h-3.5 w-3.5 text-faint" />
                 : <Check className="h-3.5 w-3.5 text-ok" />}
             <span>{entry.failed ? t("Turn failed") : entry.stopped ? t("Stopped") : t("Turn complete")}</span><span>·</span>
-            <span>{t("{count} tools", { count: entry.toolCount })}</span><span>·</span>
+            <span>{t("Tools: {count}", { count: entry.toolCount })}</span><span>·</span>
             <Clock3 className="h-3 w-3" /><span>{formatDuration(entry.ms)}</span>
           </div>
         );

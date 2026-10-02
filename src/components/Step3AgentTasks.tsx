@@ -457,7 +457,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
           <div className="card p-5 flex flex-wrap items-start justify-between gap-5">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-ok text-xs font-medium mb-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" /> {t("{count} tasks ready to run", { count: tasks.filter((task) => task.status !== "done" && openDependencies(task, tasks).length === 0).length })}
+                <CheckCircle2 className="w-3.5 h-3.5" /> {t("Ready to run: {count}", { count: tasks.filter((task) => task.status !== "done" && openDependencies(task, tasks).length === 0).length })}
                 {currentVersion && <span className="text-faint">· PRD v{currentVersion.number}</span>}
               </div>
               <h3 className="text-base font-semibold text-ink">{t("Task board")}</h3>
