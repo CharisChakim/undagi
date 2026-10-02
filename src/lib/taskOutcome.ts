@@ -43,7 +43,11 @@ export interface RunEnd {
   aborted: boolean;
   /** An error event, a failed run, a cut-off answer, or a stream that broke. */
   failed: boolean;
-  /** Everything the assistant wrote during the run. */
+  /**
+   * The assistant's final message: its words after the last tool call. The marker
+   * counts only there, so a model that repeats the instruction while it works
+   * ("- `TASK_STATUS: blocked` if I cannot finish") does not decide the card.
+   */
   text: string;
 }
 

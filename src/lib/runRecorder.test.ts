@@ -82,3 +82,14 @@ test("a run the user stopped, or the server interrupted, moves nothing and repor
   assert.equal(interrupted.report(false).outcome, null);
   assert.equal(interrupted.report(false).error, null);
 });
+
+test("only the final message decides: a marker repeated while working does not", () => {
+  const run = recorder();
+  run.addText("Plan:\n- `TASK_STATUS: blocked` if I cannot finish\n- run the tests");
+  run.toolStarted();
+  run.addText("All tests pass.");
+  run.done({ runStatus: "completed" });
+
+  assert.equal(run.report(false).outcome, "done");
+  assert.equal(run.report(false).note, "All tests pass.");
+});

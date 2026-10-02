@@ -8,8 +8,8 @@ import { agentNoteFrom, runFailedAtDone, taskOutcomeFor } from "./taskOutcome";
  * entries are not its business.
  */
 export class RunRecorder {
-  private allText = "";
-  // Only the words after the last tool call: the narration before is not the card's note.
+  // Only the words after the last tool call: the narration before is neither the
+  // card's note nor its verdict.
   private finalText = "";
   private failed = false;
   private interrupted = false;
@@ -25,7 +25,6 @@ export class RunRecorder {
   }
 
   addText(chunk: string): void {
-    this.allText += chunk;
     this.finalText += chunk;
   }
 
@@ -53,7 +52,7 @@ export class RunRecorder {
     const failed = this.failed || !this.ended;
     const failure = failed && !stopped;
     return {
-      outcome: taskOutcomeFor({ aborted: stopped, failed, text: this.allText }),
+      outcome: taskOutcomeFor({ aborted: stopped, failed, text: this.finalText }),
       note: agentNoteFrom(this.finalText),
       error: failure ? (this.error ?? this.t("The run ended with an error.")) : null,
       errorCode: failure ? this.errorCode : null,
