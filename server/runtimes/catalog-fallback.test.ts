@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { withLastKnownCatalogs } from "./discovery.ts";
+import { hasTransientFailure, withLastKnownCatalogs } from "./discovery.ts";
 import { unknownCapabilities, type RuntimeDetection, type RuntimeDiscoveryReport, type RuntimeId } from "./types.ts";
 
 function detection(overrides: Partial<RuntimeDetection> = {}): RuntimeDetection {
@@ -78,4 +78,17 @@ test("a good read replaces the kept catalog and is not marked stale", () => {
 
   assert.equal(agy?.catalog?.stale, undefined);
   assert.equal(lastKnown.get("antigravity")?.catalog?.discoveredAt, "2026-09-23T10:00:00.000Z");
+});
+
+test("a runtime that timed out with nothing to fall back on is a transient failure", () => {
+  assert.equal(hasTransientFailure(report(failed("METADATA_TIMEOUT"))), true);
+  assert.equal(hasTransientFailure(report(detection(), failed("PROCESS_ERROR", { runtime: "codex" }))), true);
+});
+
+test("a timeout covered by the last good catalog, a login problem, or a good read is not", () => {
+  const lastKnown = new Map<RuntimeId, RuntimeDetection>();
+  withLastKnownCatalogs(report(detection()), lastKnown);
+  assert.equal(hasTransientFailure(withLastKnownCatalogs(report(failed("METADATA_TIMEOUT")), lastKnown)), false);
+  assert.equal(hasTransientFailure(report(failed("AUTH_REQUIRED"))), false);
+  assert.equal(hasTransientFailure(report(detection())), false);
 });

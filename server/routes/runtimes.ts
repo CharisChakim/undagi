@@ -5,7 +5,7 @@ import {
   saveRuntimeBinaryPath,
   RuntimeBinaryPathError,
 } from "../runtimes/binary-paths.ts";
-import { discoverRuntimes, withLastKnownCatalogs } from "../runtimes/discovery.ts";
+import { discoverRuntimes, hasTransientFailure, withLastKnownCatalogs } from "../runtimes/discovery.ts";
 import type { RuntimeDetection, RuntimeDiscoveryReport, RuntimeId } from "../runtimes/types.ts";
 import { loadClaudeSdkModule } from "../runtime-runner/index.ts";
 
@@ -32,9 +32,15 @@ let cachedReport: RuntimeDiscoveryReport | null = null;
 let inFlight: Promise<RuntimeDiscoveryReport> | null = null;
 const lastKnownCatalogs = new Map<RuntimeId, RuntimeDetection>();
 
+// A runtime that failed for a passing reason, such as a slow start, is asked
+// again on the next read after this, instead of showing as unavailable for the
+// whole catalog lifetime.
+const TRANSIENT_FAILURE_TTL_MS = 30_000;
+
 function cacheFresh(report: RuntimeDiscoveryReport): boolean {
   const checkedAt = Date.parse(report.checkedAt);
-  return Number.isFinite(checkedAt) && Date.now() < checkedAt + report.ttlMs;
+  const ttlMs = hasTransientFailure(report) ? Math.min(report.ttlMs, TRANSIENT_FAILURE_TTL_MS) : report.ttlMs;
+  return Number.isFinite(checkedAt) && Date.now() < checkedAt + ttlMs;
 }
 
 async function reportFor(force: boolean): Promise<RuntimeDiscoveryReport> {

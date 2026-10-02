@@ -243,6 +243,16 @@ export function withLastKnownCatalogs(
   return { ...report, runtimes };
 }
 
+/**
+ * Whether a runtime in the report failed for a passing reason and has no last
+ * good catalog to fall back on, so it shows as unavailable although the next
+ * read would likely work.
+ */
+export function hasTransientFailure(report: RuntimeDiscoveryReport): boolean {
+  return report.runtimes.some((detection) =>
+    detection.status === "error" && TRANSIENT_DIAGNOSTICS.has(detection.diagnostic ?? ""));
+}
+
 /** Detect configured runtime binaries and perform metadata-only discovery. */
 export async function discoverRuntimes(options: RuntimeDiscoveryOptions = {}): Promise<RuntimeDiscoveryReport> {
   const now = options.now?.() ?? new Date();
