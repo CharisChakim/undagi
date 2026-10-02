@@ -526,6 +526,11 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
       sendJsonError(res, new RequestError("externalSessionId does not belong to this conversation, workspace, and connection.", 409));
       return;
     }
+    // A task card keeps a runtime session of its own, so a session is resumed
+    // only by the same card, or only by the chat when it was the chat's. Before
+    // that, cards and the chat shared one, so a client may still hold a card's
+    // session for the chat: that starts a fresh session instead of failing.
+    if ((owner.taskId ?? null) !== (body.taskId ?? null)) body.externalSessionId = null;
   }
 
   let createdRun: Run;
@@ -629,12 +634,13 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
         recordConversationNote(conversationId, filesEvent);
       }
     }
-    const context = conversationPrompt(
-      conversationId,
-      body.runtime,
-      body.externalSessionId ?? null,
-      applyAgentHarness(body.message, NATIVE_RUNTIME_HARNESS_SETTINGS, { task: Boolean(body.taskId), noteLang: body.language }),
-    );
+    const request = applyAgentHarness(body.message, NATIVE_RUNTIME_HARNESS_SETTINGS, { task: Boolean(body.taskId), noteLang: body.language });
+    // A task run works in its own runtime session and gets no chat messages:
+    // what one task or the chat got wrong does not carry into the next task.
+    // The chat's session still sees the task runs as unseen messages.
+    const context: ConversationContext = body.taskId
+      ? { prompt: request, included: 0, omitted: 0 }
+      : conversationPrompt(conversationId, body.runtime, body.externalSessionId ?? null, request);
     // The chat says so when a runtime is handed earlier messages: it gets
     // their text, not the tool results or the state of the other session.
     if (context.included > 0) {

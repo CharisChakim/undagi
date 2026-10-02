@@ -274,6 +274,50 @@ test("a runtime session that is new to a chat is told what was said before it", 
   });
 });
 
+test("a task card runs in a runtime session of its own, without the chat's messages", async () => {
+  let run = 0;
+  const provider = new ProviderFixture(async function* () {
+    run += 1;
+    const threadId = `thread_own_${run}`;
+    yield { type: "text", text: `answer ${run}`, threadId, turnId: `turn_${run}`, itemId: null };
+    yield { ...done, threadId, turnId: `turn_${run}` };
+  });
+  const { sessionId, taskId } = project();
+  const status = async (url: string, body: Record<string, unknown>) => (await fetch(`${url}/api/runtime-agent/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ runtime: "codex", message: "Go on.", sessionId, ...body }),
+  })).status;
+
+  await withServer(provider, async (url) => {
+    await chat(url, { sessionId, message: "Use Postgres for storage.", idempotencyKey: "own-chat" });
+    const taskEvents = await chat(url, { sessionId, taskId, idempotencyKey: "own-task" });
+    // A retry resumes the card's own session.
+    await chat(url, { sessionId, taskId, externalSessionId: "thread_own_2", idempotencyKey: "own-retry" });
+
+    const [, fromCard, retry] = provider.turns.map((turn) => turn.prompt);
+    assert.doesNotMatch(fromCard!, /conversation_context|Use Postgres/);
+    assert.equal(taskEvents.find((event) => event.type === "context_carried"), undefined);
+    assert.doesNotMatch(retry!, /conversation_context/);
+    assert.equal(provider.turns[2].threadId, "thread_own_2", "the retry resumed the card's session");
+
+    // The chat does not resume the card's session, nor the card the chat's. A
+    // client from before cards had sessions of their own may still send one:
+    // that starts a fresh session instead of failing.
+    assert.equal(await status(url, { externalSessionId: "thread_own_2", idempotencyKey: "own-cross-1" }), 200);
+    assert.equal(provider.turns.at(-1)!.threadId, undefined);
+    assert.match(provider.turns.at(-1)!.prompt, /<conversation_context>/);
+    assert.equal(await status(url, { taskId, externalSessionId: "thread_own_1", idempotencyKey: "own-cross-2" }), 200);
+    assert.equal(provider.turns.at(-1)!.threadId, undefined);
+    // Another project's session, though, is still refused.
+    assert.equal(await status(url, { conversationId: "conversation-elsewhere", externalSessionId: "thread_own_1", idempotencyKey: "own-cross-3" }), 409);
+
+    // Back in the chat's session, it is told what the card's runs said.
+    await chat(url, { sessionId, message: "How did it go?", externalSessionId: "thread_own_1", idempotencyKey: "own-chat-2" });
+    assert.match(provider.turns.at(-1)!.prompt, /Assistant: answer 2/);
+  });
+});
+
 test("a run started from a task card is asked to report its status; a plain chat is not", async () => {
   const provider = new ProviderFixture(async function* () {
     yield { type: "text", text: "ok", threadId: "thread_card", turnId: "turn_card", itemId: null };

@@ -373,7 +373,12 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     // What the run amounted to, for the task card it was started from.
     const recorder = new RunRecorder(t);
     const nativeRuntime = runtimeSelection.runtime !== "legacy";
-    const runtimeConversationKey = conversationId.current || sessionId;
+    // A task card keeps a runtime session of its own, which its retries resume;
+    // the chat keeps another. The server refuses to mix them.
+    const sessionKey = (conversation: string): string => (
+      options?.taskId ? `${conversation}:task:${options.taskId}` : conversation
+    );
+    const runtimeConversationKey = sessionKey(conversationId.current || sessionId);
     const externalSessionId = nativeRuntime
       ? loadExternalRuntimeSession(sessionId, runtimeSelection.runtime, runtimeConversationKey)
       : null;
@@ -453,7 +458,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
           if (!event) continue;
 
           if (nativeRuntime && typeof event.externalSessionId === "string" && event.externalSessionId) {
-            const currentKey = conversationId.current || runtimeConversationKey;
+            const currentKey = conversationId.current ? sessionKey(conversationId.current) : runtimeConversationKey;
             saveExternalRuntimeSession(sessionId, runtimeSelection.runtime, currentKey, event.externalSessionId);
           }
 
