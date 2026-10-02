@@ -698,7 +698,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                           {column.status === "done" && (
                             <>
                               <span className="text-ok flex items-center gap-1">
-                                <Check className="w-3 h-3" /> {t("Accepted")}
+                                <Check className="w-3 h-3" /> {t("Done")}
                               </span>
                               <button
                                 onClick={(e) => {

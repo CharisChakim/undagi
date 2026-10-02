@@ -42,7 +42,6 @@ const ID: Record<string, string> = {
   "Allow shell commands": "Izinkan perintah shell",
   "Approved — it ran.": "Disetujui — perintah dijalankan.",
   "Accept as done": "Terima sebagai selesai",
-  "Accepted": "Diterima",
   "Approval expired; waiting for server confirmation.": "Persetujuan kedaluwarsa; menunggu konfirmasi server.",
   "Ask for a change...": "Minta perubahan...",
   "Ask the agent to change this project": "Minta agent mengubah proyek ini",
