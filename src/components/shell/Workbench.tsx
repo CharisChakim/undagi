@@ -140,11 +140,36 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     ].join("\n\n");
 
     const sessionId = session.id;
+    // The run can end long after this render, on a different open session, so
+    // the card is moved from the session as it is by then.
+    const moveCard = (report: RunReport, attempts: number): void => {
+      if (!report.outcome) return;
+      const outcome = report.outcome;
+      const failure = report.error ? readableRunError(report.error) : null;
+      const note = failure
+        ? (attempts > 1 ? t("Failed after {count} attempts: {error}", { count: attempts, error: failure }) : failure)
+        : report.note;
+      onUpdateSession((current) => {
+        if (current.id !== sessionId) return null;
+        const tasks = applyTaskOutcome(current.tasks ?? [], task.id, outcome, note);
+        return tasks ? { tasks } : null;
+      });
+    };
+    // Once the loop below is over, the chat's "Try again" can send this same message
+    // again with the same options; that run has no loop to hand its report to, so it
+    // moves the card itself.
+    let loopEnded = false;
     // One attempt, to its end. The report arrives just before send settles; a
     // send that never started (another run is open) reports nothing.
     const attempt = async (message: string): Promise<RunReport> => {
       let report: RunReport = { outcome: null, note: "", error: null, errorCode: null };
-      await agentRun.send(message, { taskId: task.id, onOutcome: (next) => { report = next; } });
+      await agentRun.send(message, {
+        taskId: task.id,
+        onOutcome: (next) => {
+          report = next;
+          if (loopEnded) moveCard(next, 1);
+        },
+      });
       return report;
     };
     // The card still waits for this run while it sits in In progress on the same project.
@@ -162,18 +187,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         text: t("Attempt {attempt} of {total} failed, trying again: {error}", { attempt: failed, total, error: readableRunError(error) }),
       }),
     }).then(({ report, attempts }) => {
-      if (!report.outcome) return;
-      const failure = report.error ? readableRunError(report.error) : null;
-      const note = failure
-        ? (attempts > 1 ? t("Failed after {count} attempts: {error}", { count: attempts, error: failure }) : failure)
-        : report.note;
-      // The run can end long after this render, on a different open session,
-      // so the card is moved from the session as it is by then.
-      onUpdateSession((current) => {
-        if (current.id !== sessionId) return null;
-        const tasks = applyTaskOutcome(current.tasks ?? [], task.id, report.outcome!, note);
-        return tasks ? { tasks } : null;
-      });
+      loopEnded = true;
+      moveCard(report, attempts);
     }).finally(() => {
       setRunningTaskId(null);
       setRetryNotice(null);
