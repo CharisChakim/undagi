@@ -113,29 +113,43 @@ export interface RetryOptions {
   stillWanted: () => boolean;
   /** Called before each retry, so the user hears about it. */
   onRetry: (notice: RetryNotice) => void;
-  wait?: (ms: number) => Promise<void>;
+  /** Aborted when the user presses Stop: a pause ends at once and nothing more is sent. */
+  signal?: AbortSignal;
+  /** The pause before a retry; it ends early once `signal` aborts. */
+  wait?: (ms: number, signal?: AbortSignal) => Promise<void>;
   maxRetries?: number;
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number, signal?: AbortSignal): Promise<void> => new Promise((resolve) => {
+  if (signal?.aborted) return resolve();
+  const finish = (): void => {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", finish);
+    resolve();
+  };
+  const timer = setTimeout(finish, ms);
+  signal?.addEventListener("abort", finish, { once: true });
+});
 
 /**
  * Runs a task, trying again after a transient failure. A run the agent itself
  * called blocked, or the user stopped, is never retried.
  */
 export async function runWithRetries(options: RetryOptions): Promise<{ report: RunReport; attempts: number }> {
-  const { send, stillWanted, onRetry, wait = sleep, maxRetries = MAX_RETRIES } = options;
+  const { send, stillWanted, onRetry, signal, wait = sleep, maxRetries = MAX_RETRIES } = options;
+  const wanted = (): boolean => !signal?.aborted && stillWanted();
   let message = options.message;
   for (let attempt = 1; ; attempt += 1) {
     const report = await send(message);
     const error = report.outcome === "failed" ? report.error : null;
-    if (!error || !isTransientRunError(error, report.errorCode) || attempt > maxRetries || !stillWanted()) {
+    if (!error || !isTransientRunError(error, report.errorCode) || attempt > maxRetries || !wanted()) {
       return { report, attempts: attempt };
     }
     const delayMs = retryDelayMs(attempt);
     onRetry({ attempt, total: maxRetries + 1, error, delayMs });
-    await wait(delayMs);
-    if (!stillWanted()) return { report, attempts: attempt };
+    await wait(delayMs, signal);
+    // Stopped during the pause: the last failure is how the run ended.
+    if (!wanted()) return { report, attempts: attempt };
     message = retryContinuationPrompt(error);
   }
 }

@@ -224,3 +224,35 @@ test("nothing is retried once the card has left In progress", async () => {
   assert.equal(result.attempts, 1);
   assert.equal(result.report.error, "HTTP 503");
 });
+
+test("Stop during the pause ends it at once and sends nothing more", async () => {
+  const stop = new AbortController();
+  let sends = 0;
+  const started = Date.now();
+  const result = await runWithRetries({
+    message: "first",
+    send: async () => { sends += 1; return failed("HTTP 503"); },
+    stillWanted: () => true,
+    signal: stop.signal,
+    // The real pause is 3 s; the user stops it shortly after it starts.
+    onRetry: () => { setTimeout(() => stop.abort(), 10); },
+  });
+  assert.equal(sends, 1);
+  assert.equal(result.report.error, "HTTP 503");
+  assert.ok(Date.now() - started < 1000, "the pause was not cut short");
+});
+
+test("nothing is retried once Stop was pressed during the attempt", async () => {
+  const stop = new AbortController();
+  let sends = 0;
+  const result = await runWithRetries({
+    message: "first",
+    send: async () => { sends += 1; stop.abort(); return failed("HTTP 503"); },
+    stillWanted: () => true,
+    signal: stop.signal,
+    onRetry: () => assert.fail("no retry was due"),
+    wait: async () => undefined,
+  });
+  assert.equal(sends, 1);
+  assert.equal(result.attempts, 1);
+});

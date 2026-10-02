@@ -72,6 +72,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   // Read when a retry is due, not to write: the run can outlast the render that started it.
   const sessionRef = React.useRef(session);
   React.useEffect(() => { sessionRef.current = session; }, [session]);
+  // Stop also has to end a task's pause between retries, when no run is open to abort.
+  const retryStop = React.useRef<AbortController | null>(null);
   // Every chat starts asking; a wider mode is chosen per chat, never carried over.
   const [permissionState, setPermissionState] = React.useState<{ sessionId: string; mode: PermissionMode }>({ sessionId: session.id, mode: "ask" });
   const permissionMode = permissionState.sessionId === session.id ? permissionState.mode : "ask";
@@ -178,10 +180,13 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       return current.id === sessionId && current.tasks?.find((item) => item.id === task.id)?.status === "in_progress";
     };
 
+    const stopRetries = new AbortController();
+    retryStop.current = stopRetries;
     void runWithRetries({
       message: prompt,
       send: attempt,
       stillWanted,
+      signal: stopRetries.signal,
       onRetry: ({ attempt: failed, total, error }) => setRetryNotice({
         taskId: task.id,
         text: t("Attempt {attempt} of {total} failed, trying again: {error}", { attempt: failed, total, error: readableRunError(error) }),
@@ -190,10 +195,16 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       loopEnded = true;
       moveCard(report, attempts);
     }).finally(() => {
+      if (retryStop.current === stopRetries) retryStop.current = null;
       setRunningTaskId(null);
       setRetryNotice(null);
     });
   }, [agentRun.busy, agentRun.send, onLayoutModeChange, onUpdateSession, session.id, t]);
+
+  const handleStop = React.useCallback((): void => {
+    retryStop.current?.abort();
+    agentRun.stop();
+  }, [agentRun.stop]);
 
   const openPipeline = (step: Step) => {
     if (!isStepReachable(step, session)) return;
@@ -211,13 +222,15 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         onWorkspaceSelected={onWorkspaceSelected}
         onNavigatePipeline={openPipeline}
         entries={agentRun.entries}
-        busy={agentRun.busy}
+        // A task waiting to be retried is still running: the chat cannot start
+        // another run in the pause, and Stop ends it.
+        busy={agentRun.busy || runningTaskId !== null}
         error={agentRun.error}
         onSend={agentRun.send}
         onRetry={agentRun.retry}
         onDecideApproval={agentRun.decideApproval}
         onRespondQuestions={agentRun.respondQuestions}
-        onStop={agentRun.stop}
+        onStop={handleStop}
         hasPlan={Boolean(session.plan)}
         runtimeSelection={runtimeSelection}
         runtimeReport={runtimeDiscovery.report}
