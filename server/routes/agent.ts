@@ -7,7 +7,8 @@ import { getSession } from "../../db.ts";
 import { resolveRole, getConnection } from "../connections/store.ts";
 import { LLM_TIMEOUT_MS } from "../llm/call.ts";
 import type { Connection } from "../llm/types.ts";
-import type { Lang } from "../messages.ts";
+import { langOf, type Lang } from "../messages.ts";
+import { agentLangOf } from "../pipeline/language.ts";
 import {
   ensureConversationFor,
   getConversation,
@@ -289,8 +290,8 @@ function transientContext(body: Record<string, any>): { workspaceRoot?: string; 
 // `agentLanguage` is "ui" when the user wants the model-facing instructions in
 // that same language. A missing or unknown value means English.
 export function chatLanguages(body: Record<string, any>): { humanLang: Lang; agentLang: Lang } {
-  const humanLang: Lang = body.language === "id" ? "id" : "en";
-  return { humanLang, agentLang: body.agentLanguage === "ui" ? humanLang : "en" };
+  const humanLang = langOf({ body });
+  return { humanLang, agentLang: agentLangOf({ body }, humanLang) };
 }
 
 async function chat(req: Request, res: Response): Promise<void> {

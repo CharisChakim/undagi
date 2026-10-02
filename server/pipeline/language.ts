@@ -2,7 +2,7 @@ import type { Lang } from "../messages.ts";
 
 export type { Lang };
 
-const LANGUAGE_NAME: Record<Lang, string> = { en: "English", id: "Indonesian" };
+export const LANGUAGE_NAME: Record<Lang, string> = { en: "English", id: "Indonesian" };
 
 // The request body picks who reads the agent-facing text: "ui" follows the
 // interface language, anything else (missing, invalid) stays English because

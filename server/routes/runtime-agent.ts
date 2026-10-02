@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import express, { type Request, type Response } from "express";
 
 import { getSession } from "../../db.ts";
-import type { Lang } from "../messages.ts";
+import { langOf, type Lang } from "../messages.ts";
 import { adoptChatWorkspace, chatWorkspaceEvent, ensureChatWorkspace } from "../agent/chatWorkspace.ts";
 import {
   appendMessage,
@@ -136,7 +136,7 @@ function parseBody(value: unknown): RuntimeAgentBody {
     idempotencyKey: optionalText(value.idempotencyKey, "idempotencyKey"),
     harnessSettings: parseAgentHarnessSettings(value.harnessSettings),
     permissionMode: parsePermissionMode(value.permissionMode),
-    language: value.language === "id" ? "id" : "en",
+    language: langOf({ body: value }),
   };
 }
 

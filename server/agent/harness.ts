@@ -1,4 +1,5 @@
 import type { Lang } from "../messages.ts";
+import { LANGUAGE_NAME } from "../pipeline/language.ts";
 
 export interface AgentHarnessSettings {
   compactTerminal: boolean;
@@ -31,8 +32,6 @@ export interface AgentHarnessOptions {
   /** The UI language; the card's note is written in it. Missing means no instruction. */
   noteLang?: Lang;
 }
-
-const LANGUAGE_NAME: Record<Lang, string> = { en: "English", id: "Indonesian" };
 
 // Not a setting: the board moves the card on this line, so it joins the harness
 // block exactly when a card is attached, whichever layers are switched off.
