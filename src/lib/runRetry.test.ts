@@ -77,6 +77,26 @@ test("Antigravity codes decide the same way, and other runtimes fall back to the
   assert.equal(isTransientRunError("Codex turn timed out.", "TURN_TIMEOUT"), false);
 });
 
+test("a status counts only where an HTTP status stands, and only a dropped fetch is terminated", () => {
+  for (const message of [
+    "Request failed with status code 502",
+    "503 Service Unavailable",
+    "HTTP/1.1 504 Gateway Timeout",
+    "TypeError: terminated",
+    "terminated",
+  ]) {
+    assert.equal(isTransientRunError(message), true, message);
+  }
+  for (const message of [
+    "Cannot parse src/app.ts:500",
+    "Expected at most 500 items, got 502",
+    "Process terminated by signal SIGKILL",
+    "The command terminated with exit code 1",
+  ]) {
+    assert.equal(isTransientRunError(message), false, message);
+  }
+});
+
 test("a sentence that only asks the user to try again is not a reason to retry", () => {
   assert.equal(isTransientRunError("Sign in with /login, then try again."), false);
 });

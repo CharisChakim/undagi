@@ -28,8 +28,14 @@ const NO_VERDICT_CODES = new Set(["CLAUDE_RESULT_ERROR", "CLAUDE_RESULT_MISSING"
 // A turn timeout is deliberately not here: it has already cost the whole turn
 // limit, usually because an approval sat unanswered, and the next try would too.
 const TURN_TIMEOUT = /TURN_TIMEOUT|turn timed out/i;
+const STATUS = "(?:429|500|502|503|504|529)";
 const TRANSIENT = new RegExp([
-  "\\b(429|500|502|503|504|529)\\b",
+  // A number counts where an HTTP status stands: after "status", "HTTP" or "code",
+  // in parentheses, or before its reason phrase. A bare one ("file.ts:500",
+  // "at most 500 items") says nothing about the provider.
+  `\\b(?:status(?:\\s*code)?|http(?:/[\\d.]+)?|code)\\W{0,3}${STATUS}\\b`,
+  `\\(${STATUS}\\)`,
+  `\\b${STATUS} (?:too many requests|internal server error|bad gateway|service unavailable|gateway time-?out)\\b`,
   "overloaded",
   "rate.?limit",
   "temporarily unavailable",
@@ -37,7 +43,9 @@ const TRANSIENT = new RegExp([
   "fetch failed",
   "network ?error",
   "socket hang up",
-  "terminated",
+  // Node's fetch says just this when the connection drops ("TypeError: terminated").
+  // A process or command that was terminated is not a hiccup of the provider.
+  "(?:^|:\\s*)terminated\\b",
   "ECONNRESET",
   "ECONNREFUSED",
   "ETIMEDOUT",
