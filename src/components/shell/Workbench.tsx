@@ -125,6 +125,10 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     harnessSettings,
     permissionMode,
   });
+  // A retry can start minutes after the click; it sends with the runtime, permission
+  // mode, settings and language chosen by then, not the ones the click saw.
+  const sendRef = React.useRef(agentRun.send);
+  React.useEffect(() => { sendRef.current = agentRun.send; }, [agentRun.send]);
 
   const handleRunTask = React.useCallback((task: AgentTask): void => {
     if (agentRun.busy) return;
@@ -165,7 +169,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     // send that never started (another run is open) reports nothing.
     const attempt = async (message: string): Promise<RunReport> => {
       let report: RunReport = { outcome: null, note: "", error: null, errorCode: null };
-      await agentRun.send(message, {
+      await sendRef.current(message, {
         taskId: task.id,
         onOutcome: (next) => {
           report = next;
@@ -199,7 +203,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       setRunningTaskId(null);
       setRetryNotice(null);
     });
-  }, [agentRun.busy, agentRun.send, onLayoutModeChange, onUpdateSession, session.id, t]);
+  }, [agentRun.busy, onLayoutModeChange, onUpdateSession, session.id, t]);
 
   const handleStop = React.useCallback((): void => {
     retryStop.current?.abort();
