@@ -9,7 +9,7 @@ import {
 import { toTransportAnswers } from "../components/plan/followups";
 import { useT } from "./i18n";
 import { agentLanguageFor, type AgentHarnessSettings } from "./agentHarness";
-import { agentNoteFrom, runFailedAtDone, taskOutcomeFor } from "./taskOutcome";
+import { RunRecorder } from "./runRecorder";
 import type { RunReport } from "./runRetry";
 import type { PermissionMode } from "../types";
 
@@ -346,16 +346,9 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     let toolTouchedSession = false;
     let turnStartedAt = Date.now();
     let turnToolCount = 0;
-    let sawDone = false;
     let sawTurn = false;
     // What the run amounted to, for the task card it was started from.
-    let assistantText = "";
-    // Only the words after the last tool call: the narration before is not the card's note.
-    let finalText = "";
-    let runFailed = false;
-    let runInterrupted = false;
-    let runError: string | null = null;
-    let runErrorCode: string | null = null;
+    const recorder = new RunRecorder(t);
     const nativeRuntime = runtimeSelection.runtime !== "legacy";
     const runtimeConversationKey = conversationId.current || sessionId;
     const externalSessionId = nativeRuntime
@@ -450,10 +443,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
               saveConversationId(sessionId, event.conversationId);
             }
           } else if (event.type === "text") {
-            if (typeof event.text === "string") {
-              assistantText += event.text;
-              finalText += event.text;
-            }
+            if (typeof event.text === "string") recorder.addText(event.text);
             setEntries((prev) => {
               const last = prev[prev.length - 1];
               if (last?.kind === "assistant") {
@@ -468,7 +458,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
               ];
             });
           } else if (event.type === "tool_start") {
-            finalText = "";
+            recorder.toolStarted();
             turnToolCount += 1;
             setEntries((prev) => [
               ...prev,
@@ -566,19 +556,15 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
           } else if (event.type === "history") {
             history.current = event.history;
           } else if (event.type === "error") {
-            runFailed = true;
-            runError = event.message || t("The agent is unreachable.");
-            runErrorCode = typeof event.code === "string" && event.code ? event.code : null;
-            pushStreamError(runError, event.retryable !== false);
+            const reason = event.message || t("The agent is unreachable.");
+            recorder.fail(reason, typeof event.code === "string" && event.code ? event.code : null);
+            pushStreamError(reason, event.retryable !== false);
           } else if (event.type === "turn") {
             sawTurn = true;
             turnStartedAt = Date.now();
             turnToolCount = 0;
           } else if (event.type === "done") {
-            sawDone = true;
-            runFailed = runFailedAtDone(runFailed, event);
-            if (event.stop === "max_tokens") runError ??= t("The model's answer was cut off.");
-            if (event.runStatus === "interrupted") runInterrupted = true;
+            recorder.done(event);
             const endedAt = Date.now();
             setEntries((prev) => {
               // A tool the provider never finished, such as a command the user
@@ -608,14 +594,14 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
       }
     } catch (err) {
       if (!ac.signal.aborted) {
-        runFailed = true;
-        runError = errorText(err, t("The agent is unreachable."));
-        pushStreamError(runError, true);
+        const reason = errorText(err, t("The agent is unreachable."));
+        recorder.fail(reason);
+        pushStreamError(reason, true);
       }
     } finally {
       // Stop, or a stream that broke, ends the turn with no done event. Settle
       // what was still in progress so nothing keeps looking like it runs.
-      if (!sawDone) {
+      if (!recorder.sawDone) {
         const stoppedByUser = ac.signal.aborted;
         const endedAt = Date.now();
         setEntries((prev) => {
@@ -638,20 +624,13 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
       if (toolTouchedSession) {
         try { await onToolAppliedRef.current(); } catch { /* the refresh reports its own failure */ }
       }
-      const aborted = ac.signal.aborted || runInterrupted;
-      const failed = runFailed || !sawDone;
-      options?.onOutcome?.({
-        outcome: taskOutcomeFor({ aborted, failed, text: assistantText }),
-        note: agentNoteFrom(finalText),
-        error: failed && !aborted ? (runError ?? t("The run ended with an error.")) : null,
-        errorCode: failed && !aborted ? runErrorCode : null,
-      });
+      options?.onOutcome?.(recorder.report(ac.signal.aborted));
     }
     // Delivery, not turn success, decides the draft: a message that reached
     // the server shows in the chat, so the composer lets go of it instead of
     // offering it to send again, even when that turn then failed. A turn the
     // user stopped ends without "done", but its message is in the chat too.
-    return ac.signal.aborted || wasMessageDelivered(nativeRuntime, sawTurn, sawDone);
+    return ac.signal.aborted || wasMessageDelivered(nativeRuntime, sawTurn, recorder.sawDone);
   }, [allowShell, appendError, harnessSettings, lang, permissionMode, runtimeSelection, sessionId, t, workspaceRoot]);
 
   const retry = useCallback(async (): Promise<void> => {
