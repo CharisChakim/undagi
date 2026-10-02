@@ -6,6 +6,7 @@ import { downloadFile } from "../lib/download";
 import { buildHandoffJson, handoffJsonFilename } from "../lib/handoff";
 import { fetchTaskRunReview, type TaskRunReview } from "../lib/runs";
 import { GenerationProgress } from "./GenerationProgress";
+import { ProjectMemoryPanel } from "./ProjectMemoryPanel";
 import {
   Bot,
   Sparkles,
@@ -498,6 +499,8 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
               </button>
             </div>
           )}
+
+          <ProjectMemoryPanel session={session} onUpdateSession={onUpdateSession} />
 
           {/* View Switcher Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
