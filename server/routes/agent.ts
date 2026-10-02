@@ -401,6 +401,7 @@ async function chat(req: Request, res: Response): Promise<void> {
       model: resolved.model,
       harnessSettings: parseAgentHarnessSettings(body.harnessSettings),
       taskRun: typeof body.taskId === "string" && body.taskId.trim() !== "",
+      ...(typeof body.taskId === "string" && body.taskId.trim() ? { taskId: body.taskId.trim() } : {}),
       lang: humanLang,
       agentLang,
       limits: (projectSession?.agentLimits || {}) as any,

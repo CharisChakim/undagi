@@ -1,6 +1,6 @@
 import { getSession } from "../../db.ts";
 import { resultMessage } from "../../shared/resultMessages.ts";
-import { appendMessage, loadMessages, sanitize } from "./conversations.ts";
+import { appendMessage, loadMessagesFor, sanitize } from "./conversations.ts";
 import { systemPromptFor } from "./prompt.ts";
 import type { AgentHarnessSettings } from "./harness.ts";
 import { resolveInsideRoot } from "./sandbox.ts";
@@ -66,6 +66,8 @@ export interface AgentRunOptions {
   harnessSettings: AgentHarnessSettings;
   /** The turn was started from a task card, so the model reports back to the board. */
   taskRun?: boolean;
+  /** That card's id. Its messages are tagged with it, and its turns see only those. */
+  taskId?: string;
   /** UI language; names UI labels in the prompt and the language of generated artifacts. Missing means "en". */
   lang?: Lang;
   /** Language of model-facing instructions in tools that pass one on. Missing means "en". */
@@ -163,10 +165,11 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
       return;
     }
 
+    const taskMeta = opts.taskId ? { taskId: opts.taskId } : {};
     appendMessage(opts.conversationId, {
       role: "user",
       content: [{ type: "text", text: opts.userMessage }],
-    });
+    }, taskMeta);
 
     const limits = limitsFor(initialSession, opts.limits);
     for (let turn = 0; turn < limits.maxTurns; turn += 1) {
@@ -210,7 +213,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
       const request = streamLlm(opts.conn, {
         model: opts.model,
         system: systemPromptFor(session, opts.harnessSettings, opts.lang, { task: opts.taskRun, noteLang: opts.lang }),
-        messages: sanitize(loadMessages(opts.conversationId)),
+        messages: sanitize(loadMessagesFor(opts.conversationId, opts.taskId)),
         tools: specs.map((spec: ToolSpec) => spec.def),
         maxTokens: limits.maxTokens,
         signal: opts.signal,
@@ -243,7 +246,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
       appendMessage(opts.conversationId, {
         role: "assistant",
         content: assistantContent,
-      }, { model: opts.model, connectionId: opts.conn.id, stop });
+      }, { model: opts.model, connectionId: opts.conn.id, stop, ...taskMeta });
 
       if (stop !== "tool_calls") {
         opts.onEvent({ type: "done", stop });
@@ -281,7 +284,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
 
       // Semua tool_result dari satu giliran harus pulang dalam SATU pesan user.
       // Dipecah jadi beberapa pesan, model belajar berhenti memanggil paralel.
-      appendMessage(opts.conversationId, { role: "user", content: results });
+      appendMessage(opts.conversationId, { role: "user", content: results }, taskMeta);
     }
 
     opts.onEvent({

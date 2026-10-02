@@ -540,6 +540,18 @@ export function loadMessagesWithMeta(convId: string): Array<Message & { meta: Re
   });
 }
 
+/**
+ * What a model turn is given. A task card's run gets only its own earlier
+ * messages, tagged with its taskId, so neither the chat nor another card's
+ * mistakes reach it. The chat gets the whole conversation, card runs included.
+ */
+export function loadMessagesFor(convId: string, taskId?: string): Message[] {
+  if (!taskId) return loadMessages(convId);
+  return loadMessagesWithMeta(convId)
+    .filter((message) => message.meta.taskId === taskId)
+    .map(({ role, content }) => ({ role, content }));
+}
+
 export function appendMessage(convId: string, message: Message, meta: object = {}): void {
   const conversation = requireConversation(convId);
   if (!isRole(message?.role)) throw new Error("message role must be user or assistant");
