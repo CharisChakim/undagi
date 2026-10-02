@@ -318,6 +318,38 @@ test("a task card runs in a runtime session of its own, without the chat's messa
   });
 });
 
+test("a new task session starts with what earlier tasks left; a resumed one is not told again", async () => {
+  let run = 0;
+  const provider = new ProviderFixture(async function* () {
+    run += 1;
+    const threadId = `thread_memory_${run}`;
+    yield { type: "text", text: "ok", threadId, turnId: `turn_${run}`, itemId: null };
+    yield { ...done, threadId, turnId: `turn_${run}` };
+  });
+  const { sessionId, taskId, workspaceRoot } = project();
+  saveSession({
+    id: sessionId,
+    title: sessionId,
+    workspaceRoot,
+    tasks: [
+      { id: "TASK-DB", title: "Set up the database", status: "done", agentNote: "Postgres runs in docker compose." },
+      { id: taskId, title: "Fixture task" },
+    ],
+    projectMemory: [{ id: "mem-1", text: "Use pnpm, not npm", taskId: "TASK-DB", createdAt: new Date(0).toISOString() }],
+  });
+
+  await withServer(provider, async (url) => {
+    await chat(url, { sessionId, taskId, idempotencyKey: "memory-new" });
+    await chat(url, { sessionId, taskId, externalSessionId: "thread_memory_1", idempotencyKey: "memory-resumed" });
+    await chat(url, { sessionId, idempotencyKey: "memory-chat" });
+
+    const [fresh, resumed, plain] = provider.turns.map((turn) => turn.prompt);
+    assert.match(fresh!, /^<project_memory>[\s\S]*TASK-DB Set up the database: Postgres runs in docker compose\.[\s\S]*Use pnpm, not npm[\s\S]*<\/project_memory>\n\n<agent_harness>/);
+    assert.doesNotMatch(resumed!, /project_memory/);
+    assert.doesNotMatch(plain!, /project_memory/);
+  });
+});
+
 test("a run started from a task card is asked to report its status; a plain chat is not", async () => {
   const provider = new ProviderFixture(async function* () {
     yield { type: "text", text: "ok", threadId: "thread_card", turnId: "turn_card", itemId: null };

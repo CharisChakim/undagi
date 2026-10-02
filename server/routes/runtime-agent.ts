@@ -13,6 +13,7 @@ import {
   recordConversationNote,
 } from "../agent/conversations.ts";
 import { unseenMessages, withConversationContext, type ConversationContext, type StoredMessage } from "../agent/runtimeContext.ts";
+import { projectMemoryBlock } from "../agent/projectMemory.ts";
 import { validateTransientWorkspaceRoot } from "./agent.ts";
 import { autoApproves, parsePermissionMode, runtimeApprovalAction, type PermissionMode } from "../agent/permissionMode.ts";
 import { discoverRuntime } from "../runtimes/discovery.ts";
@@ -637,9 +638,13 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
     const request = applyAgentHarness(body.message, NATIVE_RUNTIME_HARNESS_SETTINGS, { task: Boolean(body.taskId), noteLang: body.language });
     // A task run works in its own runtime session and gets no chat messages:
     // what one task or the chat got wrong does not carry into the next task.
-    // The chat's session still sees the task runs as unseen messages.
+    // The chat's session still sees the task runs as unseen messages. A new
+    // task session starts with what earlier tasks left; a resumed one has it.
+    const memory = body.taskId && !body.externalSessionId && body.sessionId
+      ? projectMemoryBlock(getSession(body.sessionId), body.taskId)
+      : "";
     const context: ConversationContext = body.taskId
-      ? { prompt: request, included: 0, omitted: 0 }
+      ? { prompt: memory ? `${memory}\n\n${request}` : request, included: 0, omitted: 0 }
       : conversationPrompt(conversationId, body.runtime, body.externalSessionId ?? null, request);
     // The chat says so when a runtime is handed earlier messages: it gets
     // their text, not the tool results or the state of the other session.

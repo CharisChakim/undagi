@@ -48,3 +48,16 @@ test("the working folder block is English and follows the shell permission", () 
   assert.doesNotMatch(withoutShell, /run_command runs in that folder/);
   assert.doesNotMatch(withoutShell, INDONESIAN_SCAFFOLDING);
 });
+
+test("a task run's system prompt carries the project memory; a chat's does not", () => {
+  const session = {
+    id: "session-1",
+    tasks: [{ id: "TASK-01", title: "Set up the database", status: "done", agentNote: "Postgres runs." }, { id: "TASK-02", title: "Add login" }],
+    projectMemory: [{ text: "Use pnpm, not npm" }],
+  };
+  const settings = { compactTerminal: false, conciseAnswers: false, minimalCode: false, karpathyGuidelines: false };
+  const forCard = systemPromptFor(session, settings, "en", { task: true }, "TASK-02");
+  assert.match(forCard, /<project_memory>[\s\S]*TASK-01 Set up the database: Postgres runs\.[\s\S]*Use pnpm, not npm/);
+  assert.match(forCard, /MEMORY: <fact>/);
+  assert.doesNotMatch(systemPromptFor(session, settings, "en", {}), /project_memory/);
+});

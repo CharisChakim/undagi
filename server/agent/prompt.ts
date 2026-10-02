@@ -1,5 +1,6 @@
 import { agentHarnessPrompt, type AgentHarnessOptions, type AgentHarnessSettings } from "./harness.ts";
 import type { Lang } from "../messages.ts";
+import { projectMemoryBlock } from "./projectMemory.ts";
 
 // The scaffolding is English for every UI language; only the name of the start
 // screen card follows the UI, so the text points at the card the user sees.
@@ -17,11 +18,15 @@ export function systemPromptFor(
   harnessSettings?: AgentHarnessSettings,
   lang: Lang = "en",
   harnessOptions: AgentHarnessOptions = {},
+  /** The card a task run works on, whose own entry stays out of the project memory. */
+  taskId?: string,
 ): string {
   const root = session?.workspaceRoot?.trim();
   const basePrompt = session?.id ? SYSTEM_PROMPT : standaloneSystemPrompt(lang);
   const harnessPrompt = harnessSettings ? agentHarnessPrompt(harnessSettings, harnessOptions) : "";
-  const prompt = harnessPrompt ? `${basePrompt}\n\n${harnessPrompt}` : basePrompt;
+  // A task run sees only its own messages, so what earlier tasks left comes here.
+  const memory = harnessOptions.task ? projectMemoryBlock(session, taskId) : "";
+  const prompt = [basePrompt, harnessPrompt, memory].filter(Boolean).join("\n\n");
   if (!root) return prompt;
 
   return `${prompt}
