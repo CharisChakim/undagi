@@ -2,8 +2,11 @@ import { parseAntigravityModels, parseClaudeSupportedModels, type ParsedRuntimeM
 import { runMetadataCommand } from "./process.ts";
 
 export interface ClaudeSdkMetadataProvider {
-  /** Thin boundary for the pinned Claude Agent SDK `supportedModels()` call. */
-  supportedModels(): Promise<unknown> | unknown;
+  /**
+   * Thin boundary for the pinned Claude Agent SDK `supportedModels()` call.
+   * `executablePath` is the `claude` binary discovery found.
+   */
+  supportedModels(executablePath?: string): Promise<unknown> | unknown;
 }
 
 export interface AdapterMetadataOptions {
@@ -30,6 +33,7 @@ function authError(error: unknown): boolean {
 /** Discover Claude models only through the official SDK boundary. */
 export async function queryClaudeSdk(
   provider: ClaudeSdkMetadataProvider | undefined,
+  executablePath?: string,
 ): Promise<RuntimeAdapterMetadata> {
   if (!provider) {
     return {
@@ -43,7 +47,7 @@ export async function queryClaudeSdk(
     };
   }
   try {
-    const models = parseClaudeSupportedModels(await provider.supportedModels());
+    const models = parseClaudeSupportedModels(await provider.supportedModels(executablePath));
     return {
       ok: models.length > 0,
       models,

@@ -43,7 +43,7 @@ export const defaultRuntimeRunnerDependencies: RuntimeRunnerDependencies = {
 /** Shape of the official Claude SDK module used by the execution boundary. */
 export interface ClaudeSdkModule {
   query: (request: { prompt: string | AsyncIterable<unknown>; options?: Record<string, unknown> }) => ClaudeSdkQuery;
-  supportedModels?: () => Promise<unknown> | unknown;
+  supportedModels?: (executablePath?: string) => Promise<unknown> | unknown;
 }
 
 const CLAUDE_SDK_SPECIFIER = "@anthropic-ai/claude-agent-sdk";
@@ -59,7 +59,7 @@ export async function loadClaudeSdkModule(): Promise<ClaudeSdkModule> {
     const moduleSupportedModels = typeof loaded.supportedModels === "function"
       ? loaded.supportedModels as () => Promise<unknown> | unknown
       : undefined;
-    const supportedModels = moduleSupportedModels ?? (async () => {
+    const supportedModels = moduleSupportedModels ?? (async (executablePath?: string) => {
       // Query exposes supportedModels() only after its control channel is
       // initialized. Keep streaming input open without yielding a user
       // message, so metadata discovery never consumes model quota.
@@ -77,9 +77,12 @@ export async function loadClaudeSdkModule(): Promise<ClaudeSdkModule> {
           };
         },
       };
+      // The installers leave out the SDK's own Claude binary (build.files in
+      // package.json), so without the detected one the SDK finds no CLI and
+      // Claude Code shows as unavailable in the desktop app.
       const query = (candidate as ClaudeSdkModule["query"])({
         prompt: input,
-        options: { abortController },
+        options: { abortController, ...(executablePath ? { pathToClaudeCodeExecutable: executablePath } : {}) },
       }) as ClaudeSdkQuery & { supportedModels?: () => Promise<unknown> };
       try {
         if (typeof query.supportedModels !== "function") {

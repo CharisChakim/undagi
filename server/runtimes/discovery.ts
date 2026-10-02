@@ -173,7 +173,7 @@ async function discoverOne(
         timeoutMs: options.timeoutMs ?? METADATA_TIMEOUT_OVERRIDES.codex,
       });
     } else if (runtime === "claude") {
-      metadata = await queryClaudeSdk(options.claudeSdk);
+      metadata = await queryClaudeSdk(options.claudeSdk, binaryPath);
     } else {
       metadata = await queryAntigravityCli(binaryPath, {
         cwd: options.cwd,
