@@ -212,11 +212,12 @@ app.post("/api/generate-prd", async (req, res) => {
 
 app.post("/api/generate-tasks", async (req, res) => {
   if (acceptsEventStream(req)) {
-    await streamGeneration(req, res, ({ signal, onProgress }) => {
+    await streamGeneration(req, res, async ({ signal, onProgress }) => {
       const { title, plan, prd } = req.body;
       const lang = langOf(req);
       const { conn, model, options } = pipelineModel("tasks", req.body, lang);
-      return generateTasks(title, plan, prd, conn, model, lang, { signal, onProgress, ...options });
+      // The same { tasks } shape as the JSON answer below; the client reads .tasks.
+      return { tasks: await generateTasks(title, plan, prd, conn, model, lang, { signal, onProgress, ...options }) };
     });
     return;
   }
