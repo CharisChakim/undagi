@@ -48,6 +48,18 @@ export interface RunEnd {
 }
 
 /**
+ * Whether the run failed, once its done event has arrived. A run that ends with a
+ * status settles it: an error event before it can be a warning the run recovered
+ * from (Codex sends non-fatal ones), and that run still finished its work. Without
+ * a status (the Legacy API route sends none), what the stream showed so far stands.
+ * An answer cut off at the token limit is a failure either way.
+ */
+export function runFailedAtDone(failedSoFar: boolean, done: { runStatus?: unknown; stop?: unknown }): boolean {
+  const failed = typeof done.runStatus === "string" ? done.runStatus === "failed" : failedSoFar;
+  return failed || done.stop === "max_tokens";
+}
+
+/**
  * Where a card goes when its run ends: null leaves it where it is, so a run the
  * user stopped does not move anything. A run that finished without the marker
  * counts as done; the user sends a new task if something is missing.

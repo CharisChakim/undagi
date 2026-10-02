@@ -9,7 +9,7 @@ import {
 import { toTransportAnswers } from "../components/plan/followups";
 import { useT } from "./i18n";
 import { agentLanguageFor, type AgentHarnessSettings } from "./agentHarness";
-import { agentNoteFrom, taskOutcomeFor } from "./taskOutcome";
+import { agentNoteFrom, runFailedAtDone, taskOutcomeFor } from "./taskOutcome";
 import type { RunReport } from "./runRetry";
 import type { PermissionMode } from "../types";
 
@@ -576,11 +576,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
             turnToolCount = 0;
           } else if (event.type === "done") {
             sawDone = true;
-            if (event.runStatus === "failed") runFailed = true;
-            if (event.stop === "max_tokens") {
-              runFailed = true;
-              runError ??= t("The model's answer was cut off.");
-            }
+            runFailed = runFailedAtDone(runFailed, event);
+            if (event.stop === "max_tokens") runError ??= t("The model's answer was cut off.");
             if (event.runStatus === "interrupted") runInterrupted = true;
             const endedAt = Date.now();
             setEntries((prev) => {

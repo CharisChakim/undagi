@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AgentTask } from "../types";
-import { agentNoteFrom, applyTaskOutcome, taskOutcomeFor, taskStatusMarker } from "./taskOutcome";
+import { agentNoteFrom, applyTaskOutcome, runFailedAtDone, taskOutcomeFor, taskStatusMarker } from "./taskOutcome";
 
 function task(id: string, status?: AgentTask["status"]): AgentTask {
   return {
@@ -114,4 +114,19 @@ test("a card the user already marked done is left alone", () => {
 test("nothing changes for a missing card or one already in that column", () => {
   assert.equal(applyTaskOutcome([task("TASK-01", "in_progress")], "TASK-09", "done"), null);
   assert.equal(applyTaskOutcome([task("TASK-01", "blocked")], "TASK-01", "blocked"), null);
+});
+
+test("a run the server ends as completed is not failed by an earlier non-fatal error event", () => {
+  // Codex sends fatal: false errors for a malformed line or a failed approval
+  // handler and then carries on; the done event has the last word.
+  assert.equal(runFailedAtDone(true, { runStatus: "completed" }), false);
+  assert.equal(runFailedAtDone(false, { runStatus: "failed" }), true);
+  assert.equal(runFailedAtDone(false, { runStatus: "interrupted" }), false);
+});
+
+test("without a run status, the stream so far stands, and a cut-off answer always fails", () => {
+  assert.equal(runFailedAtDone(true, { stop: "end_turn" }), true);
+  assert.equal(runFailedAtDone(false, { stop: "end_turn" }), false);
+  assert.equal(runFailedAtDone(false, { stop: "max_tokens" }), true);
+  assert.equal(runFailedAtDone(false, { runStatus: "completed", stop: "max_tokens" }), true);
 });
