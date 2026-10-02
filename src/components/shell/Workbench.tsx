@@ -5,7 +5,7 @@ import { isStepReachable, Step } from "../../lib/routing";
 import { LayoutMode } from "../../lib/layout";
 import { useT } from "../../lib/i18n";
 import { useAgentRun } from "../../lib/useAgentRun";
-import { applyTaskOutcome } from "../../lib/taskOutcome";
+import { applyTaskOutcome, markTaskStopped } from "../../lib/taskOutcome";
 import { readableRunError, runWithRetries, type RunReport } from "../../lib/runRetry";
 import { useRuntimeDiscovery } from "../../lib/runtimes";
 import {
@@ -156,7 +156,15 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     // The run can end long after this render, on a different open session, so
     // the card is moved from the session as it is by then.
     const moveCard = (report: RunReport, attempts: number): void => {
-      if (!report.outcome) return;
+      if (!report.outcome) {
+        // Stopped: the card stays, marked as no longer being worked on.
+        onUpdateSession((current) => {
+          if (current.id !== sessionId) return null;
+          const tasks = markTaskStopped(current.tasks ?? [], task.id);
+          return tasks ? { tasks } : null;
+        });
+        return;
+      }
       const outcome = report.outcome;
       const failure = report.error ? readableRunError(report.error) : null;
       const note = failure

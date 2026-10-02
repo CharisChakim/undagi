@@ -340,6 +340,8 @@ export interface AgentTask {
   status?: 'todo' | 'in_progress' | 'done' | 'blocked' | 'failed';
   /** What the agent wrote at the end of its last run on this card: evidence, a blocker, or doubts. */
   agentNote?: string;
+  /** The last run on this card was stopped before it finished. Cleared when the card moves or runs again. */
+  runStopped?: boolean;
   handoffStatus?: 'handed_off';
   handedOffAt?: string;
   /** Snapshot of the PRD used to generate this task, when applicable. */

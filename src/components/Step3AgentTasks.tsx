@@ -214,11 +214,11 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
   };
 
   const handleTaskStatusChange = (taskId: string, newStatus: TaskStatus) => {
-    const updated = tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
+    const updated = tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus, runStopped: undefined } : t));
     onUpdateSession({ tasks: updated });
     onTaskMoved?.(taskId, newStatus);
     if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask({ ...selectedTask, status: newStatus });
+      setSelectedTask({ ...selectedTask, status: newStatus, runStopped: undefined });
     }
   };
 
@@ -264,7 +264,8 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
   const runTask = (task: AgentTask, event?: React.MouseEvent): void => {
     event?.stopPropagation();
     if (openDependencies(task, tasks).length) return;
-    if (task.status !== "in_progress") handleTaskStatusChange(task.id, "in_progress");
+    // Also clears the mark of a run that was stopped on this card.
+    if (task.status !== "in_progress" || task.runStopped) handleTaskStatusChange(task.id, "in_progress");
     onRunTask?.(task);
   };
 
@@ -656,6 +657,9 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                           <span className="flex min-w-0 items-center gap-1.5 text-faint">
                             <span>{t("{count} target files", { count: task.targetFiles?.length || 0 })}</span>
                             {runningTaskId === task.id && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent" title={t("Agent is working on this task")} />}
+                            {task.runStopped && column.status === "in_progress" && runningTaskId !== task.id && (
+                              <span className="shrink-0 rounded bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn-ink" title={t("The last run was stopped before it finished.")}>{t("Stopped")}</span>
+                            )}
                           </span>
                           {column.status === "todo" && (
                             <>

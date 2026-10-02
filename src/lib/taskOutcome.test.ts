@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AgentTask } from "../types";
-import { agentNoteFrom, applyTaskOutcome, runFailedAtDone, taskOutcomeFor, taskStatusMarker } from "./taskOutcome";
+import { agentNoteFrom, applyTaskOutcome, markTaskStopped, runFailedAtDone, taskOutcomeFor, taskStatusMarker } from "./taskOutcome";
 
 function task(id: string, status?: AgentTask["status"]): AgentTask {
   return {
@@ -71,6 +71,17 @@ test("blocked is only ever the agent's own word; the run breaking is failed", ()
 test("a run the user stopped moves nothing, failed or not", () => {
   assert.equal(taskOutcomeFor({ aborted: true, failed: false, text: "TASK_STATUS: done" }), null);
   assert.equal(taskOutcomeFor({ aborted: true, failed: true, text: "" }), null);
+});
+
+test("a stopped run marks its card while it is still In progress, and the next outcome clears the mark", () => {
+  const stopped = markTaskStopped([task("TASK-01", "in_progress"), task("TASK-02", "in_progress")], "TASK-01");
+  assert.deepEqual(stopped?.map((item) => item.runStopped), [true, undefined]);
+  assert.equal(markTaskStopped(stopped!, "TASK-01"), null, "an already marked card is left alone");
+  // A card the user moved out of In progress during the run says where it stands.
+  assert.equal(markTaskStopped([task("TASK-01", "todo")], "TASK-01"), null);
+  assert.equal(markTaskStopped([task("TASK-01", "done")], "TASK-01"), null);
+  const rerun = applyTaskOutcome(stopped!, "TASK-01", "done", "Finished.");
+  assert.equal(rerun?.[0].runStopped, undefined);
 });
 
 test("the outcome moves only the card that ran", () => {

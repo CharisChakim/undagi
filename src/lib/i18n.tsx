@@ -514,6 +514,7 @@ const ID: Record<string, string> = {
   "Turn complete": "Giliran selesai",
   "Turn failed": "Giliran gagal",
   "Stopped": "Dihentikan",
+  "The last run was stopped before it finished.": "Run terakhir dihentikan sebelum selesai.",
   "Cached": "Tersimpan",
   "Waiting on {tasks}, which is not done yet.": "Menunggu {tasks}, yang belum selesai.",
   "Waiting on {tasks}": "Menunggu {tasks}",

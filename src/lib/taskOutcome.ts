@@ -84,5 +84,17 @@ export function applyTaskOutcome(tasks: AgentTask[], taskId: string, outcome: Ta
   const agentNote = note.trim() || undefined;
   if (!task || task.status === "done") return null;
   if (task.status === outcome && task.agentNote === agentNote) return null;
-  return tasks.map((item) => (item.id === taskId ? { ...item, status: outcome, agentNote } : item));
+  return tasks.map((item) => (item.id === taskId ? { ...item, status: outcome, agentNote, runStopped: undefined } : item));
+}
+
+/**
+ * The task list with the card marked as stopped, or null when nothing should
+ * change. A stopped run moves nothing, so without the mark an In progress card
+ * looks like one still being worked on. A card the user moved out of In
+ * progress during the run already says where it stands.
+ */
+export function markTaskStopped(tasks: AgentTask[], taskId: string): AgentTask[] | null {
+  const task = tasks.find((item) => item.id === taskId);
+  if (!task || task.status !== "in_progress" || task.runStopped) return null;
+  return tasks.map((item) => (item.id === taskId ? { ...item, runStopped: true } : item));
 }
