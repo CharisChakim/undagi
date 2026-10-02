@@ -25,10 +25,17 @@ import { RUNTIME_CONNECTION, type PipelineOptions } from "./server/pipeline/llm.
 import { parseRuntimeTarget } from "./server/pipeline/runtimeText.ts";
 import type { Connection } from "./server/llm/types.ts";
 import { acceptsEventStream, streamGeneration } from "./server/streaming.ts";
+import { localOnly } from "./server/localOnly.ts";
 
 dotenv.config();
 
+// API ini tanpa login dan bisa menjalankan perintah (server MCP stdio, tool
+// shell), jadi default-nya hanya terjangkau dari mesin ini. HOST=0.0.0.0
+// membukanya ke jaringan untuk siapa pun yang bisa menjangkau port-nya.
+const HOST = process.env.HOST ?? "127.0.0.1";
+
 const app = express();
+app.use(localOnly(HOST));
 app.use(express.json({ limit: "10mb" }));
 app.use(connectionsRouter);
 app.use(agentRouter);
@@ -43,10 +50,6 @@ app.use(mcpRouter);
 // bentrok dengan apa pun yang sudah memakai 3000, lalu membaca port sebenarnya
 // dari nilai yang di-resolve startServer().
 const PORT = Number(process.env.PORT ?? 3000);
-// API ini tanpa login dan bisa menjalankan perintah (server MCP stdio, tool
-// shell), jadi default-nya hanya terjangkau dari mesin ini. HOST=0.0.0.0
-// membukanya ke jaringan untuk siapa pun yang bisa menjangkau port-nya.
-const HOST = process.env.HOST ?? "127.0.0.1";
 const PRODUCTION = process.env.NODE_ENV === "production" || process.argv.includes("--production");
 
 // Route lama tetap memakai signature ini supaya klien dan keempat generator tidak
