@@ -31,6 +31,11 @@ interface AgentRunResult {
   retry: () => Promise<void>;
   decideApproval: (elicitId: string, ok: boolean) => Promise<void>;
   respondQuestions: (elicitId: string, answers: Record<string, string>) => Promise<void>;
+  /**
+   * Shows an approval card for a command Undagi itself wants to run, such as a
+   * task's verify command, and resolves with the user's answer. Stop says no.
+   */
+  askApproval: (command: string, cwd?: string) => Promise<boolean>;
   stop: () => void;
 }
 
@@ -236,6 +241,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
   const sequence = useRef(0);
   const controller = useRef<AbortController | null>(null);
   const approvalRunIds = useRef(new Map<string, string>());
+  // Cards from askApproval are answered here, not by the server.
+  const localApprovals = useRef(new Map<string, (approved: boolean) => void>());
   const liveSendStarted = useRef(false);
   const onToolAppliedRef = useRef(onToolApplied);
 
@@ -247,6 +254,9 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     controller.current = null;
     history.current = [];
     approvalRunIds.current.clear();
+    // A card of the project just left can no longer be answered: it is a no.
+    for (const resolve of localApprovals.current.values()) resolve(false);
+    localApprovals.current.clear();
     conversationId.current = loadConversationId(sessionId);
     liveSendStarted.current = false;
     lastSend.current = null;
@@ -292,7 +302,32 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     setEntries((prev) => [...prev, { kind: "error", id: nextEntryId(sequence), message, retryable }]);
   }, []);
 
+  const settleLocalApproval = useCallback((elicitId: string, approved: boolean): void => {
+    const resolve = localApprovals.current.get(elicitId);
+    if (!resolve) return;
+    localApprovals.current.delete(elicitId);
+    setEntries((prev) => prev.map((entry) =>
+      entry.kind === "approval" && entry.elicitId === elicitId ? { ...entry, decided: true, approved } : entry
+    ));
+    resolve(approved);
+  }, []);
+
+  const askApproval = useCallback((command: string, cwd?: string): Promise<boolean> => {
+    const elicitId = `local-${nextEntryId(sequence)}`;
+    return new Promise<boolean>((resolve) => {
+      localApprovals.current.set(elicitId, resolve);
+      setEntries((prev) => [
+        ...prev,
+        { kind: "approval", id: nextEntryId(sequence), elicitId, command, ...(cwd ? { cwd } : {}), decided: false },
+      ]);
+    });
+  }, []);
+
   const decideApproval = useCallback(async (elicitId: string, ok: boolean): Promise<void> => {
+    if (localApprovals.current.has(elicitId)) {
+      settleLocalApproval(elicitId, ok);
+      return;
+    }
     try {
       const res = await fetch(
         runtimeSelection.runtime === "legacy" ? "/api/agent/approve" : "/api/runtime-agent/approve",
@@ -315,7 +350,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
     } catch {
       setError(t("That approval request is no longer valid."));
     }
-  }, [runtimeSelection.runtime, t]);
+  }, [runtimeSelection.runtime, settleLocalApproval, t]);
 
   const respondQuestions = useCallback(async (elicitId: string, answers: Record<string, string>): Promise<void> => {
     const questionEntry = entries.find((entry): entry is Extract<Entry, { kind: "questions" }> =>
@@ -668,7 +703,8 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
 
   const stop = useCallback((): void => {
     controller.current?.abort();
-  }, []);
+    for (const elicitId of [...localApprovals.current.keys()]) settleLocalApproval(elicitId, false);
+  }, [settleLocalApproval]);
 
-  return { entries, busy, error, send, retry, decideApproval, respondQuestions, stop };
+  return { entries, busy, error, send, retry, decideApproval, respondQuestions, askApproval, stop };
 }
