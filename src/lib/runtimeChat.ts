@@ -125,12 +125,15 @@ export function saveRuntimeSelection(sessionId: string, selection: RuntimeChatSe
   }
 }
 
-/** The runtime that writes this project's Plan, PRD, and tasks; Legacy API until picked. */
-export function loadPipelineSelection(sessionId: string): RuntimeChatSelection {
+/**
+ * The runtime the user picked to write this project's Plan, PRD, and tasks,
+ * or null until they pick one; the caller then follows the chat's runtime.
+ */
+export function loadPipelineSelection(sessionId: string): RuntimeChatSelection | null {
   try {
-    return parseSelection(window.localStorage.getItem(storageKey(PIPELINE_SELECTION_PREFIX, sessionId))) ?? legacyRuntimeSelection();
+    return parseSelection(window.localStorage.getItem(storageKey(PIPELINE_SELECTION_PREFIX, sessionId)));
   } catch {
-    return legacyRuntimeSelection();
+    return null;
   }
 }
 

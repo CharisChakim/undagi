@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { RuntimeDiscoveryReport } from "../types";
-import { defaultAwaitsDiscovery, defaultRuntimeSelection, normalizeRuntimeChatEvent } from "./runtimeChat";
+import {
+  defaultAwaitsDiscovery,
+  defaultRuntimeSelection,
+  loadPipelineSelection,
+  normalizeRuntimeChatEvent,
+  savePipelineSelection,
+} from "./runtimeChat";
 
 test("a run the chat route ends as failed keeps that status on done", () => {
   assert.deepEqual(normalizeRuntimeChatEvent({ type: "done", runStatus: "failed", stop: "stop" }), { type: "done", runStatus: "failed" });
@@ -57,6 +63,27 @@ test("the default waits for discovery only while its answer could still change",
   // Discovery answered, or failed and stopped: nothing left to wait for.
   assert.equal(defaultAwaitsDiscovery({ last: null, legacyAvailable: false, report: report(["claude"]), loading: false }), false);
   assert.equal(defaultAwaitsDiscovery({ last: null, legacyAvailable: false, report: null, loading: false }), false);
+});
+
+test("a project's Plan, PRD and tasks have no runtime of their own until one is picked", () => {
+  const stored = new Map<string, string>();
+  const scope = globalThis as { window?: unknown };
+  scope.window = {
+    localStorage: {
+      getItem: (key: string) => stored.get(key) ?? null,
+      setItem: (key: string, value: string) => void stored.set(key, value),
+    },
+  };
+  try {
+    // Null, not the Legacy API: the workbench then follows the chat's runtime.
+    assert.equal(loadPipelineSelection("project-1"), null);
+    const codex = { runtime: "codex" as const, connectionId: "runtime:codex", model: "inherit", effort: "inherit" };
+    savePipelineSelection("project-1", codex);
+    assert.deepEqual(loadPipelineSelection("project-1"), codex);
+    assert.equal(loadPipelineSelection("project-2"), null);
+  } finally {
+    delete scope.window;
+  }
 });
 
 test("an error keeps the runtime's code, wherever the runtime put it", () => {

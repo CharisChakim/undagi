@@ -110,8 +110,11 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     saveRuntimeSelection(session.id, selection);
   }, [session.id]);
   // Plan, PRD, and tasks have their own pick, kept per project like the chat's.
+  // Until it is made they use the chat's runtime: starting them on a Legacy API
+  // with no endpoint made a fresh install fail its first plan while Codex was ready.
   const [pipelineState, setPipelineState] = React.useState(() => ({ sessionId: session.id, selection: loadPipelineSelection(session.id) }));
-  const pipelineSelection = pipelineState.sessionId === session.id ? pipelineState.selection : loadPipelineSelection(session.id);
+  const pickedPipeline = pipelineState.sessionId === session.id ? pipelineState.selection : loadPipelineSelection(session.id);
+  const pipelineSelection = pickedPipeline ?? runtimeSelection;
   const handlePipelineSelectionChange = React.useCallback((selection: RuntimeChatSelection) => {
     setPipelineState({ sessionId: session.id, selection });
     savePipelineSelection(session.id, selection);
@@ -315,6 +318,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
                     report={runtimeDiscovery.report}
                     preferences={runtimeDiscovery.preferences}
                     loading={runtimeDiscovery.loading}
+                    detecting={!pickedPipeline && runtimeDetecting}
                     onChange={handlePipelineSelectionChange}
                     onOpenConnections={onOpenConnections}
                     idPrefix="pipeline"
