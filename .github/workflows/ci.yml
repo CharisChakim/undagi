@@ -1,0 +1,36 @@
+name: CI
+
+# The release workflow type-checks and builds, but only on a version tag; this
+# type-checks and runs the tests on every push to main and every pull request.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same Node major as the release build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # tsx runs the tests without checking types, so tsc does that first.
+      - name: Type-check
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
