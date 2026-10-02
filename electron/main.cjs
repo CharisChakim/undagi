@@ -39,16 +39,18 @@ function migrateLegacyUserData(target) {
   }
 }
 
-// Aplikasi yang dibuka dari Finder atau Dock mendapat PATH launchd
-// (/usr/bin:/bin:/usr/sbin:/sbin), bukan PATH terminal pengguna, sehingga
-// codex, claude, dan agy tidak ditemukan, begitu pula node yang dibutuhkan
-// skrip codex dari npm. PATH diambil dari login shell pengguna. Kalau gagal
-// atau lewat 5 detik, PATH bawaan tetap dipakai, dan path runtime masih bisa
-// diisi sendiri di Connections.
-if (process.platform === "darwin") {
+// Aplikasi yang dibuka dari Finder, Dock, atau menu desktop Linux tidak
+// mendapat PATH terminal pengguna. macOS memberi PATH launchd
+// (/usr/bin:/bin:/usr/sbin:/sbin); desktop Linux memberi PATH sesi, tanpa
+// tambahan dari .bashrc seperti nvm. Akibatnya codex, claude, atau agy tidak
+// ditemukan, begitu pula node yang dibutuhkan skrip codex dari npm. PATH
+// diambil dari login shell pengguna. Kalau gagal atau lewat 5 detik, PATH
+// bawaan tetap dipakai, dan path runtime masih bisa diisi sendiri di
+// Connections. Windows membaca PATH dari registry, jadi tidak perlu.
+if (process.platform !== "win32") {
   try {
     const output = execFileSync(
-      process.env.SHELL || "/bin/zsh",
+      process.env.SHELL || (process.platform === "darwin" ? "/bin/zsh" : "/bin/sh"),
       ["-ilc", 'printf "\\n__UNDAGI_PATH__%s__UNDAGI_PATH__" "$PATH"'],
       { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }
     );
