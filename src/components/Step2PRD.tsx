@@ -449,7 +449,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <PipelineModelControl />
               <button onClick={handleCopyMarkdown} className="btn-ghost">
                 {copiedMd ? <Check className="w-4 h-4 text-ok" /> : <Copy className="w-4 h-4" />}

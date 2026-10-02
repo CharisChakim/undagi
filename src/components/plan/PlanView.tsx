@@ -189,7 +189,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
             <h3 className="text-base font-semibold text-ink">{session.input.title || session.title}</h3>
             <p className="text-muted mt-1 max-w-2xl leading-relaxed">{plan.summary}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <PipelineModelControl />
             <button type="button" onClick={() => setEditingInput(true)} className="btn-ghost"><Edit3 className="w-3.5 h-3.5" /> {t("Edit input")}</button>
             <button type="button" onClick={() => void handleContinueToPrd()} disabled={generatingPrd} className="btn-primary">{t("Continue to the PRD")} <ArrowRight className="w-4 h-4" /></button>

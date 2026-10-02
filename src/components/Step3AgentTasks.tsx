@@ -466,7 +466,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <button type="button" onClick={() => setManualFormOpen(true)} className="btn-outline">
                 <Plus className="h-4 w-4" />{t("Add task")}
               </button>
