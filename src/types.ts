@@ -336,6 +336,8 @@ export interface AgentTask {
   dependencies: string[];
   promptInstructions: string;
   verificationSteps: string;
+  /** Run by Undagi after the agent says done; the card is verified only when it exits 0. Empty: no such check. */
+  verifyCommand?: string;
   acceptanceCriteria?: string;
   status?: 'todo' | 'in_progress' | 'done' | 'blocked' | 'failed';
   /** What the agent wrote at the end of its last run on this card: evidence, a blocker, or doubts. */

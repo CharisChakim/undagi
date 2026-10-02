@@ -221,3 +221,11 @@ test("plan user prompt omits empty optional lines and formats answers", () => {
   assert.ok(!buildPlanPrompt({ description: "x" }).includes("Target Users:"));
   assert.ok(buildPlanPrompt({ description: "x" }).includes("No additional answers from the follow-up."));
 });
+
+test("the task generator asks for a runnable verifyCommand, or an empty one", () => {
+  const system = buildTasksSystemPrompt("en");
+  assert.match(system, /"verifyCommand": "npm run build"/);
+  assert.match(system, /exits 0/);
+  assert.match(system, /Leave it "" when no command can check the task/);
+  assert.match(system, /Never use destructive commands/);
+});

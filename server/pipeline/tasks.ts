@@ -8,12 +8,17 @@ import { generateLlmText, type PipelineOptions } from "./llm.ts";
 // the agent language while phase and title follow the interface language.
 const AGENT_FIELDS = ["promptInstructions", "verificationSteps"];
 
+// Undagi runs this after the agent says a task is done, and the card counts
+// as verified only when it exits 0. The user approves it like any command.
+const VERIFY_COMMAND_RULES = `verifyCommand is one shell command that Undagi runs from the project root after the agent reports the task done; the task counts as verified only when it exits 0. It must be non-interactive, finish within about two minutes, and check this task specifically (prefer a targeted test, a type-check or a build over the whole suite). Never use destructive commands, installs outside the project, or calls to production services. Leave it "" when no command can check the task, such as a visual or manual change.`;
+
 export function buildTasksSystemPrompt(humanLang: Lang, agentLang: Lang = "en"): string {
   return `You are a Principal AI Engineer & Prompt Architect.
 ${languageDirective({ humanLang, agentLang, agentFields: AGENT_FIELDS })}
 Your task is to break the PRD (7 points) and the Project Architecture down into a list of coding tasks that are modular, atomic in pattern, and READY TO BE EXECUTED BY AN AI CODING AGENT (such as Cursor, Antigravity Agent, Claude Code, Gemini Code Assist).
 
 These tasks must be self-contained, with clear technical instructions, specific target files, dependencies, and verification steps.
+${VERIFY_COMMAND_RULES}
 Every task must have the initial status "todo".
 
 Return the response EXACTLY in the following JSON format. ${EXAMPLE_VALUES_NOTE}
@@ -28,6 +33,7 @@ Return the response EXACTLY in the following JSON format. ${EXAMPLE_VALUES_NOTE}
       "dependencies": [],
       "promptInstructions": "Create the file src/types.ts that defines the interface...",
       "verificationSteps": "Run npm run build and make sure there are no TypeScript errors.",
+      "verifyCommand": "npm run build",
       "status": "todo"
     }
   ]
@@ -68,6 +74,7 @@ export async function generateTasks(
 
   const tasks = (data.tasks || []).map((t: any) => ({
     ...t,
+    verifyCommand: typeof t.verifyCommand === "string" ? t.verifyCommand.trim() : "",
     status: t.status || "todo",
   }));
 

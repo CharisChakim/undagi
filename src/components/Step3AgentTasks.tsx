@@ -74,6 +74,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
   const [manualTitle, setManualTitle] = useState("");
   const [manualInstructions, setManualInstructions] = useState("");
   const [manualVerification, setManualVerification] = useState("");
+  const [manualVerifyCommand, setManualVerifyCommand] = useState("");
   const [manualPriority, setManualPriority] = useState<AgentTask["priority"]>("Medium");
   const [reviewRefresh, setReviewRefresh] = useState(0);
   const [runReview, setRunReview] = useState<{
@@ -223,6 +224,14 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
     }
   };
 
+  const handleVerifyCommandChange = (taskId: string, value: string) => {
+    const verifyCommand = value.trim();
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task || (task.verifyCommand ?? "") === verifyCommand) return;
+    onUpdateSession({ tasks: tasks.map((item) => (item.id === taskId ? { ...item, verifyCommand } : item)) });
+    if (selectedTask?.id === taskId) setSelectedTask({ ...selectedTask, verifyCommand });
+  };
+
   const nextManualTaskId = (): string => {
     const used = new Set(tasks.map((task) => task.id));
     let index = 1;
@@ -245,6 +254,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
       // Read by a coding agent, so English unless the user asked for agent text in their language.
       verificationSteps: manualVerification.trim() ||
         (agentLanguageFor(loadAgentHarnessSettings()) === "ui" ? t : makeT("en"))("Verify the requested outcome before marking this task done."),
+      ...(manualVerifyCommand.trim() ? { verifyCommand: manualVerifyCommand.trim() } : {}),
       status: "todo",
     };
     onUpdateSession({ tasks: [...tasks, task] });
@@ -252,6 +262,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
     setManualTitle("");
     setManualInstructions("");
     setManualVerification("");
+    setManualVerifyCommand("");
     setManualPriority("Medium");
     setManualFormOpen(false);
     setViewMode("kanban");
@@ -386,6 +397,8 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
         <div>
           <label htmlFor="manual-task-verification" className="field-label">{t("Done when")}</label>
           <textarea id="manual-task-verification" rows={4} value={manualVerification} onChange={(event) => setManualVerification(event.target.value)} className="field resize-y" placeholder={t("Describe how this task should be verified...")} />
+          <label htmlFor="manual-task-verify-command" className="field-label mt-3">{t("Verify command")}</label>
+          <input id="manual-task-verify-command" value={manualVerifyCommand} onChange={(event) => setManualVerifyCommand(event.target.value)} className="field font-mono text-xs" placeholder={t("e.g. npm test -- auth")} />
         </div>
       </div>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -960,6 +973,22 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
             <div className="p-4 bg-ok-soft rounded-lg text-ok-ink">
               <strong className="text-xs font-medium block mb-1">{t("Verification steps")}</strong>
               <p className="text-xs opacity-90">{selectedTask.verificationSteps}</p>
+            </div>
+
+            <div>
+              <label htmlFor="task-verify-command" className="field-label">{t("Verify command")}</label>
+              {/* Saved when the field loses focus, not on every key. */}
+              <input
+                key={selectedTask.id}
+                id="task-verify-command"
+                defaultValue={selectedTask.verifyCommand ?? ""}
+                onBlur={(event) => handleVerifyCommandChange(selectedTask.id, event.target.value)}
+                className="field font-mono text-xs"
+                placeholder={t("e.g. npm test -- auth")}
+              />
+              <p className="mt-1 text-[11px] leading-relaxed text-faint">
+                {t("Runs in the project folder after the agent says the task is done; the card counts as verified only when it exits 0. It asks first unless the chat is on Full access. Leave it empty when no command can check the task.")}
+              </p>
             </div>
 
             {selectedTaskHandoffJson && (

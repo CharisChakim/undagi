@@ -187,6 +187,7 @@ const getTasks: ToolSpec = {
         dependencies: task.dependencies || [],
         promptInstructions: task.promptInstructions || "",
         verificationSteps: task.verificationSteps || "",
+        verifyCommand: task.verifyCommand || "",
         status: task.status || "todo",
       })),
     };
