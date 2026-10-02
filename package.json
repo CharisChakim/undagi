@@ -85,6 +85,20 @@
       "maintainer": "Charis Chakim <charis@24slides.com>",
       "synopsis": "Turn a rough idea into an agent-ready task board",
       "artifactName": "Undagi-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build-resources/icon.png",
+      "category": "public.app-category.developer-tools",
+      "identity": "-",
+      "artifactName": "Undagi-${version}-${arch}.${ext}"
     }
   },
   "//dependencies": "Runtime only. Everything the browser needs is bundled into dist/ by Vite, so client libraries belong in devDependencies — electron-builder ships `dependencies` verbatim into the installer.",
