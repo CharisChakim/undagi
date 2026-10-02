@@ -13,6 +13,7 @@ import runtimesRouter from "./server/routes/runtimes.ts";
 import runtimePreferencesRouter from "./server/routes/runtime-preferences.ts";
 import runsRouter from "./server/routes/runs.ts";
 import runtimeAgentRouter from "./server/routes/runtime-agent.ts";
+import verifyRouter from "./server/routes/verify.ts";
 import mcpRouter from "./server/mcp/routes.ts";
 import { listConversations } from "./server/agent/conversations.ts";
 import { removeChatWorkspaces } from "./server/agent/chatWorkspace.ts";
@@ -44,6 +45,7 @@ app.use(runtimesRouter);
 app.use(runtimePreferencesRouter);
 app.use(runsRouter);
 app.use(runtimeAgentRouter);
+app.use(verifyRouter);
 app.use(mcpRouter);
 
 // Port 0 membuat OS memilih port bebas; paket desktop memakainya supaya tidak

@@ -12,7 +12,8 @@ function sessionRoot(ctx: ToolContext): string | undefined {
   return ctx.root || ctx.session?.workspaceRoot?.trim() || undefined;
 }
 
-function runCommand(
+/** One command in the platform's shell, stopped at the deadline or on `signal`. */
+export function runCommand(
   command: string,
   cwd: string,
   timeoutMs: number,
