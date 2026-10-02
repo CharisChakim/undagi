@@ -1,5 +1,6 @@
 import type { ToolContext, ToolSpec } from "../registry.ts";
 import { getSession, saveSession } from "../../../db.ts";
+import { resultMessage } from "../../../shared/resultMessages.ts";
 
 // Tool proyek selalu tersedia karena agent perlu dapat membaca dan mengubah
 // proyek yang sedang dibuka, terlepas dari izin folder kerja atau shell.
@@ -14,7 +15,7 @@ export const projectTools: ToolSpec[] = [
     available: () => true,
     async run(_input: unknown, ctx: ToolContext): Promise<unknown> {
       const session = getSession(ctx.sessionId);
-      if (!session) return { error: `Session ${ctx.sessionId} not found.` };
+      if (!session) return { error: resultMessage("sessionNotFound", { id: ctx.sessionId }) };
 
       return {
         title: session.input?.title || session.title || "",
@@ -65,7 +66,7 @@ export const projectTools: ToolSpec[] = [
     available: () => true,
     async run(input: any, ctx: ToolContext): Promise<unknown> {
       const session = getSession(ctx.sessionId);
-      if (!session) return { error: `Session ${ctx.sessionId} not found.` };
+      if (!session) return { error: resultMessage("sessionNotFound", { id: ctx.sessionId }) };
       if (!session.plan) return { error: "This project has no plan yet, so there are no features to change." };
       const features = Array.isArray(input?.features) ? input.features : [];
       if (features.length === 0) return { error: "The feature list is empty. Send the complete desired list." };
@@ -106,10 +107,10 @@ export const projectTools: ToolSpec[] = [
     available: () => true,
     async run(input: any, ctx: ToolContext): Promise<unknown> {
       const session = getSession(ctx.sessionId);
-      if (!session) return { error: `Session ${ctx.sessionId} not found.` };
+      if (!session) return { error: resultMessage("sessionNotFound", { id: ctx.sessionId }) };
       const tasks = session.tasks || [];
       const task = tasks.find((t: any) => t.id === input?.taskId);
-      if (!task) return { error: `Task ${input?.taskId} does not exist. Call get_project to see the available ids.` };
+      if (!task) return { error: resultMessage("taskMissing", { id: input?.taskId }) };
 
       // Enum di skema tool hanya petunjuk untuk model, bukan aturan yang ditegakkan
       // API. Papan kanban menyaring persis kelima nilai ini, jadi nilai lain tidak
@@ -117,7 +118,7 @@ export const projectTools: ToolSpec[] = [
       const allowed = ["todo", "in_progress", "blocked", "failed", "done"];
       if (!allowed.includes(input?.status)) {
         return {
-          error: `Status "${input?.status}" is not recognized. Use one of: ${allowed.join(", ")}.`,
+          error: resultMessage("statusUnknown", { status: input?.status, allowed: allowed.join(", ") }),
         };
       }
       task.status = input.status;

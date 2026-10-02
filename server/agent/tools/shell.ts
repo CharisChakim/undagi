@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { resolveInsideRoot } from "../sandbox.ts";
 import type { ToolContext, ToolSpec } from "../registry.ts";
+import { resultMessage, TRUNCATED_NOTE } from "../../../shared/resultMessages.ts";
 
 const SHELL_NOTE =
   process.platform === "win32"
@@ -36,10 +37,10 @@ function runCommand(
       },
       (err: any, stdout, stderr) => {
         const cut = (value: string) =>
-          value.length > maxOutputChars ? value.slice(0, maxOutputChars) + "\n...[truncated]" : value;
+          value.length > maxOutputChars ? `${value.slice(0, maxOutputChars)}\n${TRUNCATED_NOTE}` : value;
         resolve({
           stdout: cut(stdout || ""),
-          stderr: cut(stderr || (err?.killed ? `Stopped after ${timeoutMs / 1000} seconds.` : "")),
+          stderr: cut(stderr || (err?.killed ? resultMessage("commandStopped", { seconds: timeoutMs / 1000 }) : "")),
           exitCode: typeof err?.code === "number" ? err.code : err ? 1 : 0,
         });
       }

@@ -1,4 +1,5 @@
 import { getSession } from "../../db.ts";
+import { resultMessage } from "../../shared/resultMessages.ts";
 import { appendMessage, loadMessages, sanitize } from "./conversations.ts";
 import { systemPromptFor } from "./prompt.ts";
 import type { AgentHarnessSettings } from "./harness.ts";
@@ -154,7 +155,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
   try {
     const initialSession = sessionFor(opts);
     if (!initialSession) {
-      opts.onEvent({ type: "error", message: `Session ${opts.sessionId} not found.` });
+      opts.onEvent({ type: "error", message: resultMessage("sessionNotFound", { id: opts.sessionId }) });
       return;
     }
     if (opts.signal.aborted) {
@@ -180,7 +181,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
       // perubahan yang dibuat tool pada sesi selama giliran sebelumnya.
       const session = sessionFor(opts);
       if (!session) {
-        opts.onEvent({ type: "error", message: `Session ${opts.sessionId} not found.` });
+        opts.onEvent({ type: "error", message: resultMessage("sessionNotFound", { id: opts.sessionId }) });
         return;
       }
       const specs = await toolsForTurn(session, opts.signal, (status) => {
@@ -285,7 +286,7 @@ export async function runAgent(opts: AgentRunOptions): Promise<void> {
 
     opts.onEvent({
       type: "error",
-      message: `Reached the limit of ${limits.maxTurns} tool rounds without a final answer.`,
+      message: resultMessage("toolRoundLimit", { count: limits.maxTurns }),
     });
   } catch (error) {
     if (opts.signal.aborted) {

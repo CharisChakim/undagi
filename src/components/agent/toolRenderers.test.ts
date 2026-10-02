@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { makeT, type TFunction } from "../../lib/i18n.tsx";
 import { isServerTerminalNote, localizeToolText, RESULT_TEMPLATES, rendererFor } from "./toolRenderers.tsx";
+import { RESULT_MESSAGES, resultMessage, type ResultMessage } from "../../../shared/resultMessages.ts";
 
 // The real dictionary lives in i18n.tsx; this one only needs the shapes the
 // helper has to handle: a plain key and keys with {name} placeholders.
@@ -51,6 +52,20 @@ test("every server message template has an Indonesian entry in the real dictiona
   const id = makeT("id");
   const missing = RESULT_TEMPLATES.filter((template) => id(template) === template);
   assert.deepEqual(missing, []);
+});
+
+test("every message the server builds from the catalog is translated, values kept", () => {
+  const id = makeT("id");
+  const values = { id: "TASK-07", count: 12, name: "github", seconds: 120, status: "doing", allowed: "todo, done", role: "prd", detail: "ECONNREFUSED" };
+  for (const key of Object.keys(RESULT_MESSAGES) as ResultMessage[]) {
+    const message = resultMessage(key, values);
+    const shown = localizeToolText(id, message);
+    assert.notEqual(shown, message, key);
+    for (const name of RESULT_MESSAGES[key].match(/\{(\w+)\}/g) ?? []) {
+      const value = String(values[name.slice(1, -1) as keyof typeof values]);
+      assert.ok(shown.includes(value), `${key} lost ${name}: ${shown}`);
+    }
+  }
 });
 
 test("the MCP tool-limit notice has an Indonesian translation", () => {

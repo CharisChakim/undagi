@@ -8,12 +8,13 @@ import type { Lang } from "../../messages.ts";
 import { newAppTitle } from "../../pipeline/language.ts";
 import type { PipelineOptions } from "../../pipeline/llm.ts";
 import type { ToolContext, ToolSpec } from "../registry.ts";
+import { resultMessage } from "../../../shared/resultMessages.ts";
 
 function sessionOrError(ctx: ToolContext): { session: any } | { error: string } {
   const session = getSession(ctx.sessionId);
   return session
     ? { session }
-    : { error: `Session ${ctx.sessionId} not found.` };
+    : { error: resultMessage("sessionNotFound", { id: ctx.sessionId }) };
 }
 
 // The chat request carries the UI language; a context without one means "en".
@@ -55,7 +56,7 @@ function titleFor(session: any, lang: Lang = "en"): string {
 
 function roleConnection(role: "plan" | "prd" | "tasks"): { conn: any; model: string } | { error: string } {
   const resolved = resolveRoleOrAgent(role);
-  return resolved || { error: `There is no active LLM connection for the ${role} stage.` };
+  return resolved || { error: resultMessage("noConnection", { role }) };
 }
 
 function shortPlanResult(plan: any): Record<string, unknown> {
@@ -79,7 +80,7 @@ function shortPrdResult(prd: any): Record<string, unknown> {
 function shortTasksResult(tasks: any[]): Record<string, unknown> {
   return {
     ok: true,
-    summary: `Tasks generated: ${tasks.length}.`,
+    summary: resultMessage("tasksGenerated", { count: tasks.length }),
     taskCount: tasks.length,
     taskIds: tasks.map((task) => task?.id).filter((id): id is string => typeof id === "string"),
   };
@@ -372,7 +373,7 @@ const askFollowups: ToolSpec = {
     return {
       ok: true,
       needsMoreInfo: generated?.needsMoreInfo !== false,
-      summary: `Follow-up answers saved: ${Object.keys(answers).length}.`,
+      summary: resultMessage("answersSaved", { count: Object.keys(answers).length }),
       answers,
       questions,
     };

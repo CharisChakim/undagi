@@ -6,6 +6,7 @@ import { fsTools } from "./tools/fs.ts";
 import { pipelineTools } from "./tools/pipeline.ts";
 import { projectTools } from "./tools/project.ts";
 import { shellTools } from "./tools/shell.ts";
+import { resultMessage } from "../../shared/resultMessages.ts";
 import { mcpToolsFor, type McpStatus } from "../mcp/registry.ts";
 
 export interface AgentLimits {
@@ -93,7 +94,7 @@ function unavailableResult(name: string, session: any): { error: string } {
       return { error: "Running commands is not allowed for this project yet." };
     }
   }
-  return { error: `Tool ${name} is not available for this session.` };
+  return { error: resultMessage("toolUnavailable", { name }) };
 }
 
 const PROJECT_SCOPED_TOOLS_BY_NAME = new Set(
@@ -126,14 +127,14 @@ export async function dispatch(
   if (ctx.signal.aborted) return { error: "The request was cancelled." };
 
   const spec = specs.find((candidate) => candidate.def.name === name);
-  if (!spec) return { error: `Tool ${name} is not recognized.` };
+  if (!spec) return { error: resultMessage("toolUnknown", { name }) };
 
   try {
     // Daftar tool dibuat di awal giliran, tetapi izin sesi dapat berubah sebelum
     // tool berikutnya dipanggil; karena itu sesi dan gating dibaca ulang di sini.
     const session = ctx.sessionId ? getSession(ctx.sessionId) : ctx.session;
     if (!session) {
-      return { error: ctx.sessionId ? `Session ${ctx.sessionId} not found.` : "The conversation context is not available." };
+      return { error: ctx.sessionId ? resultMessage("sessionNotFound", { id: ctx.sessionId }) : "The conversation context is not available." };
     }
     if (!availableForContext(spec, session)) return unavailableResult(name, session);
 

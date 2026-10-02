@@ -1,6 +1,7 @@
 import { createStdioTransport } from "./stdio.ts";
 import { StreamableHttpTransport } from "./http.ts";
 import type { JsonRpcChannel } from "./jsonrpc.ts";
+import { resultMessage } from "../../shared/resultMessages.ts";
 
 export type McpState = "ready" | "connecting" | "down" | "crashed";
 
@@ -123,7 +124,7 @@ export class DefaultMcpClient implements McpClient {
       const detail = errorText(error);
       if (this.stateValue !== "crashed") this.fail("down", detail);
       return {
-        content: `MCP server '${this.config.name}' could not be reached: ${detail}`,
+        content: resultMessage("mcpUnreachable", { name: this.config.name, detail }),
         isError: true,
       };
     }

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { makeT, useT, type TFunction } from "../../lib/i18n";
+import { RESULT_MESSAGES, TRUNCATED_NOTE } from "../../../shared/resultMessages";
 
 export type ToolNavigationTarget = "plan" | "prd" | "tasks";
 
@@ -77,21 +78,9 @@ const ENGLISH = makeT("en");
 
 // Tool results are English because they are written for the model, and this
 // view shows some of them as they are. These are the ones with a value spliced
-// in that a card can display (file tools' errors are not shown); each is also a
-// key in the dictionary, with the same {name} placeholders.
-export const RESULT_TEMPLATES = [
-  "Session {id} not found.",
-  "Reached the limit of {count} tool rounds without a final answer.",
-  "Tool {name} is not available for this session.",
-  "Tool {name} is not recognized.",
-  "Stopped after {seconds} seconds.",
-  "Task {id} does not exist. Call get_project to see the available ids.",
-  'Status "{status}" is not recognized. Use one of: {allowed}.',
-  "There is no active LLM connection for the {role} stage.",
-  "Tasks generated: {count}.",
-  "Follow-up answers saved: {count}.",
-  "MCP server '{name}' could not be reached: {detail}",
-];
+// in that a card can display (file tools' errors are not shown). The server
+// builds them from the same templates, and each is also a key in the dictionary.
+export const RESULT_TEMPLATES: string[] = Object.values(RESULT_MESSAGES);
 
 const RESULT_PATTERNS = RESULT_TEMPLATES.map((template) => {
   const names: string[] = [];
@@ -289,8 +278,8 @@ export interface TerminalViewProps {
 // Only these lines come from the server rather than from the command itself.
 // Everything else a command printed (for example a file that says "Settings")
 // must reach the screen untouched, even if the dictionary has that word.
-const SERVER_TERMINAL_NOTE = /^(\.\.\.\[truncated\]|Stopped after \d+ seconds\.)$/;
-export const isServerTerminalNote = (value: string): boolean => SERVER_TERMINAL_NOTE.test(value);
+const COMMAND_STOPPED = RESULT_PATTERNS.find(({ template }) => template === RESULT_MESSAGES.commandStopped)!.regex;
+export const isServerTerminalNote = (value: string): boolean => value === TRUNCATED_NOTE || COMMAND_STOPPED.test(value);
 
 interface TerminalLine {
   value: string;
