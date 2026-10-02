@@ -88,8 +88,8 @@ export const RESULT_TEMPLATES = [
   "Task {id} does not exist. Call get_project to see the available ids.",
   'Status "{status}" is not recognized. Use one of: {allowed}.',
   "There is no active LLM connection for the {role} stage.",
-  "{count} tasks generated.",
-  "{count} follow-up answers saved.",
+  "Tasks generated: {count}.",
+  "Follow-up answers saved: {count}.",
   "MCP server '{name}' could not be reached: {detail}",
 ];
 

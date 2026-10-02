@@ -79,7 +79,7 @@ function shortPrdResult(prd: any): Record<string, unknown> {
 function shortTasksResult(tasks: any[]): Record<string, unknown> {
   return {
     ok: true,
-    summary: `${tasks.length} tasks generated.`,
+    summary: `Tasks generated: ${tasks.length}.`,
     taskCount: tasks.length,
     taskIds: tasks.map((task) => task?.id).filter((id): id is string => typeof id === "string"),
   };
@@ -372,7 +372,7 @@ const askFollowups: ToolSpec = {
     return {
       ok: true,
       needsMoreInfo: generated?.needsMoreInfo !== false,
-      summary: `${Object.keys(answers).length} follow-up answers saved.`,
+      summary: `Follow-up answers saved: ${Object.keys(answers).length}.`,
       answers,
       questions,
     };

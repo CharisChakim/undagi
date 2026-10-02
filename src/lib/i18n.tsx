@@ -686,10 +686,10 @@ const ID: Record<string, string> = {
   "The tasks pipeline did not return a valid task list.": "Pipeline tasks tidak mengembalikan daftar task yang valid.",
   "Plan generated.": "Plan berhasil dibuat.",
   "PRD generated.": "PRD berhasil dibuat.",
-  "{count} tasks generated.": "{count} task berhasil dibuat.",
+  "Tasks generated: {count}.": "Task dibuat: {count}.",
   "There is enough project information to create the plan.": "Informasi proyek sudah cukup untuk membuat plan.",
   "The follow-up questions have not been answered.": "Pertanyaan follow-up belum mendapat jawaban.",
-  "{count} follow-up answers saved.": "{count} jawaban follow-up tersimpan.",
+  "Follow-up answers saved: {count}.": "Jawaban follow-up tersimpan: {count}.",
   "MCP server '{name}' could not be reached: {detail}": "Server MCP '{name}' tidak bisa dihubungi: {detail}",
 };
 
