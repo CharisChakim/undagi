@@ -224,7 +224,7 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
             <History className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1">
               {entry.resumed
-                ? t("{runtime} was given the messages it missed while this chat used another runtime: {count}.", { runtime, count: entry.included })
+                ? t("{runtime} was given the messages it had not seen, from another runtime or a task card's run: {count}.", { runtime, count: entry.included })
                 : t("{runtime} started a new session and was given this chat's latest messages as text: {count}. Tool results from earlier turns are not carried over.", { runtime, count: entry.included })}
               {entry.omitted > 0 && ` ${t("Older messages left out: {count}.", { count: entry.omitted })}`}
             </span>

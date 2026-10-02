@@ -536,7 +536,7 @@ const ID: Record<string, string> = {
   "Cached": "Tersimpan",
   "Waiting on {tasks}, which is not done yet.": "Menunggu {tasks}, yang belum selesai.",
   "Waiting on {tasks}": "Menunggu {tasks}",
-  "{runtime} was given the messages it missed while this chat used another runtime: {count}.": "{runtime} menerima pesan yang terlewat selama chat ini memakai runtime lain: {count}.",
+  "{runtime} was given the messages it had not seen, from another runtime or a task card's run: {count}.": "{runtime} menerima pesan yang belum dilihatnya, dari runtime lain atau run kartu task: {count}.",
   "{runtime} started a new session and was given this chat's latest messages as text: {count}. Tool results from earlier turns are not carried over.": "{runtime} memulai sesi baru dan menerima pesan terakhir chat ini sebagai teks: {count}. Hasil tool dari giliran sebelumnya tidak ikut dibawa.",
   "Older messages left out: {count}.": "Pesan lama yang tidak disertakan: {count}.",
   // Messages the server and runtimes send to the chat, translated where they are shown.
