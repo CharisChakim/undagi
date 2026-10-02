@@ -655,7 +655,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
 
                         <div className="pt-2 border-t border-line flex flex-wrap items-center justify-between gap-2 text-xs">
                           <span className="flex min-w-0 items-center gap-1.5 text-faint">
-                            <span>{t("{count} target files", { count: task.targetFiles?.length || 0 })}</span>
+                            <span>{t("Target files: {count}", { count: task.targetFiles?.length || 0 })}</span>
                             {runningTaskId === task.id && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent" title={t("Agent is working on this task")} />}
                             {task.runStopped && column.status === "in_progress" && runningTaskId !== task.id && (
                               <span className="shrink-0 rounded bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn-ink" title={t("The last run was stopped before it finished.")}>{t("Stopped")}</span>
