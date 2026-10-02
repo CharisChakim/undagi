@@ -216,11 +216,12 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
   };
 
   const handleTaskStatusChange = (taskId: string, newStatus: TaskStatus) => {
-    const updated = tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus, runStopped: undefined } : t));
+    // A card moved by hand drops the marks its last run left.
+    const updated = tasks.map((t) => (t.id === taskId ? { ...t, status: newStatus, runStopped: undefined, verified: undefined } : t));
     onUpdateSession({ tasks: updated });
     onTaskMoved?.(taskId, newStatus);
     if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask({ ...selectedTask, status: newStatus, runStopped: undefined });
+      setSelectedTask({ ...selectedTask, status: newStatus, runStopped: undefined, verified: undefined });
     }
   };
 
@@ -720,6 +721,12 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                               <span className="text-ok flex items-center gap-1">
                                 <Check className="w-3 h-3" /> {t("Done")}
                               </span>
+                              {task.verified === true && (
+                                <span className="rounded bg-ok-soft px-1.5 py-0.5 text-[10px] font-medium text-ok-ink" title={t("Its verify command passed.")}>{t("Verified")}</span>
+                              )}
+                              {task.verified === false && (
+                                <span className="rounded bg-warn-soft px-1.5 py-0.5 text-[10px] font-medium text-warn-ink" title={t("The agent said it is done; no command checked it.")}>{t("Unverified")}</span>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

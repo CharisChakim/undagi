@@ -7,6 +7,7 @@ import { useT } from "../../lib/i18n";
 import { useAgentRun } from "../../lib/useAgentRun";
 import { applyTaskOutcome, markTaskStopped } from "../../lib/taskOutcome";
 import { rememberFacts } from "../../lib/projectMemory";
+import { runVerifyCommand, verifyDone, verifyOutputForNote } from "../../lib/taskVerify";
 import { readableRunError, runWithRetries, type RunReport } from "../../lib/runRetry";
 import { useRuntimeDiscovery } from "../../lib/runtimes";
 import {
@@ -135,6 +136,11 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   // mode, settings and language chosen by then, not the ones the click saw.
   const sendRef = React.useRef(agentRun.send);
   React.useEffect(() => { sendRef.current = agentRun.send; }, [agentRun.send]);
+  // A verify command is asked for, or not, by the permission mode chosen by then.
+  const askApprovalRef = React.useRef(agentRun.askApproval);
+  React.useEffect(() => { askApprovalRef.current = agentRun.askApproval; }, [agentRun.askApproval]);
+  const permissionModeRef = React.useRef(permissionMode);
+  React.useEffect(() => { permissionModeRef.current = permissionMode; }, [permissionMode]);
 
   const handleRunTask = React.useCallback((task: AgentTask): void => {
     if (agentRun.busy) return;
@@ -156,7 +162,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     const sessionId = session.id;
     // The run can end long after this render, on a different open session, so
     // the card is moved from the session as it is by then.
-    const moveCard = (report: RunReport, attempts: number): void => {
+    const moveCard = (report: RunReport, attempts: number, verified?: boolean): void => {
       if (!report.outcome) {
         // Stopped: the card stays, marked as no longer being worked on.
         onUpdateSession((current) => {
@@ -173,7 +179,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         : report.note;
       onUpdateSession((current) => {
         if (current.id !== sessionId) return null;
-        const tasks = applyTaskOutcome(current.tasks ?? [], task.id, outcome, note);
+        const tasks = applyTaskOutcome(current.tasks ?? [], task.id, outcome, note, verified);
         return tasks ? { tasks } : null;
       });
     };
@@ -200,7 +206,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         onOutcome: (next) => {
           report = next;
           remember(next);
-          if (loopEnded) moveCard(next, 1);
+          // Such a rerun is not checked, so a Done from it stands on the agent's word.
+          if (loopEnded) moveCard(next, 1, next.outcome === "done" ? false : undefined);
         },
       });
       return report;
@@ -213,21 +220,43 @@ export const Workbench: React.FC<WorkbenchProps> = ({
 
     const stopRetries = new AbortController();
     retryStop.current = stopRetries;
+    const onRetry = ({ attempt: failed, total, error }: { attempt: number; total: number; error: string }) => setRetryNotice({
+      taskId: task.id,
+      text: t("Attempt {attempt} of {total} failed, trying again: {error}", { attempt: failed, total, error: readableRunError(error) }),
+    });
+    // The agent said done; the card's verify command decides (lib/taskVerify.ts).
+    const verify = (first: { report: RunReport; attempts: number }) => verifyDone(first, {
+      command: () => {
+        const current = sessionRef.current;
+        return current.id === sessionId ? current.tasks?.find((item) => item.id === task.id)?.verifyCommand ?? "" : "";
+      },
+      approve: async (command) => permissionModeRef.current === "full"
+        || askApprovalRef.current(command, sessionRef.current.workspaceRoot || undefined),
+      run: () => runVerifyCommand(sessionId, task.id, stopRetries.signal),
+      retry: (message) => runWithRetries({ message, send: attempt, stillWanted, signal: stopRetries.signal, onRetry }),
+      stillWanted,
+      movedByUser: () => run.movedByUser,
+      signal: stopRetries.signal,
+      onRunning: (command) => setRetryNotice({ taskId: task.id, text: t("Running the verify command: {command}", { command }) }),
+      onRetrying: ({ exitCode, attempt: round, total }) => setRetryNotice({
+        taskId: task.id,
+        text: t("The verify command failed (exit {code}); its output went back to the agent ({attempt} of {total}).", { code: exitCode, attempt: round, total }),
+      }),
+      couldNotRun: (reason) => t("The verify command could not run: {error}", { error: reason }),
+      stillFailed: (result) => t("The verify command failed (exit {code}): {command}\n{output}", { code: result.exitCode, command: result.command, output: verifyOutputForNote(result) }),
+    });
     void runWithRetries({
       message: prompt,
       send: attempt,
       stillWanted,
       signal: stopRetries.signal,
-      onRetry: ({ attempt: failed, total, error }) => setRetryNotice({
-        taskId: task.id,
-        text: t("Attempt {attempt} of {total} failed, trying again: {error}", { attempt: failed, total, error: readableRunError(error) }),
-      }),
-    }).then(({ report, attempts }) => {
+      onRetry,
+    }).then(verify).then(({ report, attempts, verified }) => {
       loopEnded = true;
       // A card the user placed by hand while the run went on stays where they put it.
       // (A card that only reads To do because the session refresh lost In progress
       // was not moved by hand, so it still takes the outcome.)
-      if (!run.movedByUser) moveCard(report, attempts);
+      if (!run.movedByUser) moveCard(report, attempts, verified);
     }).finally(() => {
       if (retryStop.current === stopRetries) retryStop.current = null;
       if (activeTaskRun.current === run) activeTaskRun.current = null;

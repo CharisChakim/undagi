@@ -95,13 +95,15 @@ export function taskOutcomeFor(end: RunEnd): TaskOutcome | null {
  * The task list with the outcome and the agent's note applied, or null when
  * nothing should change. A card the user already put in Done stays there, even
  * if the run then failed. The note replaces the last run's, empty or not.
+ * `verified` says, for Done only, whether a verify command passed.
  */
-export function applyTaskOutcome(tasks: AgentTask[], taskId: string, outcome: TaskOutcome, note = ""): AgentTask[] | null {
+export function applyTaskOutcome(tasks: AgentTask[], taskId: string, outcome: TaskOutcome, note = "", verified?: boolean): AgentTask[] | null {
   const task = tasks.find((item) => item.id === taskId);
   const agentNote = note.trim() || undefined;
+  const check = outcome === "done" ? verified : undefined;
   if (!task || task.status === "done") return null;
-  if (task.status === outcome && task.agentNote === agentNote) return null;
-  return tasks.map((item) => (item.id === taskId ? { ...item, status: outcome, agentNote, runStopped: undefined } : item));
+  if (task.status === outcome && task.agentNote === agentNote && task.verified === check) return null;
+  return tasks.map((item) => (item.id === taskId ? { ...item, status: outcome, agentNote, runStopped: undefined, verified: check } : item));
 }
 
 /**

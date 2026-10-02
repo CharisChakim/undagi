@@ -344,6 +344,11 @@ export interface AgentTask {
   agentNote?: string;
   /** The last run on this card was stopped before it finished. Cleared when the card moves or runs again. */
   runStopped?: boolean;
+  /**
+   * Set when a run moved the card to Done: true when its verify command passed,
+   * false when only the agent's word stands. Unset when the user moved it.
+   */
+  verified?: boolean;
   handoffStatus?: 'handed_off';
   handedOffAt?: string;
   /** Snapshot of the PRD used to generate this task, when applicable. */

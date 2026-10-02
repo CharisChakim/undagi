@@ -157,3 +157,12 @@ test("the facts an agent leaves for later tasks are read from its MEMORY lines, 
   assert.deepEqual(memoryFactsFrom("`MEMORY: Seed with make seed`\nMEMORY: Run `npm test`"), ["Seed with make seed", "Run `npm test`"]);
   assert.ok(memoryFactsFrom(`MEMORY: ${"x".repeat(400)}`)[0].length <= 301);
 });
+
+test("a run's Done carries whether its check passed; another outcome or a later one clears it", () => {
+  const verified = applyTaskOutcome([task("TASK-01", "in_progress")], "TASK-01", "done", "ok", true);
+  assert.equal(verified?.[0].verified, true);
+  const unverified = applyTaskOutcome([task("TASK-01", "in_progress")], "TASK-01", "done", "ok", false);
+  assert.equal(unverified?.[0].verified, false);
+  const failed = applyTaskOutcome([{ ...task("TASK-01", "in_progress"), verified: false }], "TASK-01", "failed", "boom", true);
+  assert.equal(failed?.[0].verified, undefined, "only Done is verified or not");
+});
