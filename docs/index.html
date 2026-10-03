@@ -443,6 +443,8 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
           <li>Target files and dependencies</li>
           <li>Instructions and verification steps</li>
           <li>Run it here: the card moves to Done or Blocked, with the agent's note</li>
+          <li>A verify command per card: Done is marked Verified once it exits 0, or Unverified when nothing checked it</li>
+          <li>Each run starts with what earlier tasks left behind: their notes and the facts agents learned</li>
           <li>Export as <code>AGENTS.md</code></li>
         </ul>
       </div>
@@ -592,6 +594,11 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
           Codex and Claude Code ask through the same approval cards, though Claude Code does not ask
           for what its own settings already allow. Antigravity cannot ask, so it refuses any tool its
           own settings do not already allow.
+        </p>
+        <p>
+          A card's verify command is a separate case: Undagi runs it from the board after the agent
+          says the task is done, in your working folder, and asks first unless the chat is on Full
+          access. The shell switch does not govern it, so read the command on the card.
         </p>
       </div>
       <div class="tile">

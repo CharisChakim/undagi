@@ -24,7 +24,7 @@ Describe what you want to build, clarify the missing pieces, shape the architect
 | Project planning | Generate an editable summary, audience, value proposition, features, tech stack, architecture, Mermaid diagrams, roadmap, and estimate. |
 | PRD generation | Turn the plan into a structured seven-point PRD, with optional extra sections and a Markdown view. |
 | Task planning | Break the PRD into atomic coding tasks with target files, dependencies, instructions, and verification steps. |
-| Task execution | Run a task in the Agent panel. The card moves to In progress when the run starts, to Done when it finishes, to Blocked when the agent reports it needs something from you, and to Failed when the run itself fails. |
+| Task execution | Run a task in the Agent panel, in a session of its own. The card moves to In progress when the run starts, to Done when it finishes (marked Verified when its verify command passed, Unverified when nothing checked it), to Blocked when the agent reports it needs something from you, and to Failed when the run or its check fails. |
 | Export | Download the plan, PRD, `AGENTS.md`, or a complete project bundle. |
 | Model routing | Use Codex, Claude Code, Antigravity, or an API connection; autodetect available models and native effort levels. |
 | MCP tools | Add external tools through stdio or Streamable HTTP without changing application code. |
@@ -58,6 +58,14 @@ Generate a requirements document from the approved plan. The PRD covers overview
 ### 3. Send to Agent
 
 Generate a ready-to-run task board. Each task includes a stable ID, priority, target files, dependencies, instructions, and verification steps. Use Kanban or detailed list view, drag tasks between states, run an individual task, copy prompts, or download `AGENTS.md` for another coding agent.
+
+#### Running a task
+
+- **One session per card.** Each task run starts an agent session of its own, and its retries stay in it. The normal chat keeps a single conversation.
+- **Project memory.** Every new task session starts with a `<project_memory>` block: the Done tasks with their notes, plus facts agents left on `MEMORY:` lines in their task report. It is handed over as context, not as instructions. Open **Project memory** on the board to see what the agents are told and to delete a fact that is wrong. The newest 50 facts are kept.
+- **Verify command.** The generator writes a runnable `verifyCommand` for each task, and you can edit it on the card. After the agent says a task is done, Undagi runs the command in the project's working folder (5-minute limit). Exit code 0 moves the card to Done, marked **Verified**. Any other result sends the output back to the same session and the agent tries again, up to 2 times, before the card is Failed.
+- **Approval.** Undagi asks before it runs the command, unless the chat is on Full access. This is separate from **Allow shell commands**: that switch limits the agent's own `run_command`, not a verify command you can read on the card. If you decline, or the task has no command, the card ends Done but **Unverified**: the agent's word stood and nothing checked it.
+- **Windows.** The command runs in Windows PowerShell 5.1, which has no `&&`. Chain commands with `;`.
 
 ## Connect a model
 
