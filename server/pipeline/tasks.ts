@@ -41,7 +41,44 @@ Return the response EXACTLY in the following JSON format. ${EXAMPLE_VALUES_NOTE}
 }`;
 }
 
-export function buildTasksPrompt(title: string, plan: any, prd: any): string {
+/** A card already on the board that the generator must not build again. */
+export interface ExistingTask {
+  id: string;
+  title: string;
+  status?: string;
+  targetFiles: string[];
+}
+
+const MAX_EXISTING_TASKS = 100;
+
+const clip = (value: unknown, limit: number): string =>
+  typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, limit) : "";
+
+/** The cards from a request body, cut down to what the prompt needs. Anything else is dropped. */
+export function cleanExistingTasks(value: unknown): ExistingTask[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, MAX_EXISTING_TASKS).flatMap((item): ExistingTask[] => {
+    const card = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    const id = clip(card.id, 60);
+    if (!id) return [];
+    const status = clip(card.status, 20);
+    const files = Array.isArray(card.targetFiles) ? card.targetFiles.map((file) => clip(file, 120)).filter(Boolean).slice(0, 8) : [];
+    return [{ id, title: clip(card.title, 120), ...(status ? { status } : {}), targetFiles: files }];
+  });
+}
+
+function existingTasksBlock(existing: ExistingTask[]): string {
+  if (existing.length === 0) return "";
+  const lines = existing.map((task) =>
+    `- ${task.id}${task.status ? ` [${task.status}]` : ""} ${task.title}${task.targetFiles.length ? ` (${task.targetFiles.join(", ")})` : ""}`
+  );
+  return `
+
+These cards are already on the board and stay as they are. Do not create tasks for work they cover, and do not reuse their IDs. A new task may list one of these IDs in "dependencies" when it builds on that work.
+${lines.join("\n")}`;
+}
+
+export function buildTasksPrompt(title: string, plan: any, prd: any, existing: ExistingTask[] = []): string {
   return `Project Details:
 Title: ${title}
 PRD Overview: ${prd?.overview || prd?.executiveSummary || ""}
@@ -51,7 +88,7 @@ Architecture & Tech Stack: ${JSON.stringify(prd?.techStack || plan?.specs?.techS
 Database Schema: ${JSON.stringify(prd?.databaseSchema || prd?.dataSchema || [])}
 
 Please produce a comprehensive AI Agent Task breakdown (at least 5-10 sequential atomic tasks).
-Every task must include complete promptInstructions that are ready to be copy/pasted or read by an AI coding Agent without ambiguity.`;
+Every task must include complete promptInstructions that are ready to be copy/pasted or read by an AI coding Agent without ambiguity.${existingTasksBlock(existing)}`;
 }
 
 export async function generateTasks(
@@ -61,15 +98,16 @@ export async function generateTasks(
   conn: Connection,
   model: string,
   lang: Lang,
-  options?: PipelineOptions,
+  options?: PipelineOptions & { existingTasks?: unknown },
 ): Promise<any[]> {
+  const { existingTasks, ...llmOptions } = options ?? {};
   const rawText = await generateLlmText({
-    prompt: buildTasksPrompt(title, plan, prd),
-    system: buildTasksSystemPrompt(lang, options?.agentLang),
+    prompt: buildTasksPrompt(title, plan, prd, cleanExistingTasks(existingTasks)),
+    system: buildTasksSystemPrompt(lang, llmOptions.agentLang),
     conn,
     model,
     lang,
-    ...options,
+    ...llmOptions,
   });
   const data = parseJsonFromLlm(rawText, lang);
 

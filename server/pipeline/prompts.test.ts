@@ -14,7 +14,7 @@ import {
   buildPlanSystemPrompt,
 } from "./plan.ts";
 import { buildPrdPrompt, buildPrdSystemPrompt } from "./prd.ts";
-import { buildTasksPrompt, buildTasksSystemPrompt } from "./tasks.ts";
+import { buildTasksPrompt, buildTasksSystemPrompt, cleanExistingTasks } from "./tasks.ts";
 
 const LANGS: Lang[] = ["en", "id"];
 
@@ -234,4 +234,32 @@ test("the task generator keeps verifyCommand to one command, since Windows Power
   const system = buildTasksSystemPrompt("en");
   assert.match(system, /one plain command with no chaining or piping/);
   assert.match(system, /Windows PowerShell 5\.1, which has no `&&`/);
+});
+
+test("the task prompt lists cards that stay on the board, and only when there are some", () => {
+  const plan = { specs: {} };
+  const prd = { overview: "x" };
+  assert.ok(!buildTasksPrompt("App", plan, prd).includes("already on the board"));
+
+  const prompt = buildTasksPrompt("App", plan, prd, [
+    { id: "TASK-01", title: "Set up the project", status: "done", targetFiles: ["package.json", "src/types.ts"] },
+    { id: "TASK-02", title: "Add auth", targetFiles: [] },
+  ]);
+  assert.match(prompt, /already on the board and stay as they are/);
+  assert.match(prompt, /do not reuse their IDs/);
+  assert.match(prompt, /- TASK-01 \[done\] Set up the project \(package\.json, src\/types\.ts\)/);
+  assert.match(prompt, /- TASK-02 Add auth\n?$/);
+});
+
+test("existing cards from a request are cut down to ids, titles, statuses and files", () => {
+  const cleaned = cleanExistingTasks([
+    { id: "A", title: "  Spaced \n title ", status: "done", targetFiles: ["a.ts", 5, ""], agentNote: "ignore me" },
+    { id: "", title: "no id" },
+    "not a card",
+    null,
+  ]);
+
+  assert.deepEqual(cleaned, [{ id: "A", title: "Spaced title", status: "done", targetFiles: ["a.ts"] }]);
+  assert.deepEqual(cleanExistingTasks("nope"), []);
+  assert.equal(cleanExistingTasks(Array.from({ length: 150 }, (_, i) => ({ id: `T${i}`, title: "t" }))).length, 100);
 });

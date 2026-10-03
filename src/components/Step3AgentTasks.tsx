@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import type { ProjectSession, AgentTask } from "../types";
+import type { ProjectSession, AgentTask, SessionUpdate } from "../types";
 import { generateTasks, isAbort, PipelineModelControl, usePipelineTarget } from "../lib/generate";
 import { agentsMarkdownFilename, buildAgentsMarkdown } from "../lib/agentsMd";
 import { downloadFile } from "../lib/download";
@@ -37,12 +37,13 @@ import {
   hasPrdSource,
   mergeGeneratedTasks,
   recordPrdVersion,
+  syncImpact,
   taskNeedsPrdSync,
 } from "../lib/artifactVersions";
 
 interface Step3AgentTasksProps {
   session: ProjectSession;
-  onUpdateSession: (updated: Partial<ProjectSession>) => void;
+  onUpdateSession: (update: SessionUpdate) => void;
   onRunTask?: (task: AgentTask) => void;
   runningTaskId?: string | null;
   retryNotice?: { taskId: string; text: string } | null;
@@ -171,6 +172,15 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
   }, [selectedTask?.id, reviewRefresh, t]);
 
   const handleGenerateTasks = async () => {
+    // A re-sync replaces generated cards, so it says what goes and what stays first.
+    if (tasks.some(hasPrdSource)) {
+      const { replaced, kept } = syncImpact(tasks);
+      const proceed = window.confirm(t(
+        "Sync rebuilds the task board from the current PRD.\nReplaced (not started): {replaced}\nKept as they are (added by you or already worked on): {kept}\nContinue?",
+        { replaced, kept },
+      ));
+      if (!proceed) return;
+    }
     setLoading(true);
     setErrorMessage(null);
     setGenerationChars(0);
@@ -187,10 +197,11 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
         : session;
       const generated = await generateTasks(taskSession, lang, controller.signal, setGenerationChars, pipelineTarget);
       const generatedTasks = attachPrdVersionToTasks(generated, recorded?.version);
-      onUpdateSession({
+      // Read the board as it is now: a run can finish while the tasks generate.
+      onUpdateSession((current) => ({
         ...(recorded && versionedPrd ? { prd: versionedPrd, prdVersions: recorded.versions } : {}),
-        tasks: mergeGeneratedTasks(tasks, generatedTasks),
-      });
+        tasks: mergeGeneratedTasks(current.tasks, generatedTasks, recorded?.version),
+      }));
 
       // Expand all by default
       const initialExpanded: Record<string, boolean> = {};

@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { AgentTask, FollowUpQuestion, PRDData, ProjectPlan, ProjectSession } from "../types";
 import { agentLanguageFor, loadAgentHarnessSettings } from "./agentHarness";
+import { isKeptOnSync } from "./artifactVersions";
 import { Language, makeT } from "./i18n";
 import { legacyRuntimeSelection, type RuntimeChatSelection } from "./runtimeChat";
 
@@ -165,6 +166,13 @@ export async function generateTasks(
   onProgress?: GenerateProgress,
   target?: RuntimeChatSelection,
 ): Promise<AgentTask[]> {
+  // Cards a sync keeps stay on the board, so the generator is told not to build them again.
+  const existingTasks = (session.tasks ?? []).filter(isKeptOnSync).map((task) => ({
+    id: task.id,
+    title: task.title,
+    ...(task.status ? { status: task.status } : {}),
+    targetFiles: task.targetFiles,
+  }));
   const data = await postJson(
     "/api/generate-tasks",
     {
@@ -172,6 +180,7 @@ export async function generateTasks(
       plan: session.plan,
       prd: session.prd,
       language: lang,
+      ...(existingTasks.length ? { existingTasks } : {}),
     },
     lang,
     "Failed to generate the agent tasks.",

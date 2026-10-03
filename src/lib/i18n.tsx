@@ -179,6 +179,7 @@ const ID: Record<string, string> = {
   "Sync tasks": "Sinkronkan task",
   "Review task sync": "Tinjau sinkronisasi task",
   "Needs sync": "Perlu sinkronisasi",
+  "Sync rebuilds the task board from the current PRD.\nReplaced (not started): {replaced}\nKept as they are (added by you or already worked on): {kept}\nContinue?": "Sinkronisasi menyusun ulang papan task dari PRD saat ini.\nDiganti (belum dimulai): {replaced}\nDipertahankan (ditambahkan Anda atau sudah dikerjakan): {kept}\nLanjutkan?",
   "Generate PRD tasks": "Buat task PRD",
   "PRD is optional": "PRD opsional",
   "Open builder": "Buka builder",

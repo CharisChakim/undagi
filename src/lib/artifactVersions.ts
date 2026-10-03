@@ -107,12 +107,35 @@ export function hasPrdSource(task: AgentTask): boolean {
   return Boolean(sourceHash(task) || task.sourcePrdVersionId || task.prdVersionId);
 }
 
-/** Preserve source-less tasks and rename generated IDs on collision. */
+/** A card that was started: a run or the user moved it off To do. */
+export function hasProgress(task: AgentTask): boolean {
+  return task.status !== undefined && task.status !== "todo";
+}
+
+/** Sync leaves these alone: cards the user added, and generated ones already worked on. */
+export function isKeptOnSync(task: AgentTask): boolean {
+  return !hasPrdSource(task) || hasProgress(task);
+}
+
+/** How a sync would treat the board, for the confirmation: cards replaced and cards kept. */
+export function syncImpact(tasks: AgentTask[] = []): { replaced: number; kept: number } {
+  const kept = tasks.filter(isKeptOnSync).length;
+  return { replaced: tasks.length - kept, kept };
+}
+
+/**
+ * Keep the cards sync leaves alone, put the generated ones after them, and rename
+ * generated IDs on collision. With `version`, a kept generated card is marked as
+ * synced to it: the user was told it stays as it is, so it is not stale.
+ */
 export function mergeGeneratedTasks(
   existingTasks: AgentTask[] = [],
   generatedTasks: AgentTask[] = [],
+  version?: PRDArtifactVersion,
 ): AgentTask[] {
-  const manualTasks = existingTasks.filter((task) => !hasPrdSource(task));
+  const manualTasks = existingTasks.filter(isKeptOnSync).map((task) =>
+    version && hasPrdSource(task) ? attachPrdVersionToTasks([task], version)[0]! : task
+  );
   const usedIds = new Set(manualTasks.map((task) => task.id));
   const idMap = new Map<string, string>();
 
