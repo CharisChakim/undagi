@@ -283,6 +283,17 @@ test("the PRD prompt does not ask for the document a second time as Markdown", (
   assert.match(buildPrdPrompt("App", {}), /JSON fields are the whole answer/);
 });
 
+test("the plan and PRD prompts size the work to the project instead of assuming an enterprise", () => {
+  for (const humanLang of LANGS) {
+    for (const prompt of [buildPlanSystemPrompt(humanLang), buildPlanResyncSystemPrompt(lockedFeatures, humanLang), buildPrdSystemPrompt(humanLang)]) {
+      assert.doesNotMatch(prompt, /enterprise|comprehensive/i);
+    }
+  }
+  assert.match(buildPlanSystemPrompt("en"), /A personal tool, a research prototype or a small internal app gets a small plan/);
+  assert.match(buildPlanSystemPrompt("en"), /P0 is only for what the first usable release/);
+  assert.match(buildPrdSystemPrompt("en"), /Never pad a section to look complete/);
+});
+
 test("the task prompt carries the requirements and the non-goals, as text when the user edited them", () => {
   const structured = buildTasksPrompt("App", { specs: {} }, {
     nonGoals: ["Online payments"],

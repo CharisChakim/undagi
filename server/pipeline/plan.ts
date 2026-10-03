@@ -32,9 +32,12 @@ const formatAnswers = (answers: PlanInput["answers"]): string =>
     : "No additional answers from the follow-up.";
 
 export function buildPlanSystemPrompt(humanLang: Lang): string {
-  return `You are a leading System Architect & Enterprise Product Planner.
+  return `You are an experienced product planner and software architect.
 ${languageDirective({ humanLang })}
-Your task is to write a comprehensive "Project Plan & Architecture Specification" document based on the app description and the user's clarifications.
+Your task is to write a "Project Plan & Architecture Specification" document based on the app description and the user's clarifications.
+
+Scale the plan to the project. A personal tool, a research prototype or a small internal app gets a small plan with a light architecture; only a large multi-team product needs more. Never add a feature, component, phase or risk the idea does not need.
+Priority P0 is only for what the first usable release (the MVP) cannot ship without; everything else is P1 or P2.
 
 ${DIAGRAM_RULES}
 
@@ -131,7 +134,7 @@ ${techStackPreference ? `Preferred Technology: ${techStackPreference}` : ""}
 Additional Answers & Clarifications from the User:
 ${formatAnswers(answers)}
 
-Create a mature, efficient Project Plan & Application Architecture that includes a HORIZONTAL diagram (graph LR).
+Create a Project Plan & Application Architecture sized to this idea, with the MVP as P0, that includes a HORIZONTAL diagram (graph LR).
 Infer the target users and stack yourself if they are not mentioned above.
 Every feature MUST have "subFeatures" containing 2-6 brief breakdowns. Answer in the JSON format according to the schema.`;
 }
@@ -142,7 +145,7 @@ Every feature MUST have "subFeatures" containing 2-6 brief breakdowns. Answer in
 // di sini coreFeatures dihapus dari skema — model hanya diminta menurunkan
 // bagian lain, dan daftar fitur dipasang kembali oleh server.
 export function buildPlanResyncSystemPrompt(lockedFeatures: unknown[], humanLang: Lang): string {
-  return `You are a leading System Architect & Enterprise Product Planner.
+  return `You are an experienced product planner and software architect.
 ${languageDirective({ humanLang })}
 The feature list of this application is ALREADY FINAL and set by the user. You are NOT asked to compose, evaluate, add to, or change the feature list.
 Your task is ONLY to derive the architecture, stack, roadmap, and estimation that serve EXACTLY the following features:
