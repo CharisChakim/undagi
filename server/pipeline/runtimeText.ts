@@ -12,6 +12,9 @@ export interface RuntimeTextTarget {
   effort: string;
 }
 
+/** The empty folder pipeline steps run in. */
+export const pipelineWorkspace = (): string => path.join(os.tmpdir(), "undagi-pipeline");
+
 const text = (value: unknown): string | null =>
   typeof value === "string" && value.trim() ? value.trim() : null;
 
@@ -49,7 +52,12 @@ export async function generateRuntimeText(options: RuntimeTextOptions): Promise<
   const detection = await (options.discover ?? discoverRuntime)(target.runtime, claudeSdk?.supportedModels
     ? { claudeSdk: { supportedModels: claudeSdk.supportedModels.bind(claudeSdk) } }
     : {});
-  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "undagi-pipeline-"));
+  // One folder for every step, not a new one each time: Codex records each folder
+  // it runs in as a trusted project in the user's own ~/.codex/config.toml, so a
+  // new folder per step left a permanent entry there per plan, PRD and task run.
+  // The step uses no tools and no files, so sharing an empty folder is safe.
+  const cwd = pipelineWorkspace();
+  await fs.mkdir(cwd, { recursive: true });
   let close: (() => Promise<void>) | null = null;
   try {
     const runner = await createRuntimeRunnerAsync({
@@ -82,6 +90,5 @@ export async function generateRuntimeText(options: RuntimeTextOptions): Promise<
     return output;
   } finally {
     await close?.().catch(() => undefined);
-    await fs.rm(cwd, { recursive: true, force: true }).catch(() => undefined);
   }
 }

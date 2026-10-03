@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ClaudeSdkQuery, ClaudeSdkQueryOptions } from "../runtimes/execution/claude.ts";
 import type { RuntimeDetection } from "../runtimes/types.ts";
-import { generateRuntimeText } from "./runtimeText.ts";
+import { generateRuntimeText, pipelineWorkspace } from "./runtimeText.ts";
 
 const claude: RuntimeDetection = {
   runtime: "claude",
@@ -51,4 +51,35 @@ test("a Claude pipeline step runs without the user's own settings", async () => 
   });
   assert.equal(text, "plan");
   assert.deepEqual(options?.settingSources, []);
+});
+
+test("every pipeline step runs in the same empty folder, so Codex records one project, not one per step", async () => {
+  const folders: Array<string | undefined> = [];
+  const run = () => generateRuntimeText({
+    target: { runtime: "claude", model: "inherit", effort: "inherit" },
+    prompt: "Plan it.",
+    system: "You write plans.",
+    signal: new AbortController().signal,
+    discover: async () => claude,
+    dependencies: {
+      createCodexExecutor: () => { throw new Error("Codex is not used here."); },
+      loadClaudeSdk: () => ({
+        query: (request) => {
+          folders.push((request.options as ClaudeSdkQueryOptions).cwd);
+          return {
+            async *[Symbol.asyncIterator]() {
+              yield { type: "result", subtype: "success", session_id: "s", result: "ok" };
+            },
+          } as ClaudeSdkQuery;
+        },
+      }),
+    },
+  });
+
+  await run();
+  await run();
+
+  assert.equal(folders.length, 2);
+  assert.equal(folders[0], pipelineWorkspace());
+  assert.equal(folders[1], folders[0]);
 });
