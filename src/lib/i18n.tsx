@@ -734,6 +734,17 @@ const ID: Record<string, string> = {
   "One per line: who — what they need.": "Satu per baris: siapa — apa yang mereka butuhkan.",
   "One requirement per line, its acceptance criteria indented below it.": "Satu kebutuhan per baris, kriteria penerimaannya menjorok di bawahnya.",
   "One per line: risk — mitigation.": "Satu per baris: risiko — mitigasi.",
+  "Run all tasks": "Jalankan semua task",
+  "Stop board run": "Hentikan eksekusi board",
+  "Runs the To do cards one at a time in board order, each with its verify command. In Ask mode every command waits for your approval.": "Menjalankan kartu To do satu per satu sesuai urutan board, masing-masing dengan verify command-nya. Di mode Ask setiap perintah menunggu persetujuan Anda.",
+  "Running the To do cards one at a time{current}. Stop ends the card in progress.": "Menjalankan kartu To do satu per satu{current}. Stop menghentikan kartu yang sedang dikerjakan.",
+  "Board run finished: every card is done.": "Eksekusi board selesai: semua kartu sudah Done.",
+  "Board run stopped: {count} To do cards wait on cards that are not done.": "Eksekusi board berhenti: {count} kartu To do menunggu kartu lain yang belum Done.",
+  "No To do card is ready to run.": "Tidak ada kartu To do yang siap dijalankan.",
+  "Board run stopped.": "Eksekusi board dihentikan.",
+  "Board run stopped at {id}: the agent marked it blocked.": "Eksekusi board berhenti di {id}: agent menandainya blocked.",
+  "Board run stopped at {id}: it failed.": "Eksekusi board berhenti di {id}: task gagal.",
+  "Board run stopped: {id} was moved by hand.": "Eksekusi board berhenti: {id} dipindahkan manual.",
 };
 
 type Vars = Record<string, string | number>;

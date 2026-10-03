@@ -9,6 +9,14 @@ import { applyTaskOutcome, markTaskStopped } from "../../lib/taskOutcome";
 import { rememberFacts } from "../../lib/projectMemory";
 import { runVerifyCommand, verifyDone, verifyOutputForNote } from "../../lib/taskVerify";
 import { readableRunError, runWithRetries, type RunReport } from "../../lib/runRetry";
+import { dependenciesSaved, idleBoardEnd, nextBoardTask, type BoardRunEnd } from "../../lib/boardRun";
+import type { TaskOutcome } from "../../lib/taskOutcome";
+
+/** How one card's run ended: its outcome (null when stopped), and whether the user moved the card meanwhile. */
+interface TaskRunEnd {
+  outcome: TaskOutcome | null;
+  movedByUser: boolean;
+}
 import { useRuntimeDiscovery } from "../../lib/runtimes";
 import {
   defaultAwaitsDiscovery,
@@ -78,6 +86,10 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   const retryStop = React.useRef<AbortController | null>(null);
   // The task run in flight, and whether the user has since moved its card by hand.
   const activeTaskRun = React.useRef<{ taskId: string; movedByUser: boolean } | null>(null);
+  // The board run in flight; Stop sets `stopped` so no further card starts.
+  const boardRun = React.useRef<{ stopped: boolean } | null>(null);
+  const [boardStateRaw, setBoardState] = React.useState<{ sessionId: string; running: boolean; end: BoardRunEnd | null } | null>(null);
+  const boardState = boardStateRaw?.sessionId === session.id ? boardStateRaw : null;
   // Every chat starts asking; a wider mode is chosen per chat, never carried over.
   const [permissionState, setPermissionState] = React.useState<{ sessionId: string; mode: PermissionMode }>({ sessionId: session.id, mode: "ask" });
   const permissionMode = permissionState.sessionId === session.id ? permissionState.mode : "ask";
@@ -142,8 +154,10 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   const permissionModeRef = React.useRef(permissionMode);
   React.useEffect(() => { permissionModeRef.current = permissionMode; }, [permissionMode]);
 
-  const handleRunTask = React.useCallback((task: AgentTask): void => {
-    if (agentRun.busy) return;
+  // One card's run, to its end: the agent's attempts, then its verify command.
+  // Resolves with how the card ended, or null when another card's run is open.
+  const runTask = React.useCallback((task: AgentTask): Promise<TaskRunEnd | null> => {
+    if (activeTaskRun.current) return Promise.resolve(null);
     const run = { taskId: task.id, movedByUser: false };
     activeTaskRun.current = run;
     setRunningTaskId(task.id);
@@ -245,25 +259,83 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       couldNotRun: (reason) => t("The verify command could not run: {error}", { error: reason }),
       stillFailed: (result) => t("The verify command failed (exit {code}): {command}\n{output}", { code: result.exitCode, command: result.command, output: verifyOutputForNote(result) }),
     });
-    void runWithRetries({
+    return runWithRetries({
       message: prompt,
       send: attempt,
       stillWanted,
       signal: stopRetries.signal,
       onRetry,
-    }).then(verify).then(({ report, attempts, verified }) => {
+    }).then(verify).then(({ report, attempts, verified }): TaskRunEnd => {
       loopEnded = true;
       // A card the user placed by hand while the run went on stays where they put it.
       // (A card that only reads To do because the session refresh lost In progress
       // was not moved by hand, so it still takes the outcome.)
       if (!run.movedByUser) moveCard(report, attempts, verified);
+      return { outcome: report.outcome, movedByUser: run.movedByUser };
     }).finally(() => {
       if (retryStop.current === stopRetries) retryStop.current = null;
       if (activeTaskRun.current === run) activeTaskRun.current = null;
       setRunningTaskId(null);
       setRetryNotice(null);
     });
-  }, [agentRun.busy, onLayoutModeChange, onUpdateSession, session.id, t]);
+  }, [onLayoutModeChange, onUpdateSession, session.id, t]);
+
+  const handleRunTask = React.useCallback((task: AgentTask): void => {
+    if (agentRun.busy || boardRun.current) return;
+    void runTask(task);
+  }, [agentRun.busy, runTask]);
+
+  // The board run takes the To do cards one at a time, in board order, each once
+  // its dependencies are done, and stops at the first card that does not end
+  // done, so nothing builds on a card that failed.
+  const runTaskRef = React.useRef(runTask);
+  React.useEffect(() => { runTaskRef.current = runTask; }, [runTask]);
+  const runBoard = React.useCallback(async (): Promise<void> => {
+    if (boardRun.current || activeTaskRun.current) return;
+    const sessionId = sessionRef.current.id;
+    const token = { stopped: false };
+    boardRun.current = token;
+    setBoardState({ sessionId, running: true, end: null });
+    if (isStepReachable(3, sessionRef.current)) onSelectStep(3);
+    onLayoutModeChange(window.innerWidth <= 1100 ? "agent" : "split");
+    // Cards this run finished or started; the session may not show them yet.
+    const finished = new Set<string>();
+    const tried = new Set<string>();
+    let end: BoardRunEnd = { kind: "stopped" };
+    try {
+      for (;;) {
+        const current = sessionRef.current;
+        if (token.stopped || current.id !== sessionId) break;
+        const tasks = current.tasks ?? [];
+        const next = nextBoardTask(tasks, finished, tried);
+        if (!next) {
+          end = idleBoardEnd(tasks, finished);
+          break;
+        }
+        tried.add(next.id);
+        await dependenciesSaved(sessionId, next);
+        if (token.stopped) break;
+        onUpdateSession((latest) => {
+          if (latest.id !== sessionId) return null;
+          return { tasks: (latest.tasks ?? []).map((item) => (item.id === next.id ? { ...item, status: "in_progress" as const, runStopped: undefined, verified: undefined } : item)) };
+        });
+        const result = await runTaskRef.current(next);
+        if (!result || result.outcome === null) break;
+        if (result.movedByUser) {
+          end = { kind: "moved_by_hand", taskId: next.id };
+          break;
+        }
+        if (result.outcome !== "done") {
+          end = { kind: "card_ended", taskId: next.id, outcome: result.outcome };
+          break;
+        }
+        finished.add(next.id);
+      }
+    } finally {
+      if (boardRun.current === token) boardRun.current = null;
+      setBoardState({ sessionId, running: false, end });
+    }
+  }, [onLayoutModeChange, onSelectStep, onUpdateSession]);
 
   // Moving the card back to In progress hands it to the run again.
   const handleTaskMoved = React.useCallback((taskId: string, status: NonNullable<AgentTask["status"]>): void => {
@@ -272,6 +344,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   }, []);
 
   const handleStop = React.useCallback((): void => {
+    if (boardRun.current) boardRun.current.stopped = true;
     retryStop.current?.abort();
     agentRun.stop();
   }, [agentRun.stop]);
@@ -358,6 +431,9 @@ export const Workbench: React.FC<WorkbenchProps> = ({
                 runningTaskId={agentRun.busy ? runningTaskId ?? "__agent_busy__" : runningTaskId}
                 retryNotice={retryNotice}
                 onTaskMoved={handleTaskMoved}
+                boardRun={boardState}
+                onRunBoard={() => void runBoard()}
+                onStopBoard={handleStop}
                 generationTarget={pipelineSelection}
                 modelControl={(
                   <div className="inline-flex min-w-0 max-w-full rounded-lg border border-line bg-canvas px-1">

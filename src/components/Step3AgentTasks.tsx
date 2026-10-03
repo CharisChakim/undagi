@@ -26,9 +26,12 @@ import {
   AlertTriangle,
   Plus,
   Trash2,
+  Play,
+  Square,
 } from "lucide-react";
-import { makeT, useT } from "../lib/i18n";
+import { makeT, useT, type TFunction } from "../lib/i18n";
 import { openDependencies } from "../lib/taskDependencies";
+import { nextBoardTask, type BoardRunEnd, type BoardRunState } from "../lib/boardRun";
 import { agentLanguageFor, loadAgentHarnessSettings } from "../lib/agentHarness";
 import {
   attachPrdVersionToPrd,
@@ -50,6 +53,29 @@ interface Step3AgentTasksProps {
   /** The user moved a card to another column by hand. */
   onTaskMoved?: (taskId: string, status: TaskStatus) => void;
   onSelectStep?: (step: 1 | 2 | 3) => void;
+  /** The board run in flight, or how the last one ended. */
+  boardRun?: BoardRunState | null;
+  onRunBoard?: () => void;
+  onStopBoard?: () => void;
+}
+
+function boardRunEndText(end: BoardRunEnd, t: TFunction): string {
+  switch (end.kind) {
+    case "all_done":
+      return t("Board run finished: every card is done.");
+    case "waiting":
+      return t("Board run stopped: {count} To do cards wait on cards that are not done.", { count: end.remaining });
+    case "nothing_to_run":
+      return t("No To do card is ready to run.");
+    case "stopped":
+      return t("Board run stopped.");
+    case "card_ended":
+      return end.outcome === "blocked"
+        ? t("Board run stopped at {id}: the agent marked it blocked.", { id: end.taskId })
+        : t("Board run stopped at {id}: it failed.", { id: end.taskId });
+    case "moved_by_hand":
+      return t("Board run stopped: {id} was moved by hand.", { id: end.taskId });
+  }
 }
 
 type TaskStatus = "todo" | "in_progress" | "done" | "blocked" | "failed";
@@ -60,7 +86,7 @@ function runDate(value: string | null | undefined): string {
   return Number.isFinite(parsed) ? new Date(parsed).toLocaleString() : value;
 }
 
-export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpdateSession, onRunTask, runningTaskId, retryNotice, onTaskMoved, onSelectStep }) => {
+export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpdateSession, onRunTask, runningTaskId, retryNotice, onTaskMoved, onSelectStep, boardRun, onRunBoard, onStopBoard }) => {
   const { t, lang } = useT();
   const pipelineTarget = usePipelineTarget();
   const [loading, setLoading] = useState(false);
@@ -502,11 +528,37 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                 {copiedAll ? t("Copied") : t("Copy all")}
               </button>
 
-              <button onClick={handleDownloadMdFile} className="btn-primary">
+              <button onClick={handleDownloadMdFile} className={onRunBoard ? "btn-outline" : "btn-primary"}>
                 <Download className="w-4 h-4" />
                 {t("Download AGENTS.md")}
               </button>
+
+              {onRunBoard && (boardRun?.running ? (
+                <button type="button" onClick={onStopBoard} className="btn-outline">
+                  <Square className="h-4 w-4" />
+                  {t("Stop board run")}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onRunBoard}
+                  disabled={Boolean(runningTaskId) || !nextBoardTask(tasks)}
+                  title={t("Runs the To do cards one at a time in board order, each with its verify command. In Ask mode every command waits for your approval.")}
+                  className="btn-primary disabled:opacity-50"
+                >
+                  <Play className="h-4 w-4" />
+                  {t("Run all tasks")}
+                </button>
+              ))}
             </div>
+
+            {(boardRun?.running || boardRun?.end) && (
+              <p className="w-full text-xs text-muted" role="status">
+                {boardRun.running
+                  ? t("Running the To do cards one at a time{current}. Stop ends the card in progress.", { current: runningTaskId && runningTaskId !== "__agent_busy__" ? ` · ${runningTaskId}` : "" })
+                  : boardRunEndText(boardRun.end!, t)}
+              </p>
+            )}
           </div>
 
           {tasksNeedingSync > 0 && (

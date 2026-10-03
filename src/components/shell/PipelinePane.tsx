@@ -5,6 +5,7 @@ import { isStepReachable, STEP_PATHS, Step } from "../../lib/routing";
 import { useT } from "../../lib/i18n";
 import { PipelineModelControlContext, PipelineTargetContext } from "../../lib/generate";
 import { legacyRuntimeSelection, type RuntimeChatSelection } from "../../lib/runtimeChat";
+import type { BoardRunState } from "../../lib/boardRun";
 
 const Step1Plan = React.lazy(() =>
   import("../Step1Plan").then((module) => ({ default: module.Step1Plan }))
@@ -26,6 +27,10 @@ export interface PipelinePaneProps {
   /** A warning for the card whose run failed and is being tried again. */
   retryNotice?: { taskId: string; text: string } | null;
   onTaskMoved?: (taskId: string, status: NonNullable<AgentTask["status"]>) => void;
+  /** The board run in flight, or how the last one ended. */
+  boardRun?: BoardRunState | null;
+  onRunBoard?: () => void;
+  onStopBoard?: () => void;
   /** The model Plan, PRD, and tasks are generated with, and its picker. */
   generationTarget?: RuntimeChatSelection;
   modelControl?: React.ReactNode;
@@ -115,6 +120,9 @@ export const PipelinePane: React.FC<PipelinePaneProps> = ({
   runningTaskId,
   retryNotice,
   onTaskMoved,
+  boardRun,
+  onRunBoard,
+  onStopBoard,
   generationTarget = legacyRuntimeSelection(),
   modelControl,
 }) => (
@@ -142,6 +150,9 @@ export const PipelinePane: React.FC<PipelinePaneProps> = ({
             runningTaskId={runningTaskId}
             retryNotice={retryNotice}
             onTaskMoved={onTaskMoved}
+            boardRun={boardRun}
+            onRunBoard={onRunBoard}
+            onStopBoard={onStopBoard}
             onSelectStep={onSelectStep}
           />
         )}
