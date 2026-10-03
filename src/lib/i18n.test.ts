@@ -1,0 +1,19 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { makeT } from "./i18n";
+
+test("the task-sync banner reads in both languages, with the count filled in", () => {
+  const en = makeT("en");
+  const id = makeT("id");
+
+  assert.equal(en("{count} task needs sync.", { count: 1 }), "1 task needs sync.");
+  assert.equal(en("{count} tasks need sync.", { count: 3 }), "3 tasks need sync.");
+  assert.equal(id("{count} task needs sync.", { count: 1 }), "1 task perlu disinkronkan.");
+  assert.equal(id("{count} tasks need sync.", { count: 3 }), "3 task perlu disinkronkan.");
+  assert.equal(
+    id("Review the task board and explicitly sync generated tasks to PRD v{version}.", { version: 2 }),
+    "Tinjau papan task dan sinkronkan task hasil generate ke PRD v2 secara eksplisit.",
+  );
+  for (const key of ["Sync tasks", "Review task sync", "Needs sync"]) assert.notEqual(id(key), key);
+});

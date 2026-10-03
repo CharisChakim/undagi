@@ -503,8 +503,12 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
               <div className="flex items-start gap-2 text-sm">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  <strong className="font-semibold">{tasksNeedingSync} task{tasksNeedingSync === 1 ? "" : "s"} need sync.</strong>{" "}
-                  The PRD changed. Sync generated tasks when you are ready; manual tasks remain available.
+                  <strong className="font-semibold">
+                    {tasksNeedingSync === 1
+                      ? t("{count} task needs sync.", { count: tasksNeedingSync })
+                      : t("{count} tasks need sync.", { count: tasksNeedingSync })}
+                  </strong>{" "}
+                  {t("The PRD changed. Sync generated tasks when you are ready; manual tasks remain available.")}
                 </span>
               </div>
               <button type="button" onClick={handleGenerateTasks} disabled={loading} className="btn-primary shrink-0 text-xs">

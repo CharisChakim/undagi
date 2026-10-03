@@ -473,8 +473,12 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
               <div className="flex items-start gap-2 text-sm">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  <strong className="font-semibold">{tasksNeedingSync} task{tasksNeedingSync === 1 ? "" : "s"} need sync.</strong>{" "}
-                  Review the task board and explicitly sync generated tasks to PRD v{currentVersion?.number || "latest"}.
+                  <strong className="font-semibold">
+                    {tasksNeedingSync === 1
+                      ? t("{count} task needs sync.", { count: tasksNeedingSync })
+                      : t("{count} tasks need sync.", { count: tasksNeedingSync })}
+                  </strong>{" "}
+                  {t("Review the task board and explicitly sync generated tasks to PRD v{version}.", { version: currentVersion?.number || "latest" })}
                 </span>
               </div>
               <button type="button" onClick={onGoToNextStep} disabled={loading || generatingTasks} className="btn-outline shrink-0 text-xs">
