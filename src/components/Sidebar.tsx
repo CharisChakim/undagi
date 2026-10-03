@@ -102,7 +102,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [expandedChats, setExpandedChats] = useState<Set<string>>(new Set());
+  // A chat the user opened or closed by hand stays that way; the rest follow
+  // the default: the open chat shows its steps once it has a plan.
+  const [chatOpen, setChatOpen] = useState<Record<string, boolean>>({});
 
   const isRail = collapsed && !isOpen;
   const search = query.trim().toLowerCase();
@@ -142,12 +144,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  const toggleChat = (id: string) => {
-    setExpandedChats((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+  const toggleChat = (id: string, expanded: boolean) => {
+    setChatOpen((prev) => ({ ...prev, [id]: !expanded }));
   };
 
   const openChat = (id: string) => {
@@ -297,7 +295,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="space-y-px pl-3">
                         {group.chats.map((chat) => {
                           const isActive = chat.id === session.id;
-                          const isExpanded = expandedChats.has(chat.id) || (isActive && chat.hasPlan);
+                          const isExpanded = chatOpen[chat.id] ?? (isActive && chat.hasPlan);
                           const activeStep = isActive ? session.currentStep : 0;
                           return (
                             <div key={chat.id}>
@@ -305,7 +303,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 {chat.hasPlan ? (
                                   <button
                                     type="button"
-                                    onClick={() => toggleChat(chat.id)}
+                                    onClick={() => toggleChat(chat.id, isExpanded)}
                                     aria-expanded={isExpanded}
                                     aria-label={isExpanded ? t("Collapse chat") : t("Expand chat")}
                                     className="flex h-[30px] w-5 shrink-0 items-center justify-center text-faint hover:text-ink"
