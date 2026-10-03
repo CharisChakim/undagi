@@ -20,6 +20,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useT, TFunction } from "../lib/i18n";
+import { renderPrdMarkdown } from "../../shared/prdMarkdown";
 import { generatePrd, generateTasks, isAbort, PipelineModelControl, usePipelineTarget } from "../lib/generate";
 import {
   attachPrdVersionToPrd,
@@ -96,42 +97,6 @@ const formatTechStackToString = (ts: any): string => {
       .join("\n");
   }
   return String(ts);
-};
-
-// Menyusun ulang markdown PRD dari isi yang sekarang, dipakai setelah pengguna
-// mengedit supaya ekspor .md tidak lagi tertinggal di versi lama.
-const buildPrdMarkdown = (p: PRDData): string => {
-  const lines: string[] = [`# PRD - ${p.projectTitle || "Project Requirements Document"}`, ""];
-
-  lines.push("## 1. Overview", p.overview || "", "");
-  lines.push("## 2. Requirements", formatRequirementsToString(p.requirements) || "", "");
-
-  lines.push("## 3. Core Features", "");
-  ([
-    ["Phase 1", "fase1"],
-    ["Phase 2", "fase2"],
-    ["Phase 3+", "fase3Plus"],
-  ] as const).forEach(([label, key]) => {
-    const feats = getPhaseFeatures(p.coreFeatures, key);
-    if (feats.length === 0) return;
-    lines.push(`### ${label}`);
-    feats.forEach((f) => lines.push(`- ${f}`));
-    lines.push("");
-  });
-
-  lines.push("## 4. User Flow", p.userFlow || "", "");
-  if (p.logicFlowMermaid) {
-    lines.push("```mermaid", p.logicFlowMermaid, "```", "");
-  }
-  lines.push("## 5. Architecture", p.architecture || "", "");
-  lines.push("## 6. Database Schema", formatDbSchemaToString(p.databaseSchema) || "", "");
-  lines.push("## 7. Tech Stack", formatTechStackToString(p.techStack) || "", "");
-
-  (p.additionalSections || []).forEach((s) => {
-    lines.push(`## ${s.number}. ${s.title}`, s.content || "", "");
-  });
-
-  return lines.join("\n");
 };
 
 // Ketujuh poin baku dan poin tambahan memakai kerangka kartu yang sama; hanya
@@ -332,7 +297,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
 
     // Ekspor .md membaca fullMarkdownText. Tanpa dibangun ulang, Download/Copy MD
     // akan mengekspor versi sebelum diedit.
-    updatedPrd.fullMarkdownText = buildPrdMarkdown(updatedPrd);
+    updatedPrd.fullMarkdownText = renderPrdMarkdown(updatedPrd, lang);
 
     const recorded = recordPrdVersion(updatedPrd, session.prdVersions);
     const versionedPrd = attachPrdVersionToPrd(updatedPrd, recorded.version);

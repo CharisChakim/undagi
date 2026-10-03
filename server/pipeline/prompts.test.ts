@@ -120,7 +120,6 @@ test("JSON key names stay the same in every schema", () => {
     "nonFunctional", "specification", "coreFeatures", "phase1", "phase2", "phase3", "futurePhases", "userFlow",
     "architecture", "databaseSchema", "entity", "fields", "name", "type", "techStack", "layer", "technology",
     "rationale", "additionalSections", "number", "title", "content", "logicFlowMermaid", "logicFlowExplanation",
-    "fullMarkdownText",
   ];
   const taskKeys = [
     "tasks", "id", "phase", "title", "priority", "targetFiles", "dependencies", "promptInstructions",
@@ -270,4 +269,13 @@ test("from round 3 the clarification prompt asks the model to stop unless a gap 
   assert.match(third, /THIS IS ROUND 3/);
   assert.match(third, /would make the plan wrong/);
   assert.match(third, /"needsMoreInfo": false/);
+});
+
+test("the PRD prompt does not ask for the document a second time as Markdown", () => {
+  // Every PRD used to be written twice, as fields and as fullMarkdownText, which doubled its length.
+  for (const humanLang of LANGS) {
+    assert.ok(!buildPrdSystemPrompt(humanLang).includes("fullMarkdownText"), humanLang);
+  }
+  assert.ok(!buildPrdPrompt("App", {}).includes("fullMarkdownText"));
+  assert.match(buildPrdPrompt("App", {}), /JSON fields are the whole answer/);
 });

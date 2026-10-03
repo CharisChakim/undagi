@@ -2,6 +2,7 @@ import { parseJsonFromLlm } from "../llm/json.ts";
 import type { Connection } from "../llm/types.ts";
 import type { Lang } from "../messages.ts";
 import { additionalPointTitle, EXAMPLE_VALUES_NOTE, languageDirective } from "./language.ts";
+import { renderPrdMarkdown } from "../../shared/prdMarkdown.ts";
 import { generateLlmText, type PipelineOptions } from "./llm.ts";
 
 export function buildPrdSystemPrompt(humanLang: Lang): string {
@@ -23,7 +24,6 @@ ADDITIONAL POINTS (OPTIONAL, BEYOND THE 7 MANDATORY POINTS):
 - If, after analyzing this project, you judge there is an important aspect not covered by those 7 points, ADD it as point 8, 9, and so on through the "additionalSections" field.
 - Examples of additional points that are often relevant: Third-Party Integrations, Data Migration Strategy, Observability & Monitoring, Compliance & Regulation, Testing Plan, Deployment & Rollback Strategy, User Permission/Role Model.
 - Only add points the project truly needs. Do not add points just to make the document look complete. If the 7 points are sufficient, return "additionalSections": [].
-- Every additional point MUST also be written in "fullMarkdownText" with the same sequence number.
 
 Special rules for the Mermaid.js Logic Diagram:
 - Use a HORIZONTAL DIAGRAM with 'graph LR' or 'flowchart LR' syntax (left to right).
@@ -82,8 +82,7 @@ Return the response EXACTLY in the following JSON format. ${EXAMPLE_VALUES_NOTE}
     }
   ],
   "logicFlowMermaid": "graph LR\\n  A[User] -->|1. Open App| B[Landing Page]\\n  B -->|2. Enter Idea| C[Plan Generator]\\n  C -->|3. Confirm| D[PRD & Diagram Review]\\n  D -->|4. Build| E[AI Agent Tasks]",
-  "logicFlowExplanation": "Explanation of the horizontal diagram flow from left to right...",
-  "fullMarkdownText": "# PRD - Project Requirements Document\\n\\n## 1. Overview\\n...\\n\\n## 2. Requirements\\n...\\n\\n## 3. Core Features\\n- **Phase 1**:\\n  - ...\\n- **Phase 2**:\\n  - ...\\n- **Phase 3**:\\n  - ...\\n\\n## 4. User Flow\\n...\\n\\n## 5. Architecture\\n...\\n\\n## 6. Database Schema\\n...\\n\\n## 7. Tech Stack\\n...\\n\\n## 8. (Additional point, if any)\\n..."
+  "logicFlowExplanation": "Explanation of the horizontal diagram flow from left to right..."
 }`;
 }
 
@@ -97,7 +96,7 @@ Tech Stack: ${JSON.stringify(plan?.specs?.techStack || [])}
 Architecture: ${JSON.stringify(plan?.architectureDraft || {})}
 
 Compose a PRD document that MUST fully cover the 7 standard points, along with a horizontal diagram (graph LR), in the requested JSON format.
-After composing the 7 mandatory points, assess whether this project needs additional points (8, 9, etc.). Add them through "additionalSections" only if truly necessary, and make sure they are also written in "fullMarkdownText".`;
+After composing the 7 mandatory points, assess whether this project needs additional points (8, 9, etc.). Add them through "additionalSections" only if truly necessary. Do not write the document a second time as Markdown: the JSON fields are the whole answer.`;
 }
 
 export async function generatePrd(
@@ -133,6 +132,11 @@ export async function generatePrd(
       title: s.title || additionalPointTitle(lang, 8 + idx),
       content: typeof s.content === "string" ? s.content : String(s.content ?? ""),
     }));
+
+  // Written here from the fields, not by the model: asking for it too doubled
+  // the length of every PRD. It overwrites one the model sends anyway, so the
+  // document always matches the fields.
+  data.fullMarkdownText = renderPrdMarkdown(data, lang);
 
   return data;
 }
