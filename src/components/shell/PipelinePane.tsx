@@ -77,7 +77,7 @@ export const TabStrip: React.FC<TabStripProps> = ({ step, session, onSelectStep,
       >
         {t("Chat")}
       </button>
-      {tabs.filter((tab) => tab.step === 1 ? step === 1 : true).map((tab) => {
+      {tabs.map((tab) => {
         const reachable = isStepReachable(tab.step, session);
         const active = step === tab.step;
         const label = t(tab.label);
