@@ -50,6 +50,18 @@ export const MESSAGES = {
     en: "No answer from the model within {minutes} minutes at {url}. The request was given up on, not refused — the model may simply be slower than that, or the endpoint may have stalled.",
     id: "Tidak ada jawaban dari model dalam {minutes} menit di {url}. Permintaan dihentikan sendiri, bukan ditolak — modelnya mungkin memang lebih lambat dari itu, atau endpoint-nya menggantung.",
   },
+  stepNoStart: {
+    en: "The model did not start writing within {minutes} minutes. It may still be thinking, which a high effort level can make slow, or the runtime may be stuck. Try again, or lower the effort.",
+    id: "Model belum mulai menulis dalam {minutes} menit. Mungkin masih berpikir, yang bisa lama di tingkat effort tinggi, atau runtime-nya macet. Coba lagi, atau turunkan effort.",
+  },
+  stepStalled: {
+    en: "The model stopped writing for {minutes} minutes in the middle of its answer, so the request was given up on. Try again.",
+    id: "Model berhenti menulis selama {minutes} menit di tengah jawabannya, jadi permintaan dihentikan. Coba lagi.",
+  },
+  stepTooLong: {
+    en: "This step ran for more than {minutes} minutes in total and was stopped. Try again, or pick a faster model.",
+    id: "Langkah ini berjalan lebih dari {minutes} menit secara total dan dihentikan. Coba lagi, atau pilih model yang lebih cepat.",
+  },
   outputTruncated: {
     en: "The model stopped before it finished writing — it hit its output limit. Try again, or switch to a model with a larger output budget.",
     id: "Model berhenti sebelum jawabannya selesai — batas panjang keluarannya tercapai. Coba lagi, atau pakai model dengan jatah keluaran lebih besar.",

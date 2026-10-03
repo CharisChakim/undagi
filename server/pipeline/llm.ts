@@ -4,6 +4,7 @@ import { getAdapter } from "../llm/adapters/index.ts";
 import { streamLlm } from "../llm/stream.ts";
 import type { Connection, LlmRequest } from "../llm/types.ts";
 import { generateRuntimeText, type RuntimeTextTarget } from "./runtimeText.ts";
+import { stepDeadline, stepTimeoutMessage, stepTimeoutOf } from "./stepTimeout.ts";
 
 export interface PipelineOptions {
   signal?: AbortSignal;
@@ -33,12 +34,6 @@ interface PipelineLlmOptions extends PipelineOptions {
   conn: Connection;
   model: string;
   lang: Lang;
-}
-
-function pipelineSignal(signal?: AbortSignal): AbortSignal {
-  return AbortSignal.any(
-    [signal, AbortSignal.timeout(LLM_TIMEOUT_MS)].filter(Boolean) as AbortSignal[],
-  );
 }
 
 function streamRequest(opts: PipelineLlmOptions, signal: AbortSignal): LlmRequest {
@@ -110,13 +105,24 @@ async function collectStream(
 
 export async function generateLlmText(opts: PipelineLlmOptions): Promise<string> {
   if (opts.runtime) {
-    return generateRuntimeText({
-      target: opts.runtime,
-      prompt: opts.prompt,
-      system: opts.system,
-      signal: pipelineSignal(opts.signal),
-      onProgress: opts.onProgress,
-    });
+    const deadline = stepDeadline(opts.signal);
+    try {
+      return await generateRuntimeText({
+        target: opts.runtime,
+        prompt: opts.prompt,
+        system: opts.system,
+        signal: deadline.signal,
+        onProgress: (chars) => {
+          deadline.touch();
+          opts.onProgress?.(chars);
+        },
+      });
+    } catch (error) {
+      const timedOut = stepTimeoutOf(deadline.signal);
+      throw timedOut ? new Error(stepTimeoutMessage(timedOut, opts.lang)) : error;
+    } finally {
+      deadline.dispose();
+    }
   }
 
   // Tanpa opsi, tetap melalui callLlm lama agar jalur JSON non-streaming tidak
@@ -132,21 +138,32 @@ export async function generateLlmText(opts: PipelineLlmOptions): Promise<string>
     });
   }
 
-  const signal = pipelineSignal(opts.signal);
-  const request = streamRequest(opts, signal);
+  const deadline = stepDeadline(opts.signal);
+  const watched: PipelineLlmOptions = {
+    ...opts,
+    onProgress: (chars) => {
+      deadline.touch();
+      opts.onProgress?.(chars);
+    },
+  };
+  const request = streamRequest(opts, deadline.signal);
 
   try {
     try {
-      return await collectStream(opts, request);
+      return await collectStream(watched, request);
     } catch (error) {
       // Router lama kadang menerima streaming tetapi menolak response_format;
       // samakan retry kompatibilitas yang sudah dimiliki callLlm non-stream.
       if (!canRetryWithoutJson(error, opts)) throw error;
       const retryRequest = { ...request, jsonMode: false };
-      return await collectStream(opts, retryRequest);
+      return await collectStream(watched, retryRequest);
     }
   } catch (error) {
+    const timedOut = stepTimeoutOf(deadline.signal);
+    if (timedOut) throw new Error(stepTimeoutMessage(timedOut, opts.lang));
     if (error instanceof LlmError && error.message === msg(opts.lang, "outputTruncated")) throw error;
     throw normalizedStreamError(error, opts, request);
+  } finally {
+    deadline.dispose();
   }
 }
