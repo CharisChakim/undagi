@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ProjectSession, FollowUpQuestion } from "../../types";
 import { GenerationProgress } from "../GenerationProgress";
+import { ClarificationReadyDialog } from "./ClarificationReadyDialog";
 import {
   Check,
   CheckCircle2,
@@ -76,6 +77,7 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [generationChars, setGenerationChars] = useState(0);
+  const [readyDialog, setReadyDialog] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [subView, setSubView] = useState<IntakeView>(initialView || (session.followUps.length > 0 ? "clarify" : "form"));
   const generationAbort = useRef<AbortController | null>(null);
@@ -139,7 +141,9 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
         readinessNote: data.readinessNote || "",
       });
 
-      if (isFirstRound) setSubView("clarify");
+      // A first round with nothing to ask leaves no question cards to show.
+      if (isFirstRound && newQuestions.length > 0) setSubView("clarify");
+      if (data.needsMoreInfo === false) setReadyDialog(true);
     } catch (err: any) {
       if (!isAbort(err)) setErrorMessage(err.message || t("Something went wrong talking to the LLM."));
     } finally {
@@ -296,7 +300,7 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
           </form>
 
           <aside className="space-y-4">
-            <GenerationProgress active={loadingQuestions} label={t("Analysing your idea...")} chars={generationChars} onCancel={() => generationAbort.current?.abort()} />
+            <GenerationProgress active={loadingQuestions || loadingPlan} label={loadingPlan ? t("Drafting the architecture & diagram...") : t("Analysing your idea...")} chars={generationChars} onCancel={() => generationAbort.current?.abort()} />
             <div className="card p-5 space-y-3">
               <h3 className={sectionTitle}><Wand2 className="w-4 h-4 text-faint" /> {t("What makes a good description")}</h3>
               <ul className="space-y-2 text-xs text-muted leading-relaxed">
@@ -338,7 +342,7 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
 
             <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
               <div className="mr-auto"><PipelineModelControl /></div>
-              <button type="button" onClick={() => void requestFollowUps(false)} disabled={loadingQuestions || loadingPlan} className="btn-outline" title={t("Send the current answers so the AI can judge whether anything is still missing")}>{loadingQuestions ? <><RefreshCw className="w-4 h-4 animate-spin" /> {t("Reviewing your answers...")}</> : <><HelpCircle className="w-4 h-4" /> {t("Continue clarifying (round {round})", { round: (session.clarificationRound || 1) + 1 })}</>}</button>
+              <button type="button" onClick={() => void requestFollowUps(false)} disabled={loadingQuestions || loadingPlan} className={session.clarificationComplete ? "btn-ghost" : "btn-outline"} title={t("Send the current answers so the AI can judge whether anything is still missing")}>{loadingQuestions ? <><RefreshCw className="w-4 h-4 animate-spin" /> {t("Reviewing your answers...")}</> : <><HelpCircle className="w-4 h-4" /> {t("Continue clarifying (round {round})", { round: (session.clarificationRound || 1) + 1 })}</>}</button>
               <button type="button" onClick={() => void handleGeneratePlan()} disabled={loadingPlan || loadingQuestions} className="btn-primary">{loadingPlan ? <><RefreshCw className="w-4 h-4 animate-spin" /> {t("Drafting the architecture & diagram...")}</> : <><Sparkles className="w-4 h-4" /> {t("Generate project plan")}</>}</button>
             </div>
           </div>
@@ -349,6 +353,17 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
             <div className="card p-5 space-y-2"><h3 className={sectionTitle}><HelpCircle className="w-4 h-4 text-faint" /> {t("What happens next")}</h3><p className="text-xs text-muted leading-relaxed">{t("Answer what you can, then generate the plan. If the AI still has gaps it will say so above, and one more round costs you nothing but a minute.")}</p></div>
           </aside>
         </div>
+      )}
+
+      {readyDialog && (
+        <ClarificationReadyDialog
+          note={session.readinessNote || ""}
+          onClose={() => setReadyDialog(false)}
+          onGenerate={() => {
+            setReadyDialog(false);
+            void handleGeneratePlan();
+          }}
+        />
       )}
     </div>
   );

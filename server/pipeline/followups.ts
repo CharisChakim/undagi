@@ -42,6 +42,13 @@ MANDATORY IN THIS ROUND 1:
     : ""
 }
 
+${
+  currentRound >= 3
+    ? `
+THIS IS ROUND ${currentRound}. The user has already answered several rounds. Ask again only about a gap that would make the plan wrong, not one that would only make it less detailed. If there is no such gap, return "questions": [] and "needsMoreInfo": false.
+`
+    : ""
+}
 YOU MUST INCLUDE 3 to 4 structured answer choices (options) for every question so the user can just pick with 1 click or fill in a custom answer.
 
 Return the response EXACTLY in the following JSON format with no extra text outside the JSON. ${EXAMPLE_VALUES_NOTE}

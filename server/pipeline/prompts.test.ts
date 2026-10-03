@@ -263,3 +263,11 @@ test("existing cards from a request are cut down to ids, titles, statuses and fi
   assert.deepEqual(cleanExistingTasks("nope"), []);
   assert.equal(cleanExistingTasks(Array.from({ length: 150 }, (_, i) => ({ id: `T${i}`, title: "t" }))).length, 100);
 });
+
+test("from round 3 the clarification prompt asks the model to stop unless a gap would make the plan wrong", () => {
+  assert.ok(!buildFollowupsSystemPrompt("en", 2).includes("THIS IS ROUND"));
+  const third = buildFollowupsSystemPrompt("en", 3);
+  assert.match(third, /THIS IS ROUND 3/);
+  assert.match(third, /would make the plan wrong/);
+  assert.match(third, /"needsMoreInfo": false/);
+});
