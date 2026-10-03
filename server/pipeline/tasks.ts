@@ -16,9 +16,10 @@ const VERIFY_COMMAND_RULES = `verifyCommand is one shell command that Undagi run
 export function buildTasksSystemPrompt(humanLang: Lang, agentLang: Lang = "en"): string {
   return `You are a Principal AI Engineer & Prompt Architect.
 ${languageDirective({ humanLang, agentLang, agentFields: AGENT_FIELDS })}
-Your task is to break the PRD (7 points) and the Project Architecture down into a list of coding tasks that are modular, atomic in pattern, and READY TO BE EXECUTED BY AN AI CODING AGENT (such as Cursor, Antigravity Agent, Claude Code, Gemini Code Assist).
+Your task is to break the PRD and the Project Architecture down into a list of coding tasks that are modular, atomic in pattern, and READY TO BE EXECUTED BY AN AI CODING AGENT (such as Cursor, Antigravity Agent, Claude Code, Gemini Code Assist).
 
 These tasks must be self-contained, with clear technical instructions, specific target files, dependencies, and verification steps.
+Base each task's verification steps on the acceptance criteria of the requirements it implements. Never create a task for anything the PRD lists as out of scope.
 ${VERIFY_COMMAND_RULES}
 Every task must have the initial status "todo".
 
@@ -78,12 +79,18 @@ These cards are already on the board and stay as they are. Do not create tasks f
 ${lines.join("\n")}`;
 }
 
+// A PRD field the user edited is plain text; one they did not is structured.
+const fieldText = (value: unknown): string => (typeof value === "string" ? value : JSON.stringify(value ?? []));
+
 export function buildTasksPrompt(title: string, plan: any, prd: any, existing: ExistingTask[] = []): string {
   return `Project Details:
 Title: ${title}
 PRD Overview: ${prd?.overview || prd?.executiveSummary || ""}
 Core Feature Phases: ${JSON.stringify(prd?.coreFeatures || {})}
+Out of Scope (never build): ${fieldText(prd?.nonGoals)}
+Requirements & Acceptance Criteria: ${fieldText(prd?.requirements)}
 User Flow: ${prd?.userFlow || ""}
+Architecture: ${prd?.architecture || ""}
 Architecture & Tech Stack: ${JSON.stringify(prd?.techStack || plan?.specs?.techStack || [])}
 Database Schema: ${JSON.stringify(prd?.databaseSchema || prd?.dataSchema || [])}
 

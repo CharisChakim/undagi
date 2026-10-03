@@ -282,3 +282,19 @@ test("the PRD prompt does not ask for the document a second time as Markdown", (
   assert.ok(!buildPrdPrompt("App", {}).includes("fullMarkdownText"));
   assert.match(buildPrdPrompt("App", {}), /JSON fields are the whole answer/);
 });
+
+test("the task prompt carries the requirements and the non-goals, as text when the user edited them", () => {
+  const structured = buildTasksPrompt("App", { specs: {} }, {
+    nonGoals: ["Online payments"],
+    requirements: { functional: [{ id: "FR-01", title: "Record a delivery", acceptanceCriteria: ["Stock rises by the amount"] }] },
+    architecture: "One web app and a database.",
+  });
+  assert.match(structured, /Out of Scope \(never build\): \["Online payments"\]/);
+  assert.match(structured, /Requirements & Acceptance Criteria: .*"Stock rises by the amount"/);
+  assert.match(structured, /Architecture: One web app and a database\./);
+
+  const edited = buildTasksPrompt("App", { specs: {} }, { nonGoals: "No payments", requirements: "[Functional] FR-01 Record a delivery" });
+  assert.match(edited, /Out of Scope \(never build\): No payments\n/);
+  assert.match(edited, /Requirements & Acceptance Criteria: \[Functional\] FR-01 Record a delivery\n/);
+  assert.match(buildTasksSystemPrompt("en"), /Never create a task for anything the PRD lists as out of scope/);
+});
