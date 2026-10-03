@@ -261,19 +261,26 @@ export const RuntimeControls: React.FC<RuntimeControlsProps> = ({
             {effortOptions.length > 0 && (
               <>
                 <label htmlFor={`${idPrefix}-runtime-effort`} className="sr-only">{t("Effort")}</label>
-                {/* Opsi bawaannya berbentuk "Default · <effort>", dan yang
-                    terpanjang yang bisa dihasilkan butuh ~121px — cap 96px
-                    memotongnya di tengah kata. */}
+                {/* Select ini tidak punya label yang terlihat, jadi tiap opsinya
+                    menyebut "Effort" sendiri; kalau tidak, pilihan bawaan hanya
+                    terbaca "Bawaan". Yang terpanjang ("Effort · Medium
+                    (default)") butuh ~150px. */}
                 <select
                   id={`${idPrefix}-runtime-effort`}
-                  className="h-8 max-w-32 rounded-lg border-0 bg-transparent px-2 text-[11px] text-ink outline-hidden hover:bg-subtle focus:bg-subtle"
+                  className="h-8 max-w-44 rounded-lg border-0 bg-transparent px-2 text-[11px] text-ink outline-hidden hover:bg-subtle focus:bg-subtle"
                   value={selection.effort}
                   onChange={(event) => onChange({ ...selection, effort: event.target.value })}
                   disabled={disabled || selectedRuntimeUnavailable}
                   title={t("Effort")}
                 >
-                  <option value="inherit">{defaultEffortLabel(activeModel?.defaultEffort, t("Use runtime default"), t("Default"))}</option>
-                  {effortOptions.map((option) => <option key={option.value} value={option.value}>{effortLabel(option.label)}</option>)}
+                  <option value="inherit">
+                    {activeModel?.defaultEffort
+                      ? t("Effort · {level} (default)", { level: effortLabel(activeModel.defaultEffort) })
+                      : t("Effort · runtime default")}
+                  </option>
+                  {effortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{t("Effort · {level}", { level: effortLabel(option.label) })}</option>
+                  ))}
                 </select>
               </>
             )}
