@@ -9,7 +9,7 @@ import { resolveFor, type Role } from "./server/connections/store.ts";
 import connectionsRouter from "./server/connections/routes.ts";
 import agentRouter from "./server/routes/agent.ts";
 import folderPickerRouter from "./server/routes/folder-picker.ts";
-import runtimesRouter from "./server/routes/runtimes.ts";
+import runtimesRouter, { warmRuntimeDiscovery } from "./server/routes/runtimes.ts";
 import runtimePreferencesRouter from "./server/routes/runtime-preferences.ts";
 import runsRouter from "./server/routes/runs.ts";
 import runtimeAgentRouter from "./server/routes/runtime-agent.ts";
@@ -265,6 +265,7 @@ async function startServer() {
       const address = server.address();
       const port = typeof address === "object" && address ? address.port : PORT;
       console.log(`Undagi server listening on http://localhost:${port}`);
+      warmRuntimeDiscovery();
       resolve(port);
     });
     server.on("error", reject);

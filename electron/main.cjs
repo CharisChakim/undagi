@@ -3,7 +3,7 @@
 const { app, BrowserWindow, shell, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
-const { execFileSync } = require("node:child_process");
+const { execFile } = require("node:child_process");
 
 // Dua instance akan memperebutkan database yang sama, jadi yang kedua cukup
 // memunculkan jendela yang sudah ada lalu keluar.
@@ -47,19 +47,52 @@ function migrateLegacyUserData(target) {
 // diambil dari login shell pengguna. Kalau gagal atau lewat 5 detik, PATH
 // bawaan tetap dipakai, dan path runtime masih bisa diisi sendiri di
 // Connections. Windows membaca PATH dari registry, jadi tidak perlu.
-if (process.platform !== "win32") {
+//
+// Login shell interaktif butuh ~2 detik di mesin dengan nvm atau conda, dan
+// dulu dijalankan sinkron sebelum jendela dibuat, jadi tiap peluncuran menunggu
+// sebanyak itu. Sekarang PATH hasil peluncuran sebelumnya dipakai langsung dan
+// shell dibaca di latar belakang. Hanya peluncuran pertama, yang belum punya
+// salinan, masih menunggu.
+const shellPathCache = path.join(userData, "shell-path.txt");
+
+function readCachedShellPath() {
   try {
-    const output = execFileSync(
-      process.env.SHELL || (process.platform === "darwin" ? "/bin/zsh" : "/bin/sh"),
-      ["-ilc", 'printf "\\n__UNDAGI_PATH__%s__UNDAGI_PATH__" "$PATH"'],
-      { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }
-    );
-    const shellPath = /__UNDAGI_PATH__(.*)__UNDAGI_PATH__/.exec(output)?.[1];
-    if (shellPath) process.env.PATH = shellPath;
-  } catch (error) {
-    console.error("Could not read PATH from the login shell:", error);
+    return fs.readFileSync(shellPathCache, "utf8").trim() || null;
+  } catch {
+    return null;
   }
 }
+
+function readLoginShellPath() {
+  return new Promise((resolve) => {
+    execFile(
+      process.env.SHELL || (process.platform === "darwin" ? "/bin/zsh" : "/bin/sh"),
+      ["-ilc", 'printf "\\n__UNDAGI_PATH__%s__UNDAGI_PATH__" "$PATH"'],
+      { encoding: "utf8", timeout: 5000 },
+      (error, stdout) => {
+        if (error) console.error("Could not read PATH from the login shell:", error);
+        resolve(/__UNDAGI_PATH__(.*)__UNDAGI_PATH__/.exec(String(stdout || ""))?.[1] || null);
+      }
+    );
+  });
+}
+
+const cachedShellPath = process.platform === "win32" ? null : readCachedShellPath();
+if (cachedShellPath) process.env.PATH = cachedShellPath;
+
+// Resolves true when the login shell's PATH differs from the one already in use.
+const shellPathRefreshed = process.platform === "win32"
+  ? Promise.resolve(false)
+  : readLoginShellPath().then((fresh) => {
+      if (!fresh || fresh === process.env.PATH) return false;
+      process.env.PATH = fresh;
+      try {
+        fs.writeFileSync(shellPathCache, fresh);
+      } catch (error) {
+        console.error("Could not save the shell PATH:", error);
+      }
+      return true;
+    });
 
 // Server dan beberapa default-nya membaca cwd. Direktori instalasi sering
 // read-only, jadi cwd dipindah ke folder data pengguna sebelum server dimuat:
@@ -132,9 +165,19 @@ app.on("window-all-closed", () => {
 
 app.whenReady().then(async () => {
   try {
+    // Without a saved PATH (the first launch) the server would look for the CLIs
+    // on the bare session PATH, so wait for the shell. Afterwards, do not.
+    if (!cachedShellPath) await shellPathRefreshed;
     const { serverReady } = require(path.join(__dirname, "..", "dist", "server.cjs"));
     const port = await serverReady;
     createWindow(port);
+    // The PATH changed since the last launch, such as a new nvm node version:
+    // what the server detected with the saved one may be out of date.
+    if (cachedShellPath) {
+      void shellPathRefreshed.then((changed) => {
+        if (changed) fetch(`http://127.0.0.1:${port}/api/runtimes/discover`, { method: "POST" }).catch(() => undefined);
+      });
+    }
   } catch (error) {
     dialog.showErrorBox(
       "Undagi could not start",

@@ -103,6 +103,15 @@ async function saveBinaryPath(req: express.Request, res: express.Response): Prom
   }
 }
 
+/**
+ * Detect the runtimes before anyone asks. A first detection spawns each CLI and
+ * takes several seconds, which the user otherwise watches as "Detecting..." the
+ * moment the window opens. A request that arrives meanwhile shares this one.
+ */
+export function warmRuntimeDiscovery(): void {
+  void reportFor(false).catch(() => undefined);
+}
+
 router.get("/api/runtimes", discover);
 router.post("/api/runtimes/discover", discover);
 router.put("/api/runtimes/binary-path", saveBinaryPath);
