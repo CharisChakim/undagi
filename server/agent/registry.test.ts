@@ -16,7 +16,8 @@ process.on("exit", () => {
   fs.rmSync(dataDir, { recursive: true, force: true });
 });
 const { DEFAULT_LIMITS, dispatch, toolsFor } = await import("./registry.ts");
-const { languageFor } = await import("./tools/pipeline.ts");
+const { languageFor, pipelineTools, startedTaskCount } = await import("./tools/pipeline.ts");
+const { saveSession } = await import("../../db.ts");
 type ToolContext = import("./registry.ts").ToolContext;
 type ToolSpec = import("./registry.ts").ToolSpec;
 
@@ -114,4 +115,19 @@ test("errors handed back to the model are English", async () => {
   assert.deepEqual(await dispatch("read_file", { file: "a.txt" }, context({ signal: aborted.signal }), specs), {
     error: "The request was cancelled.",
   });
+});
+
+test("startedTaskCount counts cards past To do", () => {
+  assert.equal(startedTaskCount([{ status: "done" }, { status: "in_progress" }, { status: "todo" }, {}, null]), 2);
+  assert.equal(startedTaskCount(undefined), 0);
+});
+
+test("generate_tasks refuses to replace a board that has started cards", async () => {
+  const tool = pipelineTools.find((spec) => spec.def.name === "generate_tasks")!;
+  saveSession({ id: "board-with-progress", title: "App", prd: { overview: "x" }, tasks: [{ id: "T1", status: "done" }, { id: "T2", status: "todo" }] });
+
+  const result = await tool.run({}, context({ sessionId: "board-with-progress" })) as { error?: string };
+
+  assert.match(result.error ?? "", /1 task\(s\) that were started/);
+  assert.match(result.error ?? "", /Sync on the task board/);
 });

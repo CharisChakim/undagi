@@ -262,6 +262,13 @@ const generatePrdTool: ToolSpec = {
   },
 };
 
+/** Cards past To do. The board's Sync keeps them; this tool replaces the whole list. */
+export function startedTaskCount(tasks: unknown): number {
+  return (Array.isArray(tasks) ? tasks : []).filter(
+    (task) => task && typeof task === "object" && task.status && task.status !== "todo",
+  ).length;
+}
+
 const generateTasksTool: ToolSpec = {
   def: {
     name: "generate_tasks",
@@ -275,6 +282,12 @@ const generateTasksTool: ToolSpec = {
     if ("error" in found) return found;
     const session = found.session;
     if (!session.prd) return { error: "The PRD has not been created yet. Create the PRD before creating tasks." };
+    const started = startedTaskCount(session.tasks);
+    if (started > 0) {
+      return {
+        error: `The task board already has ${started} task(s) that were started, and this tool would replace the whole list and lose them. Tell the user to use Sync on the task board instead; it keeps started tasks.`,
+      };
+    }
 
     const resolved = roleConnection("tasks");
     if ("error" in resolved) return resolved;
