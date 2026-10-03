@@ -9,7 +9,7 @@ import { applyTaskOutcome, markTaskStopped } from "../../lib/taskOutcome";
 import { rememberFacts } from "../../lib/projectMemory";
 import { runVerifyCommand, verifyDone, verifyOutputForNote } from "../../lib/taskVerify";
 import { readableRunError, runWithRetries, type RunReport } from "../../lib/runRetry";
-import { dependenciesSaved, idleBoardEnd, nextBoardTask, type BoardRunEnd } from "../../lib/boardRun";
+import { currentPhase, dependenciesSaved, idleBoardEnd, nextBoardTask, type BoardRunEnd, type BoardRunState } from "../../lib/boardRun";
 import type { TaskOutcome } from "../../lib/taskOutcome";
 
 /** How one card's run ended: its outcome (null when stopped), and whether the user moved the card meanwhile. */
@@ -88,7 +88,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   const activeTaskRun = React.useRef<{ taskId: string; movedByUser: boolean } | null>(null);
   // The board run in flight; Stop sets `stopped` so no further card starts.
   const boardRun = React.useRef<{ stopped: boolean } | null>(null);
-  const [boardStateRaw, setBoardState] = React.useState<{ sessionId: string; running: boolean; end: BoardRunEnd | null } | null>(null);
+  const [boardStateRaw, setBoardState] = React.useState<({ sessionId: string } & BoardRunState) | null>(null);
   const boardState = boardStateRaw?.sessionId === session.id ? boardStateRaw : null;
   // Every chat starts asking; a wider mode is chosen per chat, never carried over.
   const [permissionState, setPermissionState] = React.useState<{ sessionId: string; mode: PermissionMode }>({ sessionId: session.id, mode: "ask" });
@@ -285,17 +285,23 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     void runTask(task);
   }, [agentRun.busy, runTask]);
 
-  // The board run takes the To do cards one at a time, in board order, each once
-  // its dependencies are done, and stops at the first card that does not end
-  // done, so nothing builds on a card that failed.
+  // The board run takes one phase: the first that is not finished. It runs that
+  // phase's To do cards one at a time, in board order, each once its dependencies
+  // are done, and stops when the phase is done or at the first card that does not
+  // end done, so nothing builds on a card that failed.
   const runTaskRef = React.useRef(runTask);
   React.useEffect(() => { runTaskRef.current = runTask; }, [runTask]);
   const runBoard = React.useCallback(async (): Promise<void> => {
     if (boardRun.current || activeTaskRun.current) return;
     const sessionId = sessionRef.current.id;
+    const phase = currentPhase(sessionRef.current.tasks ?? []);
+    if (phase === null) {
+      setBoardState({ sessionId, running: false, end: { kind: "all_done" } });
+      return;
+    }
     const token = { stopped: false };
     boardRun.current = token;
-    setBoardState({ sessionId, running: true, end: null });
+    setBoardState({ sessionId, running: true, phase, end: null });
     if (isStepReachable(3, sessionRef.current)) onSelectStep(3);
     onLayoutModeChange(window.innerWidth <= 1100 ? "agent" : "split");
     // Cards this run finished or started; the session may not show them yet.
@@ -307,9 +313,9 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         const current = sessionRef.current;
         if (token.stopped || current.id !== sessionId) break;
         const tasks = current.tasks ?? [];
-        const next = nextBoardTask(tasks, finished, tried);
+        const next = nextBoardTask(tasks, phase, finished, tried);
         if (!next) {
-          end = idleBoardEnd(tasks, finished);
+          end = idleBoardEnd(tasks, phase, finished);
           break;
         }
         tried.add(next.id);
@@ -333,7 +339,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       }
     } finally {
       if (boardRun.current === token) boardRun.current = null;
-      setBoardState({ sessionId, running: false, end });
+      setBoardState({ sessionId, running: false, phase, end });
     }
   }, [onLayoutModeChange, onSelectStep, onUpdateSession]);
   const runBoardRef = React.useRef(runBoard);

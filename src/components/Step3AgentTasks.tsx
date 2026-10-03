@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { makeT, useT, type TFunction } from "../lib/i18n";
 import { openDependencies } from "../lib/taskDependencies";
-import { nextBoardTask, type BoardRunEnd, type BoardRunState } from "../lib/boardRun";
+import { currentPhase, nextBoardTask, shortPhase, type BoardRunEnd, type BoardRunState } from "../lib/boardRun";
 import { agentLanguageFor, loadAgentHarnessSettings } from "../lib/agentHarness";
 import {
   attachPrdVersionToPrd,
@@ -62,19 +62,21 @@ interface Step3AgentTasksProps {
 function boardRunEndText(end: BoardRunEnd, t: TFunction): string {
   switch (end.kind) {
     case "all_done":
-      return t("Board run finished: every card is done.");
+      return t("Every card on the board is done.");
+    case "phase_done":
+      return t("{phase} is done. Run the next phase when you are ready.", { phase: shortPhase(end.phase) || t("This phase") });
     case "waiting":
-      return t("Board run stopped: {count} To do cards wait on cards that are not done.", { count: end.remaining });
+      return t("Stopped: {count} To do cards in this phase wait on cards that are not done.", { count: end.remaining });
     case "nothing_to_run":
-      return t("No To do card is ready to run.");
+      return t("No To do card in this phase is ready to run.");
     case "stopped":
-      return t("Board run stopped.");
+      return t("Run stopped.");
     case "card_ended":
       return end.outcome === "blocked"
-        ? t("Board run stopped at {id}: the agent marked it blocked.", { id: end.taskId })
-        : t("Board run stopped at {id}: it failed.", { id: end.taskId });
+        ? t("Stopped at {id}: the agent marked it blocked.", { id: end.taskId })
+        : t("Stopped at {id}: it failed.", { id: end.taskId });
     case "moved_by_hand":
-      return t("Board run stopped: {id} was moved by hand.", { id: end.taskId });
+      return t("Stopped: {id} was moved by hand.", { id: end.taskId });
   }
 }
 
@@ -120,7 +122,9 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
   const reviewAbort = useRef<AbortController | null>(null);
 
   const tasks = session.tasks || [];
-  const blockedTitle = (task: AgentTask): string | undefined => {
+  // The phase the run button takes on: the first one that is not finished.
+  const nextPhase = currentPhase(tasks);
+  const blockedTitle =(task: AgentTask): string | undefined => {
     const open = openDependencies(task, tasks);
     return open.length ? t("Waiting on {tasks}, which is not done yet.", { tasks: open.join(", ") }) : undefined;
   };
@@ -533,21 +537,21 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
                 {t("Download AGENTS.md")}
               </button>
 
-              {onRunBoard && (boardRun?.running ? (
+              {onRunBoard && nextPhase !== null && (boardRun?.running ? (
                 <button type="button" onClick={onStopBoard} className="btn-outline">
                   <Square className="h-4 w-4" />
-                  {t("Stop board run")}
+                  {t("Stop the run")}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={onRunBoard}
-                  disabled={Boolean(runningTaskId) || !nextBoardTask(tasks)}
-                  title={t("Runs the To do cards one at a time in board order, each with its verify command. In Ask mode every command waits for your approval.")}
+                  disabled={Boolean(runningTaskId) || !nextBoardTask(tasks, nextPhase)}
+                  title={t("Runs the To do cards of {phase} one at a time in board order, each with its verify command, and stops when the phase is done. In Ask mode every command waits for your approval.", { phase: nextPhase || t("the remaining tasks") })}
                   className="btn-primary disabled:opacity-50"
                 >
                   <Play className="h-4 w-4" />
-                  {t("Run all tasks")}
+                  {nextPhase ? t("Run {phase}", { phase: shortPhase(nextPhase) }) : t("Run tasks")}
                 </button>
               ))}
             </div>
@@ -555,7 +559,10 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
             {(boardRun?.running || boardRun?.end) && (
               <p className="w-full text-xs text-muted" role="status">
                 {boardRun.running
-                  ? t("Running the To do cards one at a time{current}. Stop ends the card in progress.", { current: runningTaskId && runningTaskId !== "__agent_busy__" ? ` · ${runningTaskId}` : "" })
+                  ? t("Running {phase} one card at a time{current}. Stop ends the card in progress.", {
+                    phase: shortPhase(boardRun.phase ?? "") || t("the tasks"),
+                    current: runningTaskId && runningTaskId !== "__agent_busy__" ? ` · ${runningTaskId}` : "",
+                  })
                   : boardRunEndText(boardRun.end!, t)}
               </p>
             )}

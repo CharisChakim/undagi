@@ -11,18 +11,39 @@ export function runBoardRequested(text: string): boolean {
   return text.split("\n").some((line) => RUN_BOARD.test(line));
 }
 
+const phaseOf = (task: Pick<AgentTask, "phase">): string => task.phase ?? "";
+
 /**
- * The next card a board run takes: the first To do card, in board order, whose
- * dependencies are done. `finished` holds the cards this board run completed,
- * which the session may not show yet; `tried` holds every card it started.
+ * The phase a board run works through: that of the first card, in board order,
+ * that is not done. A run does one phase and stops, so the user checks it before
+ * the next one starts. Null when every card is done.
+ */
+export function currentPhase(tasks: AgentTask[], finished: ReadonlySet<string> = new Set()): string | null {
+  const open = tasks.find((task) => task.status !== "done" && !finished.has(task.id));
+  return open ? phaseOf(open) : null;
+}
+
+/** A phase as a button names it: "Phase 1" from "Phase 1: Setup & Database". */
+export function shortPhase(phase: string): string {
+  const head = phase.split(":")[0].trim();
+  return head.length > 40 ? `${head.slice(0, 40).trimEnd()}…` : head;
+}
+
+/**
+ * The next card a board run takes: the first To do card of `phase`, in board
+ * order, whose dependencies are done. `finished` holds the cards this board run
+ * completed, which the session may not show yet; `tried` holds every card it started.
  */
 export function nextBoardTask(
   tasks: AgentTask[],
+  phase: string,
   finished: ReadonlySet<string> = new Set(),
   tried: ReadonlySet<string> = new Set(),
 ): AgentTask | null {
   const board = tasks.map((task) => (finished.has(task.id) ? { ...task, status: "done" as const } : task));
-  return board.find((task) => task.status === "todo" && !tried.has(task.id) && openDependencies(task, board).length === 0) ?? null;
+  return board.find((task) => (
+    phaseOf(task) === phase && task.status === "todo" && !tried.has(task.id) && openDependencies(task, board).length === 0
+  )) ?? null;
 }
 
 type TaskStates = Array<Pick<AgentTask, "id" | "status">>;
@@ -70,12 +91,15 @@ export async function dependenciesSaved(
 /** A board run in flight (`end` null), or how the last one ended. */
 export interface BoardRunState {
   running: boolean;
+  /** The phase the run works through. */
+  phase?: string;
   end: BoardRunEnd | null;
 }
 
 /** Why a board run ended, for the line under its button. */
 export type BoardRunEnd =
   | { kind: "all_done" }
+  | { kind: "phase_done"; phase: string }
   | { kind: "waiting"; remaining: number }
   | { kind: "nothing_to_run" }
   | { kind: "stopped" }
@@ -83,12 +107,14 @@ export type BoardRunEnd =
   | { kind: "moved_by_hand"; taskId: string };
 
 /**
- * Why there is no next card: every card is done, the To do cards left wait on
- * cards that are not, or no card is To do (the rest are blocked, failed or in progress).
+ * Why `phase` has no next card: it is done (and maybe the whole board), its To
+ * do cards left wait on cards that are not, or none of its cards is To do (the
+ * rest are blocked, failed or in progress).
  */
-export function idleBoardEnd(tasks: AgentTask[], finished: ReadonlySet<string> = new Set()): BoardRunEnd {
-  const open = tasks.filter((task) => task.status !== "done" && !finished.has(task.id));
+export function idleBoardEnd(tasks: AgentTask[], phase: string, finished: ReadonlySet<string> = new Set()): BoardRunEnd {
+  const open = tasks.filter((task) => phaseOf(task) === phase && task.status !== "done" && !finished.has(task.id));
   const remaining = open.filter((task) => task.status === "todo").length;
   if (remaining > 0) return { kind: "waiting", remaining };
-  return open.length === 0 ? { kind: "all_done" } : { kind: "nothing_to_run" };
+  if (open.length > 0) return { kind: "nothing_to_run" };
+  return currentPhase(tasks, finished) === null ? { kind: "all_done" } : { kind: "phase_done", phase };
 }
