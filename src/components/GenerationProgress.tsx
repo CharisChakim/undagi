@@ -9,6 +9,9 @@ interface GenerationProgressProps {
   onCancel?: () => void;
 }
 
+// A runtime takes this long to start before it can answer at all.
+const STARTING_SECONDS = 15;
+
 const elapsedLabel = (ms: number): string => {
   const totalSeconds = Math.floor(ms / 1000);
   return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
@@ -32,6 +35,14 @@ export const GenerationProgress: React.FC<GenerationProgressProps> = ({ active, 
 
   if (!active) return null;
 
+  // With no characters yet the app cannot tell "starting" from "the model is
+  // thinking", so the wait is told apart by how long it has been.
+  const phase = chars > 0
+    ? t("Writing the answer.")
+    : elapsed < STARTING_SECONDS * 1000
+      ? t("Starting the model.")
+      : t("The model is thinking before it writes. At a high effort level this can take a few minutes.");
+
   return (
     <div className="card flex flex-wrap items-center gap-3 px-3 py-2.5" role="status" aria-live="polite">
       <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-accent-ink" aria-hidden />
@@ -47,6 +58,10 @@ export const GenerationProgress: React.FC<GenerationProgressProps> = ({ active, 
           {t("Cancel")}
         </button>
       )}
+      <div className="h-1 w-full overflow-hidden rounded-full bg-subtle" aria-hidden>
+        <div className="progress-sweep h-full w-1/3 rounded-full bg-accent" />
+      </div>
+      <p className="w-full text-xs text-faint">{phase}</p>
     </div>
   );
 };

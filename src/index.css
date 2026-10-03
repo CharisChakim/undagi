@@ -428,6 +428,21 @@ html.dark {
   }
 }
 
+/* Batang proses tanpa persentase: panjang jawaban tidak diketahui di depan,
+   jadi yang bergerak hanya menandakan masih berjalan. */
+@keyframes progress-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+.progress-sweep {
+  animation: progress-sweep 1.4s var(--ease-standard) infinite;
+}
+
 .animate-in {
   animation-name: app-enter;
   animation-duration: var(--dur-base);
