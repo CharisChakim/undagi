@@ -27,13 +27,21 @@ import type {
   RuntimeTurnRequest,
 } from "./types.ts";
 
+// A turn is stopped for silence, not for length: a fixed five minutes from the
+// start cut off a PRD that had written 28,000 characters, and would cut off any
+// task run that simply takes a while. Silence is told apart before the first
+// event (the model may be reasoning, which reaches us as nothing) and after it.
 export const DEFAULT_TURN_TIMEOUT_MS = 5 * 60 * 1_000;
+export const DEFAULT_START_TIMEOUT_MS = 15 * 60 * 1_000;
 
 export interface CodexRuntimeExecutorOptions extends Omit<AppServerTransportOptions, "cwd"> {
   cwd?: string;
   transport?: AppServerTransport;
   approvalHandler?: RuntimeApprovalHandler;
+  /** The longest silence once the turn has produced an event. */
   turnTimeoutMs?: number;
+  /** The longest wait for the turn's first event. */
+  startTimeoutMs?: number;
 }
 
 interface TurnState {
@@ -42,6 +50,10 @@ interface TurnState {
   queue: AsyncEventQueue<RuntimeEvent>;
   timer: ReturnType<typeof setTimeout> | undefined;
   finished: boolean;
+  /** The turn has produced an event, so a quiet spell is now a stall rather than a slow start. */
+  active: boolean;
+  /** Approvals waiting on the user. The turn is quiet because of them, so it is not timed out. */
+  waitingOnUser: number;
 }
 
 interface StartResult {
@@ -376,13 +388,13 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
     if (!turnId) throw new RuntimeTransportError("PROTOCOL_ERROR", "turn/start returned no turn id.");
 
     const queue = new AsyncEventQueue<RuntimeEvent>();
-    const state: TurnState = { threadId, turnId, queue, timer: undefined, finished: false };
+    const state: TurnState = { threadId, turnId, queue, timer: undefined, finished: false, active: false, waitingOnUser: 0 };
     this.turns.set(turnId, state);
     this.activeTurn = state;
     const buffered = this.pendingByTurn.get(turnId);
     this.pendingByTurn.delete(turnId);
     for (const event of buffered ?? []) this.pushEvent(state, event);
-    state.timer = setTimeout(() => this.onTurnTimeout(state), Math.max(1, this.options.turnTimeoutMs ?? DEFAULT_TURN_TIMEOUT_MS));
+    this.armTimer(state);
     return { state, result: { threadId, turnId } };
   }
 
@@ -435,6 +447,7 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
       void this.transport.respond(message.id, { decision: "decline" });
       return;
     }
+    if (state) state.waitingOnUser += 1;
     void Promise.resolve(handler(approval)).then(async (decision) => {
       if (decision === undefined) return;
       await this.transport.respond(message.id, { decision });
@@ -447,6 +460,11 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
         this.pendingByTurn.set(approval.turnId, buffered);
       }
       await this.transport.respond(message.id, { decision: "decline" });
+    }).finally(() => {
+      // The answer is on its way back to Codex: the silence clock starts again from here.
+      if (!state) return;
+      state.waitingOnUser = Math.max(0, state.waitingOnUser - 1);
+      this.armTimer(state);
     });
   }
 
@@ -471,7 +489,26 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
   private pushEvent(state: TurnState, event: RuntimeEvent): void {
     if (state.finished) return;
     state.queue.push(event);
-    if (event.type === "done") this.finishState(state);
+    if (event.type === "done") {
+      this.finishState(state);
+      return;
+    }
+    state.active = true;
+    this.armTimer(state);
+  }
+
+  private timeoutMs(state: TurnState): number {
+    const limit = state.active
+      ? this.options.turnTimeoutMs ?? DEFAULT_TURN_TIMEOUT_MS
+      : this.options.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS;
+    return Math.max(1, limit);
+  }
+
+  /** (Re)start the silence timer for the turn. */
+  private armTimer(state: TurnState): void {
+    if (state.finished) return;
+    if (state.timer !== undefined) clearTimeout(state.timer);
+    state.timer = setTimeout(() => this.onTurnTimeout(state), this.timeoutMs(state));
   }
 
   private finishState(state: TurnState): void {
@@ -484,7 +521,15 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
 
   private onTurnTimeout(state: TurnState): void {
     if (state.finished) return;
-    state.queue.push(errorEvent(new RuntimeTransportError("TURN_TIMEOUT", "Codex turn timed out."), state.threadId, state.turnId, true));
+    if (state.waitingOnUser > 0) {
+      this.armTimer(state);
+      return;
+    }
+    const minutes = Math.max(1, Math.round(this.timeoutMs(state) / 60_000));
+    const message = state.active
+      ? `Codex turn timed out: nothing came back for ${minutes} minutes.`
+      : `Codex turn timed out: no first answer within ${minutes} minutes.`;
+    state.queue.push(errorEvent(new RuntimeTransportError("TURN_TIMEOUT", message), state.threadId, state.turnId, true));
     const interrupt = this.interrupt(state.turnId).catch(() => undefined);
     void interrupt.finally(() => {
       if (state.finished) return;
@@ -493,7 +538,7 @@ export class CodexRuntimeExecutor implements RuntimeExecutor {
         status: "failed",
         threadId: state.threadId,
         turnId: state.turnId,
-        error: { code: "TURN_TIMEOUT", message: "Codex turn timed out." },
+        error: { code: "TURN_TIMEOUT", message },
       });
     });
   }

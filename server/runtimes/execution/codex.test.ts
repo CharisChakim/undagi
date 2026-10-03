@@ -294,3 +294,101 @@ test("codex: a thread in a workspace may write there and asks before commands, w
   assert.deepEqual(start?.params, { sandbox: "workspace-write", approvalPolicy: "untrusted", cwd: "/workspace" });
   await executor.close();
 });
+
+/** An executor with short silence limits, so a timeout is reached in a test. */
+function impatientExecutor(
+  server: ReturnType<typeof appServer>,
+  limits: { turnTimeoutMs: number; startTimeoutMs: number },
+  approvalHandler?: (request: RuntimeApprovalRequest) => Promise<"accept" | "decline">,
+): CodexRuntimeExecutor {
+  return new CodexRuntimeExecutor({
+    executable: "codex",
+    transport: new CodexAppServerTransport({ executable: "codex", spawn: server.spawn }),
+    approvalHandler,
+    ...limits,
+  });
+}
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("codex: a turn that keeps producing output outlives the silence limit", async () => {
+  const server = appServer();
+  const executor = impatientExecutor(server, { turnTimeoutMs: 120, startTimeoutMs: 120 });
+  const { events } = await startedTurn(server, executor);
+
+  // Seven chunks 50 ms apart run for ~350 ms, three times the limit.
+  for (let i = 0; i < 7; i += 1) {
+    server.child.send(textDelta(`part ${i} `));
+    await pause(50);
+  }
+  server.child.send(turnCompleted);
+
+  const received = await events;
+  assert.equal(received.some((event) => event.type === "error"), false);
+  const last = received.at(-1);
+  assert.equal(last?.type === "done" && last.status, "completed");
+  await executor.close();
+});
+
+test("codex: a turn that goes quiet after it started is stopped, and says it was silence", async () => {
+  const server = appServer();
+  const executor = impatientExecutor(server, { turnTimeoutMs: 80, startTimeoutMs: 5_000 });
+  const { events } = await startedTurn(server, executor);
+
+  server.child.send(textDelta("partial"));
+
+  const received = await events;
+  const error = received.find((event) => event.type === "error");
+  assert.equal(error?.type === "error" && error.error.code, "TURN_TIMEOUT");
+  assert.match(error?.type === "error" ? error.error.message : "", /turn timed out: nothing came back/);
+  await executor.close();
+});
+
+test("codex: a turn with no output yet gets the longer start limit", async () => {
+  const server = appServer();
+  const executor = impatientExecutor(server, { turnTimeoutMs: 60, startTimeoutMs: 400 });
+  const { events } = await startedTurn(server, executor);
+
+  // Longer than the silence limit, shorter than the start limit: the model is still thinking.
+  await pause(200);
+  server.child.send(textDelta("late answer"));
+  server.child.send(turnCompleted);
+
+  const received = await events;
+  assert.equal(received.some((event) => event.type === "error"), false);
+  await executor.close();
+});
+
+test("codex: a turn with no output at all times out as a failed start", async () => {
+  const server = appServer();
+  const executor = impatientExecutor(server, { turnTimeoutMs: 5_000, startTimeoutMs: 80 });
+  const { events } = await startedTurn(server, executor);
+
+  const received = await events;
+  const error = received.find((event) => event.type === "error");
+  assert.match(error?.type === "error" ? error.error.message : "", /turn timed out: no first answer/);
+  await executor.close();
+});
+
+test("codex: waiting for the user's approval does not count as silence", async () => {
+  const server = appServer();
+  const executor = impatientExecutor(server, { turnTimeoutMs: 80, startTimeoutMs: 5_000 }, async () => {
+    await pause(250);
+    return "accept";
+  });
+  const { events } = await startedTurn(server, executor);
+
+  server.child.send(textDelta("working"));
+  server.child.send({
+    id: 41,
+    method: "item/commandExecution/requestApproval",
+    params: { threadId: THREAD, turnId: TURN, itemId: "cmd_1", command: "npm test", cwd: "/workspace/fixture" },
+  });
+  await pause(320);
+  server.child.send(turnCompleted);
+
+  const received = await events;
+  assert.equal(received.some((event) => event.type === "error"), false);
+  assert.deepEqual(server.requests.find((request) => request.id === 41)?.result, { decision: "accept" });
+  await executor.close();
+});
