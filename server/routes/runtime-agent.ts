@@ -14,6 +14,7 @@ import {
 } from "../agent/conversations.ts";
 import { unseenMessages, withConversationContext, type ConversationContext, type StoredMessage } from "../agent/runtimeContext.ts";
 import { projectMemoryBlock } from "../agent/projectMemory.ts";
+import { taskBoardBlock } from "../agent/taskBoard.ts";
 import { validateTransientWorkspaceRoot } from "./agent.ts";
 import { autoApproves, parsePermissionMode, runtimeApprovalAction, type PermissionMode } from "../agent/permissionMode.ts";
 import { discoverRuntime } from "../runtimes/discovery.ts";
@@ -643,9 +644,11 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
     const memory = body.taskId && !body.externalSessionId && body.sessionId
       ? projectMemoryBlock(getSession(body.sessionId), body.taskId)
       : "";
+    // A chat turn learns the project's cards and how to have Undagi run them.
+    const board = !body.taskId && body.sessionId ? taskBoardBlock(getSession(body.sessionId)) : "";
     const context: ConversationContext = body.taskId
       ? { prompt: memory ? `${memory}\n\n${request}` : request, included: 0, omitted: 0 }
-      : conversationPrompt(conversationId, body.runtime, body.externalSessionId ?? null, request);
+      : conversationPrompt(conversationId, body.runtime, body.externalSessionId ?? null, board ? `${board}\n\n${request}` : request);
     // The chat says so when a runtime is handed earlier messages: it gets
     // their text, not the tool results or the state of the other session.
     if (context.included > 0) {

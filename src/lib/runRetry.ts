@@ -12,6 +12,8 @@ export interface RunReport {
   errorCode: string | null;
   /** Facts the agent left for later tasks on MEMORY lines. */
   memory?: string[];
+  /** A chat turn whose agent asked Undagi to run the board (src/lib/boardRun.ts). */
+  runBoard?: boolean;
 }
 
 /** Retries after the first attempt, so a card gets at most MAX_RETRIES + 1 tries. */

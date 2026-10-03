@@ -350,6 +350,29 @@ test("a new task session starts with what earlier tasks left; a resumed one is n
   });
 });
 
+test("a chat turn is told the project's cards and how to run them; a task run is not", async () => {
+  const provider = new ProviderFixture(async function* () {
+    yield { type: "text", text: "ok", threadId: "thread_board", turnId: "turn_board", itemId: null };
+    yield { ...done, threadId: "thread_board", turnId: "turn_board" };
+  });
+  const { sessionId, taskId, workspaceRoot } = project();
+  saveSession({
+    id: sessionId,
+    title: sessionId,
+    workspaceRoot,
+    tasks: [{ id: taskId, title: "Fixture task", status: "todo" }],
+  });
+
+  await withServer(provider, async (url) => {
+    await chat(url, { sessionId, idempotencyKey: "board-chat" });
+    await chat(url, { sessionId, taskId, idempotencyKey: "board-task" });
+
+    const [plain, card] = provider.turns.map((turn) => turn.prompt);
+    assert.match(plain!, new RegExp(`<task_board>[\\s\\S]*- ${taskId} \\[todo\\] Fixture task[\\s\\S]*RUN_BOARD[\\s\\S]*</task_board>`));
+    assert.doesNotMatch(card!, /task_board/);
+  });
+});
+
 test("a run started from a task card is asked to report its status; a plain chat is not", async () => {
   const provider = new ProviderFixture(async function* () {
     yield { type: "text", text: "ok", threadId: "thread_card", turnId: "turn_card", itemId: null };

@@ -61,3 +61,10 @@ test("a task run's system prompt carries the project memory; a chat's does not",
   assert.match(forCard, /MEMORY: <fact>/);
   assert.doesNotMatch(systemPromptFor(session, settings, "en", {}), /project_memory/);
 });
+
+test("a chat's system prompt carries the task board; a task run's does not", () => {
+  const session = { id: "session-1", tasks: [{ id: "TASK-01", title: "Add login", status: "todo" }] };
+  assert.match(systemPromptFor(session, undefined, "en", {}), /<task_board>[\s\S]*- TASK-01 \[todo\] Add login[\s\S]*RUN_BOARD/);
+  assert.doesNotMatch(systemPromptFor(session, undefined, "en", { task: true }, "TASK-01"), /task_board/);
+  assert.doesNotMatch(systemPromptFor({ tasks: session.tasks }, undefined, "en", {}), /task_board/);
+});

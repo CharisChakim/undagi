@@ -1,6 +1,16 @@
 import type { AgentTask } from "../types";
 import { openDependencies } from "./taskDependencies";
 
+// The chat's agent ends its reply with this line to have Undagi run the board.
+// server/agent/taskBoard.ts asks for it; keep them in sync. Tolerates the
+// markdown a model likes to wrap around a line: backticks, bold, a bullet.
+const RUN_BOARD = /^[\s>*_`-]*run_board[\s*_`.]*$/i;
+
+/** Whether the agent's final message asks for a board run. */
+export function runBoardRequested(text: string): boolean {
+  return text.split("\n").some((line) => RUN_BOARD.test(line));
+}
+
 /**
  * The next card a board run takes: the first To do card, in board order, whose
  * dependencies are done. `finished` holds the cards this board run completed,

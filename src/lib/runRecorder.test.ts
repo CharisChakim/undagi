@@ -95,3 +95,24 @@ test("only the final message decides: a marker repeated while working does not",
   assert.equal(run.report(false).outcome, "done");
   assert.equal(run.report(false).note, "All tests pass.");
 });
+
+test("a chat turn that ends well with the board marker asks for a board run; a failed or stopped one does not", () => {
+  const asks = recorder();
+  asks.addText("Starting the board run.\nRUN_BOARD");
+  asks.done({ runStatus: "completed" });
+  assert.equal(asks.report(false).runBoard, true);
+  assert.equal(asks.report(true).runBoard, undefined);
+
+  const failed = recorder();
+  failed.addText("Starting the board run.\nRUN_BOARD");
+  failed.done({ runStatus: "failed" });
+  assert.equal(failed.report(false).runBoard, undefined);
+
+  // Only the final message counts, not words before a tool call.
+  const narrated = recorder();
+  narrated.addText("RUN_BOARD");
+  narrated.toolStarted();
+  narrated.addText("Here is the plan.");
+  narrated.done({ runStatus: "completed" });
+  assert.equal(narrated.report(false).runBoard, undefined);
+});

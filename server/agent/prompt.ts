@@ -1,6 +1,7 @@
 import { agentHarnessPrompt, type AgentHarnessOptions, type AgentHarnessSettings } from "./harness.ts";
 import type { Lang } from "../messages.ts";
 import { projectMemoryBlock } from "./projectMemory.ts";
+import { taskBoardBlock } from "./taskBoard.ts";
 
 // The scaffolding is English for every UI language; only the name of the start
 // screen card follows the UI, so the text points at the card the user sees.
@@ -25,8 +26,9 @@ export function systemPromptFor(
   const basePrompt = session?.id ? SYSTEM_PROMPT : standaloneSystemPrompt(lang);
   const harnessPrompt = harnessSettings ? agentHarnessPrompt(harnessSettings, harnessOptions) : "";
   // A task run sees only its own messages, so what earlier tasks left comes here.
-  const memory = harnessOptions.task ? projectMemoryBlock(session, taskId) : "";
-  const prompt = [basePrompt, harnessPrompt, memory].filter(Boolean).join("\n\n");
+  // A chat turn gets the board instead, and how to have Undagi run it.
+  const context = harnessOptions.task ? projectMemoryBlock(session, taskId) : session?.id ? taskBoardBlock(session) : "";
+  const prompt = [basePrompt, harnessPrompt, context].filter(Boolean).join("\n\n");
   if (!root) return prompt;
 
   return `${prompt}

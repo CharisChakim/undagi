@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AgentTask } from "../types";
-import { dependenciesSaved, idleBoardEnd, nextBoardTask } from "./boardRun";
+import { dependenciesSaved, idleBoardEnd, nextBoardTask, runBoardRequested } from "./boardRun";
 
 const card = (id: string, status: AgentTask["status"] = "todo", dependencies: string[] = []): AgentTask => ({
   id,
@@ -14,6 +14,14 @@ const card = (id: string, status: AgentTask["status"] = "todo", dependencies: st
   promptInstructions: "",
   verificationSteps: "",
   status,
+});
+
+test("the board marker counts only on a line of its own, markdown around it allowed", () => {
+  assert.ok(runBoardRequested("Starting the board run.\nRUN_BOARD"));
+  assert.ok(runBoardRequested("Starting.\n`RUN_BOARD`"));
+  assert.ok(runBoardRequested("Starting.\n**RUN_BOARD**\n"));
+  assert.ok(!runBoardRequested("I will not write RUN_BOARD here."));
+  assert.ok(!runBoardRequested("Done.\nTASK_STATUS: done"));
 });
 
 test("the next card is the first To do card, in board order, whose dependencies are done", () => {

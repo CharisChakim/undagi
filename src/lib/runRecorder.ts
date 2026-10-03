@@ -1,6 +1,7 @@
 import type { TFunction } from "./i18n";
 import type { RunReport } from "./runRetry";
 import { agentNoteFrom, memoryFactsFrom, runFailedAtDone, taskOutcomeFor } from "./taskOutcome";
+import { runBoardRequested } from "./boardRun";
 
 /**
  * Follows one run's stream and says, once it has ended, what it amounted to for
@@ -57,6 +58,8 @@ export class RunRecorder {
       memory: memoryFactsFrom(this.finalText),
       error: failure ? (this.error ?? this.t("The run ended with an error.")) : null,
       errorCode: failure ? this.errorCode : null,
+      // Only a chat turn that ended well can start the board.
+      ...(!stopped && !failed && runBoardRequested(this.finalText) ? { runBoard: true } : {}),
     };
   }
 }

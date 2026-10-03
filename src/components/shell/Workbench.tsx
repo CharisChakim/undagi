@@ -336,6 +336,15 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       setBoardState({ sessionId, running: false, end });
     }
   }, [onLayoutModeChange, onSelectStep, onUpdateSession]);
+  const runBoardRef = React.useRef(runBoard);
+  React.useEffect(() => { runBoardRef.current = runBoard; }, [runBoard]);
+
+  // A chat turn whose agent wrote the board marker starts the board run once it ends.
+  const sendFromChat = React.useCallback((text: string) => agentRun.send(text, {
+    onOutcome: (report) => {
+      if (report.runBoard) window.setTimeout(() => void runBoardRef.current(), 0);
+    },
+  }), [agentRun.send]);
 
   // Moving the card back to In progress hands it to the run again.
   const handleTaskMoved = React.useCallback((taskId: string, status: NonNullable<AgentTask["status"]>): void => {
@@ -369,7 +378,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
         // another run in the pause, and Stop ends it.
         busy={agentRun.busy || runningTaskId !== null}
         error={agentRun.error}
-        onSend={agentRun.send}
+        onSend={sendFromChat}
         onRetry={agentRun.retry}
         onDecideApproval={agentRun.decideApproval}
         onRespondQuestions={agentRun.respondQuestions}
