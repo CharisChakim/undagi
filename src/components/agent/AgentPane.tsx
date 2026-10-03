@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Bot, Check, ChevronDown, Circle, Clock3, Code2, FileText, Folder, GitBranch, History, Kanban, Laptop, ListChecks, PlugZap, Sparkles } from "lucide-react";
+import { AlertTriangle, Bot, Check, ChevronDown, Circle, Clock3, Code2, FileText, Folder, GitBranch, History, Kanban, Laptop, ListChecks, PlugZap } from "lucide-react";
 import type { PermissionMode, ProjectSession, RuntimeDiscoveryReport, RuntimePreference } from "../../types";
 import type { RuntimeChatSelection } from "../../lib/runtimeChat";
 import type { Entry } from "../../lib/agentEvents";
@@ -7,6 +7,7 @@ import { projectNameFromWorkspaceRoot } from "../../lib/workspace";
 import { useT } from "../../lib/i18n";
 import { clearDraft, loadDraft, saveDraft } from "../../lib/draftStore";
 import { Markdown } from "../lazy";
+import { LogoMark } from "../LogoMark";
 import { ApprovalCard } from "./ApprovalCard";
 import { Composer } from "./Composer";
 import { QuestionsCard } from "./QuestionsCard";
@@ -394,8 +395,9 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
           <div ref={composerRegion} className="mx-auto flex h-full min-h-64 max-w-3xl flex-col justify-center px-2 py-8">
             <div className="mb-1 max-w-2xl">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent-ink">
-                <Sparkles className="h-3 w-3" aria-hidden />
+                <LogoMark className="h-3.5 w-3.5" />
                 Undagi
+                <span className="font-medium opacity-70">· Build for builders</span>
               </div>
               <h2 className="text-2xl font-semibold tracking-[-0.03em] text-ink">{t("Turn an idea into executable work")}</h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">{t("Work with the coding agent, shape a plan, build a PRD, or organize tasks directly in Kanban.")}</p>
