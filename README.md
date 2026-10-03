@@ -22,7 +22,7 @@ Describe what you want to build, clarify the missing pieces, shape the architect
 | --- | --- |
 | Conversational intake | Start with an idea and let the Agent ask focused follow-up questions. |
 | Project planning | Generate an editable summary, audience, value proposition, features, tech stack, architecture, Mermaid diagrams, roadmap, and estimate. |
-| PRD generation | Turn the plan into a structured seven-point PRD, with optional extra sections and a Markdown view. |
+| PRD generation | Turn the plan into an MVP-first PRD: goals and success metrics, target users, scope with non-goals, requirements with acceptance criteria, risks, then the technical design (architecture, data model, tech stack), with a Markdown view. |
 | Task planning | Break the PRD into atomic coding tasks with target files, dependencies, instructions, and verification steps. |
 | Task execution | Run a task in the Agent panel, in a session of its own. The card moves to In progress when the run starts, to Done when it finishes (marked Verified when its verify command passed, Unverified when nothing checked it), to Blocked when the agent reports it needs something from you, and to Failed when the run or its check fails. |
 | Export | Download the plan, PRD, `AGENTS.md`, or a complete project bundle. |

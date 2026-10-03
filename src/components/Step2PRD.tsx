@@ -20,7 +20,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useT, TFunction } from "../lib/i18n";
-import { renderPrdMarkdown } from "../../shared/prdMarkdown";
+import { prdHeadings, prdSections, renderPrdMarkdown, TECHNICAL_SECTIONS, type PrdSectionKey } from "../../shared/prdMarkdown";
 import { generatePrd, generateTasks, isAbort, PipelineModelControl, usePipelineTarget } from "../lib/generate";
 import {
   attachPrdVersionToPrd,
@@ -50,17 +50,65 @@ const formatRequirementsToString = (reqs: any): string => {
     return reqs.map((r) => (typeof r === "string" ? r : r.title || r.description || JSON.stringify(r))).join("\n");
   }
   if (typeof reqs === "object") {
-    const fn = (reqs.functional || []).map((f: any) => `[Functional] ${f.title || f.description || f}`);
-    const nfn = (reqs.nonFunctional || []).map((nf: any) => `[Non-functional] ${nf.category ? `${nf.category}: ` : ""}${nf.description || nf}`);
+    // Acceptance criteria go along, indented, so an edit does not drop them.
+    const fn = (reqs.functional || []).flatMap((f: any) => {
+      if (typeof f === "string") return [`[Functional] ${f}`];
+      const head = [f.id, f.title || f.category].filter(Boolean).join(" ");
+      const story = f.userStory || f.description || "";
+      const line = `[Functional] ${[head, story].filter(Boolean).join(": ")}${f.priority ? ` (${f.priority})` : ""}`;
+      return [line, ...(Array.isArray(f.acceptanceCriteria) ? f.acceptanceCriteria : []).map((c: string) => `  - ${c}`)];
+    });
+    const nfn = (reqs.nonFunctional || []).map((nf: any) =>
+      typeof nf === "string"
+        ? `[Non-functional] ${nf}`
+        : `[Non-functional] ${nf.category ? `${nf.category}: ` : ""}${nf.specification || nf.description || ""}`
+    );
     return [...fn, ...nfn].join("\n");
   }
   return String(reqs);
 };
 
-const getRequirementsList = (reqs: any): string[] => {
-  const str = formatRequirementsToString(reqs);
-  return str.split("\n").filter((s) => s.trim().length > 0);
+// The other lists, one entry per line. A field the user already edited is text.
+const formatLines = (value: any, line: (entry: any) => string = String): string => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return value.map((entry) => (typeof entry === "string" ? entry : line(entry))).join("\n");
 };
+
+const formatGoal = (g: any): string => `${g.goal || ""} — ${g.metric || ""}: ${g.target || ""}`;
+const formatUser = (u: any): string => `${u.name || ""} — ${u.description || ""}`;
+const formatRisk = (r: any): string => `${r.risk || ""} — ${r.mitigation || ""}`;
+
+// Plain lists go back to lists on save; lines of a structured entry cannot be
+// split back reliably, so those stay text.
+const toLines = (text: string): string[] => text.split("\n").map((line) => line.trim()).filter(Boolean);
+
+type EditKey =
+  | "overview" | "goals" | "targetUsers" | "nonGoals" | "requirements" | "userFlow"
+  | "assumptions" | "risks" | "openQuestions" | "architecture" | "databaseSchema" | "techStack";
+
+const EDIT_FORMAT: Record<EditKey, (value: any) => string> = {
+  overview: (v) => v || "",
+  goals: (v) => formatLines(v, formatGoal),
+  targetUsers: (v) => formatLines(v, formatUser),
+  nonGoals: (v) => formatLines(v),
+  requirements: (v) => formatRequirementsToString(v),
+  userFlow: (v) => v || "",
+  assumptions: (v) => formatLines(v),
+  risks: (v) => formatLines(v, formatRisk),
+  openQuestions: (v) => formatLines(v),
+  architecture: (v) => v || "",
+  databaseSchema: (v) => formatDbSchemaToString(v),
+  techStack: (v) => formatTechStackToString(v),
+};
+
+const LIST_KEYS: ReadonlySet<EditKey> = new Set(["nonGoals", "assumptions", "openQuestions"]);
+
+const editableText = (prd: PRDData | undefined): Record<EditKey, string> =>
+  Object.fromEntries(
+    (Object.keys(EDIT_FORMAT) as EditKey[]).map((key) => [key, EDIT_FORMAT[key]((prd as any)?.[key])])
+  ) as Record<EditKey, string>;
 
 const getPhaseFeatures = (cf: any, phaseKey: string): string[] => {
   if (!cf) return [];
@@ -78,10 +126,12 @@ const formatDbSchemaToString = (schema: any): string => {
     return schema
       .map((entity: any) => {
         if (typeof entity === "string") return entity;
+        // The PRD prompt names an entity "entity" and a field note "description";
+        // older data used "name" and "constraints".
         const fields = (entity.fields || [])
-          .map((f: any) => `  - ${f.name} (${f.type}): ${f.constraints || ""}`)
+          .map((f: any) => `  - ${f.name} (${f.type}): ${f.description || f.constraints || ""}`)
           .join("\n");
-        return `Table: ${entity.name}\n${entity.description ? `Description: ${entity.description}\n` : ""}${fields}`;
+        return `Table: ${entity.entity || entity.name}\n${entity.description ? `Description: ${entity.description}\n` : ""}${fields}`;
       })
       .join("\n\n");
   }
@@ -99,8 +149,30 @@ const formatTechStackToString = (ts: any): string => {
   return String(ts);
 };
 
-// Ketujuh poin baku dan poin tambahan memakai kerangka kartu yang sama; hanya
-// nomor, judul, dan isinya yang berbeda.
+const listOf = (value: unknown): any[] => (Array.isArray(value) ? value : []);
+
+const BulletList: React.FC<{ items: React.ReactNode[] }> = ({ items }) => (
+  <ul className="space-y-1.5 text-muted">
+    {items.map((item, idx) => (
+      <li key={idx} className="flex gap-2.5">
+        <span className="text-faint shrink-0">&middot;</span>
+        <span className="min-w-0">{item}</span>
+      </li>
+    ))}
+  </ul>
+);
+
+// A section the user edited into text shows as they wrote it.
+const PlainText: React.FC<{ text: string }> = ({ text }) => (
+  <div className="text-muted leading-relaxed whitespace-pre-wrap">{text}</div>
+);
+
+const SubHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h5 className="text-xs font-semibold text-ink">{children}</h5>
+);
+
+// The standard sections and the extra ones share one card frame; only the
+// number, title, and content differ.
 const PrdSection: React.FC<{
   number: number;
   title: string;
@@ -130,20 +202,17 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedMd, setCopiedMd] = useState(false);
-  const [activeTab, setActiveTab] = useState<"7point" | "overview_edit" | "markdown">("7point");
+  const [activeTab, setActiveTab] = useState<"sections" | "overview_edit" | "markdown">("sections");
 
   const prd = session.prd;
+  const h = prdHeadings(lang);
+  const sections = prd ? prdSections(prd) : [];
   const extraSections = prd?.additionalSections || [];
   const currentVersion = currentPrdVersion(session.prdVersions);
   const tasksNeedingSync = (session.tasks || []).filter((task) => taskNeedsPrdSync(task, currentVersion)).length;
 
-  // Editable state for PRD Overview phase
-  const [editOverview, setEditOverview] = useState(prd?.overview || "");
-  const [editRequirements, setEditRequirements] = useState(formatRequirementsToString(prd?.requirements));
-  const [editUserFlow, setEditUserFlow] = useState(prd?.userFlow || "");
-  const [editArchitecture, setEditArchitecture] = useState(prd?.architecture || "");
-  const [editDatabaseSchema, setEditDatabaseSchema] = useState(formatDbSchemaToString(prd?.databaseSchema));
-  const [editTechStack, setEditTechStack] = useState(formatTechStackToString(prd?.techStack));
+  // Editable state for the review tab
+  const [edits, setEdits] = useState<Record<EditKey, string>>(() => editableText(prd));
   const [editExtraSections, setEditExtraSections] = useState<PRDExtraSection[]>(prd?.additionalSections || []);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [generatingTasks, setGeneratingTasks] = useState(false);
@@ -157,7 +226,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
     setEditExtraSections((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
 
   const addExtraSection = () =>
-    setEditExtraSections((prev) => [...prev, { number: 8 + prev.length, title: "", content: "" }]);
+    setEditExtraSections((prev) => [...prev, { number: sections.length + 1 + prev.length, title: "", content: "" }]);
 
   const removeExtraSection = (idx: number) =>
     setEditExtraSections((prev) => prev.filter((_, i) => i !== idx));
@@ -165,12 +234,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
   // Synchronize edit states when PRD is updated
   useEffect(() => {
     if (prd) {
-      setEditOverview(prd.overview || "");
-      setEditRequirements(formatRequirementsToString(prd.requirements));
-      setEditUserFlow(prd.userFlow || "");
-      setEditArchitecture(prd.architecture || "");
-      setEditDatabaseSchema(formatDbSchemaToString(prd.databaseSchema));
-      setEditTechStack(formatTechStackToString(prd.techStack));
+      setEdits(editableText(prd));
       setEditExtraSections(prd.additionalSections || []);
     }
   }, [prd]);
@@ -266,34 +330,22 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
     // Bidang terstruktur hanya diganti kalau teksnya benar-benar berubah. Kalau
     // tidak disentuh, data asli dari LLM dibiarkan utuh — sebelumnya struktur itu
     // selalu diruntuhkan jadi satu entri palsu meski pengguna tidak mengedit.
-    const keepOrReplace = <T,>(edited: string, original: T, serialized: string): T | string =>
-      edited.trim() === serialized.trim() ? original : edited;
-
-    const updatedPrd: PRDData = {
-      ...prd,
-      overview: editOverview,
-      userFlow: editUserFlow,
-      architecture: editArchitecture,
-      requirements: keepOrReplace(
-        editRequirements,
-        prd.requirements,
-        formatRequirementsToString(prd.requirements)
-      ),
-      databaseSchema: keepOrReplace(
-        editDatabaseSchema,
-        prd.databaseSchema,
-        formatDbSchemaToString(prd.databaseSchema)
-      ),
-      techStack: keepOrReplace(editTechStack, prd.techStack, formatTechStackToString(prd.techStack)),
-      // Poin kosong dibuang, sisanya dinomori ulang berurutan dari 8.
-      additionalSections: editExtraSections
-        .filter((s) => s.title.trim() !== "" || s.content.trim() !== "")
-        .map((s, idx) => ({
-          number: 8 + idx,
-          title: s.title.trim() || t("Additional point {n}", { n: 8 + idx }),
-          content: s.content,
-        })),
-    };
+    const updatedPrd: PRDData = { ...prd };
+    for (const key of Object.keys(EDIT_FORMAT) as EditKey[]) {
+      const original = (prd as any)[key];
+      const edited = edits[key];
+      if (edited.trim() === EDIT_FORMAT[key](original).trim()) continue;
+      (updatedPrd as any)[key] = LIST_KEYS.has(key) ? toLines(edited) : edited;
+    }
+    // Empty extra sections are dropped; the rest are numbered after the standard ones.
+    const first = prdSections(updatedPrd).length + 1;
+    updatedPrd.additionalSections = editExtraSections
+      .filter((s) => s.title.trim() !== "" || s.content.trim() !== "")
+      .map((s, idx) => ({
+        number: first + idx,
+        title: s.title.trim() || t("Additional point {n}", { n: first + idx }),
+        content: s.content,
+      }));
 
     // Ekspor .md membaca fullMarkdownText. Tanpa dibangun ulang, Download/Copy MD
     // akan mengekspor versi sebelum diedit.
@@ -330,6 +382,176 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
     setTimeout(() => setCopiedMd(false), 2000);
   };
 
+  const renderSection = (key: PrdSectionKey): React.ReactNode => {
+    if (!prd) return null;
+    switch (key) {
+      case "overview":
+        return <PlainText text={prd.overview || ""} />;
+      case "goals":
+        return typeof prd.goals === "string" ? <PlainText text={prd.goals} /> : (
+          <BulletList
+            items={listOf(prd.goals).map((g) => (typeof g === "string" ? g : (
+              <>
+                <span className="text-ink">{g.goal}</span>
+                {g.metric && <> — {h.metric}: {g.metric}</>}
+                {g.target && <> · {h.target}: {g.target}</>}
+              </>
+            )))}
+          />
+        );
+      case "users":
+        return typeof prd.targetUsers === "string" ? <PlainText text={prd.targetUsers} /> : (
+          <BulletList
+            items={listOf(prd.targetUsers).map((u) => (typeof u === "string" ? u : (
+              <><span className="text-ink">{u.name}</span>{u.description && <> — {u.description}</>}</>
+            )))}
+          />
+        );
+      case "scope": {
+        const nonGoals = prd.nonGoals;
+        return (
+          <>
+            <div className="grid grid-cols-1 @3xl/pane:grid-cols-3 gap-x-6 gap-y-5">
+              {(
+                [
+                  [t("Phase 1"), t("Core MVP"), "fase1"],
+                  [t("Phase 2"), t("Enrichment"), "fase2"],
+                  [t("Phase 3+"), t("Advanced"), "fase3Plus"],
+                ] as const
+              ).map(([label, caption, phase]) => (
+                <div key={phase} className="space-y-2">
+                  <div className="flex items-baseline gap-2 pb-2 border-b border-line">
+                    <span className="font-medium text-ink">{label}</span>
+                    <span className="text-xs text-faint">{caption}</span>
+                  </div>
+                  <BulletList items={getPhaseFeatures(prd.coreFeatures, phase)} />
+                </div>
+              ))}
+            </div>
+            {(typeof nonGoals === "string" ? nonGoals.trim() !== "" : listOf(nonGoals).length > 0) && (
+              <div className="space-y-2 pt-2">
+                <SubHeading>{h.outOfScope}</SubHeading>
+                {typeof nonGoals === "string" ? <PlainText text={nonGoals} /> : <BulletList items={listOf(nonGoals)} />}
+              </div>
+            )}
+          </>
+        );
+      }
+      case "requirements": {
+        if (typeof prd.requirements === "string") return <PlainText text={prd.requirements} />;
+        const functional = listOf(prd.requirements?.functional);
+        const nonFunctional = listOf(prd.requirements?.nonFunctional);
+        return (
+          <div className="space-y-5">
+            {functional.length > 0 && (
+              <div className="space-y-2">
+                <SubHeading>{h.functional}</SubHeading>
+                <ul className="space-y-4">
+                  {functional.map((f, idx) => (typeof f === "string" ? <li key={idx} className="text-muted">{f}</li> : (
+                    <li key={idx} className="space-y-1.5">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        {f.id && <span className="font-mono text-xs text-faint">{f.id}</span>}
+                        <span className="font-medium text-ink">{f.title || f.category}</span>
+                        {f.priority && <span className="rounded bg-subtle px-1.5 py-0.5 text-[11px] font-medium text-muted">{f.priority}</span>}
+                      </div>
+                      {(f.userStory || f.description) && <p className="text-muted leading-relaxed">{f.userStory || f.description}</p>}
+                      {listOf(f.acceptanceCriteria).length > 0 && (
+                        <div className="space-y-1 border-l border-line pl-3">
+                          <span className="text-xs text-faint">{h.acceptance}</span>
+                          <BulletList items={listOf(f.acceptanceCriteria)} />
+                        </div>
+                      )}
+                    </li>
+                  )))}
+                </ul>
+              </div>
+            )}
+            {nonFunctional.length > 0 && (
+              <div className="space-y-2">
+                <SubHeading>{h.nonFunctional}</SubHeading>
+                <BulletList
+                  items={nonFunctional.map((nf) => (typeof nf === "string" ? nf : (
+                    <><span className="text-ink">{nf.category}</span>: {nf.specification || nf.description}</>
+                  )))}
+                />
+              </div>
+            )}
+          </div>
+        );
+      }
+      case "userFlow":
+        return (
+          <>
+            <PlainText text={prd.userFlow || ""} />
+            {prd.logicFlowMermaid && (
+              <MermaidViewer
+                chart={prd.logicFlowMermaid}
+                explanation={prd.logicFlowExplanation}
+                title={t("User flow & logic diagram: {title}", { title: prd.projectTitle })}
+              />
+            )}
+          </>
+        );
+      case "risks": {
+        const blocks: Array<[string, unknown, (entry: any) => React.ReactNode]> = [
+          [h.assumptions, prd.assumptions, (a) => a],
+          [h.riskList, prd.risks, (r) => (
+            <><span className="text-ink">{r.risk}</span>{r.mitigation && <> — {h.mitigation}: {r.mitigation}</>}</>
+          )],
+          [h.openQuestions, prd.openQuestions, (q) => q],
+        ];
+        return (
+          <div className="space-y-4">
+            {blocks.map(([label, value, item]) => {
+              if (typeof value === "string") {
+                return value.trim() ? (
+                  <div key={label} className="space-y-2"><SubHeading>{label}</SubHeading><PlainText text={value} /></div>
+                ) : null;
+              }
+              const entries = listOf(value);
+              return entries.length > 0 ? (
+                <div key={label} className="space-y-2">
+                  <SubHeading>{label}</SubHeading>
+                  <BulletList items={entries.map((entry) => (typeof entry === "string" ? entry : item(entry)))} />
+                </div>
+              ) : null;
+            })}
+          </div>
+        );
+      }
+      case "architecture":
+        return <PlainText text={prd.architecture || ""} />;
+      case "dataModel":
+        return (
+          <div className="p-4 bg-code text-code-ink rounded-lg text-xs font-mono leading-relaxed whitespace-pre-wrap overflow-x-auto">
+            {formatDbSchemaToString(prd.databaseSchema)}
+          </div>
+        );
+      case "techStack":
+        return (
+          <div className="p-4 bg-accent-soft text-accent-ink rounded-lg font-medium whitespace-pre-wrap">
+            {formatTechStackToString(prd.techStack)}
+          </div>
+        );
+    }
+  };
+
+  const onePerLine = t("One per line.");
+  const editFields: Array<{ key: EditKey; label: string; hint?: string; rows: number; mono?: boolean }> = [
+    { key: "overview", label: h.overview, rows: 3 },
+    { key: "goals", label: h.goals, hint: t("One per line: goal — metric: target."), rows: 3 },
+    { key: "targetUsers", label: h.users, hint: t("One per line: who — what they need."), rows: 2 },
+    { key: "nonGoals", label: h.outOfScope, hint: onePerLine, rows: 3 },
+    { key: "requirements", label: h.requirements, hint: t("One requirement per line, its acceptance criteria indented below it."), rows: 8 },
+    { key: "userFlow", label: h.userFlow, rows: 3 },
+    { key: "assumptions", label: h.assumptions, hint: onePerLine, rows: 2 },
+    { key: "risks", label: h.riskList, hint: t("One per line: risk — mitigation."), rows: 3 },
+    { key: "openQuestions", label: h.openQuestions, hint: onePerLine, rows: 2 },
+    { key: "architecture", label: h.architecture, rows: 3, mono: true },
+    { key: "databaseSchema", label: h.dataModel, rows: 4, mono: true },
+    { key: "techStack", label: h.techStack, rows: 2 },
+  ];
+
   return (
     <div className="max-w-none space-y-6 pb-12">
       {/* Page heading */}
@@ -337,7 +559,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
         <h2 className="text-xl font-semibold tracking-tight text-ink">{t("Product Requirement Document")}</h2>
         <p className="text-muted mt-1.5 leading-relaxed">
           {t(
-            "Seven standard points — Overview, Requirements, Core Features, User Flow, Architecture, Database Schema, Tech Stack — plus extra points when the analysis calls for them. Review and edit before it is broken into tasks."
+            "What to build and why — goals, users, scope and non-goals, requirements with acceptance criteria, risks — then how, for the coding agent: architecture, data model, tech stack. Review and edit before it is broken into tasks."
           )}
         </p>
       </div>
@@ -363,10 +585,10 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
             <Sparkles className="w-6 h-6" />
           </div>
           <div className="mx-auto max-w-md space-y-1.5 text-center">
-            <h3 className="font-semibold text-ink text-base">{t("Generate the 7-point PRD automatically")}</h3>
+            <h3 className="font-semibold text-ink text-base">{t("Generate the PRD automatically")}</h3>
             <p className="text-muted leading-relaxed">
               {session.plan
-                ? t("The system pulls from the approved project plan and architecture to assemble the seven points.")
+                ? t("The system builds the PRD from the approved project plan, sized to the project, with Phase 1 as the MVP.")
                 : t("Build the PRD straight from the project description you entered.")}
             </p>
           </div>
@@ -393,7 +615,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                {t("Generate 7-point PRD")}
+                {t("Generate PRD")}
               </>
             )}
           </button>
@@ -459,8 +681,8 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
               {(
                 [
                   {
-                    id: "7point",
-                    label: t("{count}-point PRD", { count: 7 + extraSections.length }),
+                    id: "sections",
+                    label: t("PRD · {count} sections", { count: sections.length + extraSections.length }),
                     icon: ListOrdered,
                   },
                   { id: "overview_edit", label: t("Review & edit"), icon: Edit3 },
@@ -486,82 +708,27 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
             </button>
           </div>
 
-          {/* TAB 1: 7-POINT STRUCTURED PRD DISPLAY */}
-          {activeTab === "7point" && (
+          {/* TAB 1: STRUCTURED PRD DISPLAY */}
+          {activeTab === "sections" && (
             <div className="space-y-4">
-              <PrdSection t={t} number={1} title={t("Overview")}>
-                <p className="text-muted leading-relaxed">{prd.overview}</p>
-              </PrdSection>
-
-              <PrdSection t={t} number={2} title={t("Requirements (functional & non-functional)")}>
-                <ul className="space-y-1.5 text-muted">
-                  {getRequirementsList(prd.requirements).map((req, idx) => (
-                    <li key={idx} className="flex gap-2.5">
-                      <span className="text-faint shrink-0">&middot;</span>
-                      <span>{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </PrdSection>
-
-              <PrdSection t={t} number={3} title={t("Core features (phase 1, 2, 3+)")}>
-                <div className="grid grid-cols-1 @3xl/pane:grid-cols-3 gap-x-6 gap-y-5">
-                  {(
-                    [
-                      [t("Phase 1"), t("Core MVP"), "fase1"],
-                      [t("Phase 2"), t("Enrichment"), "fase2"],
-                      [t("Phase 3+"), t("Advanced"), "fase3Plus"],
-                    ] as const
-                  ).map(([label, caption, key]) => (
-                    <div key={key} className="space-y-2">
-                      <div className="flex items-baseline gap-2 pb-2 border-b border-line">
-                        <span className="font-medium text-ink">{label}</span>
-                        <span className="text-xs text-faint">{caption}</span>
-                      </div>
-                      <ul className="space-y-1.5 text-muted">
-                        {getPhaseFeatures(prd.coreFeatures, key).map((f, idx) => (
-                          <li key={idx} className="flex gap-2">
-                            <span className="text-faint shrink-0">&middot;</span>
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
+              {sections.map((key, idx) => (
+                <React.Fragment key={key}>
+                  {key === TECHNICAL_SECTIONS[0] && (
+                    <div className="flex items-center gap-3 pt-4">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-faint">{t("Technical design")}</span>
+                      <span className="text-xs text-faint">{t("How it will be built, for the coding agent.")}</span>
+                      <span className="h-px flex-1 bg-line" aria-hidden />
                     </div>
-                  ))}
-                </div>
-              </PrdSection>
+                  )}
+                  <PrdSection t={t} number={idx + 1} title={key === "userFlow" ? t("User flow & logic diagram") : h[key]}>
+                    {renderSection(key)}
+                  </PrdSection>
+                </React.Fragment>
+              ))}
 
-              <PrdSection t={t} number={4} title={t("User flow & logic diagram")}>
-                <p className="text-muted leading-relaxed">{prd.userFlow}</p>
-
-                {prd.logicFlowMermaid && (
-                  <MermaidViewer
-                    chart={prd.logicFlowMermaid}
-                    explanation={prd.logicFlowExplanation}
-                    title={t("User flow & logic diagram: {title}", { title: prd.projectTitle })}
-                  />
-                )}
-              </PrdSection>
-
-              <PrdSection t={t} number={5} title={t("Architecture")}>
-                <p className="text-muted leading-relaxed">{prd.architecture}</p>
-              </PrdSection>
-
-              <PrdSection t={t} number={6} title={t("Database schema")}>
-                <div className="p-4 bg-code text-code-ink rounded-lg text-xs font-mono leading-relaxed whitespace-pre-wrap overflow-x-auto">
-                  {formatDbSchemaToString(prd.databaseSchema)}
-                </div>
-              </PrdSection>
-
-              <PrdSection t={t} number={7} title={t("Tech stack")}>
-                <div className="p-4 bg-accent-soft text-accent-ink rounded-lg font-medium whitespace-pre-wrap">
-                  {formatTechStackToString(prd.techStack)}
-                </div>
-              </PrdSection>
-
-              {/* 8+. Poin tambahan yang dinilai perlu oleh AI setelah analisis */}
-              {extraSections.map((section) => (
-                <PrdSection t={t} key={section.number} number={section.number} title={section.title} isExtra>
+              {/* Extra sections the AI judged necessary after its analysis */}
+              {extraSections.map((section, idx) => (
+                <PrdSection t={t} key={`extra-${idx}`} number={sections.length + idx + 1} title={section.title} isExtra>
                   <div className="text-muted leading-relaxed whitespace-pre-wrap">{section.content}</div>
                 </PrdSection>
               ))}
@@ -590,73 +757,27 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="field-label">{t("1. Project overview")}</label>
-                  <textarea
-                    rows={3}
-                    value={editOverview}
-                    onChange={(e) => setEditOverview(e.target.value)}
-                    className="field resize-y"
-                  />
-                </div>
+                {editFields.map(({ key, label, hint, rows, mono }) => (
+                  <div key={key}>
+                    <label className="field-label" htmlFor={`prd-edit-${key}`}>{label}</label>
+                    {hint && <p className="-mt-0.5 mb-1 text-xs text-faint">{hint}</p>}
+                    <textarea
+                      id={`prd-edit-${key}`}
+                      rows={rows}
+                      value={edits[key]}
+                      onChange={(e) => setEdits((prev) => ({ ...prev, [key]: e.target.value }))}
+                      className={`field resize-y ${mono ? "font-mono text-xs" : ""}`}
+                    />
+                  </div>
+                ))}
 
-                <div>
-                  <label className="field-label">{t("2. Requirements (one per line)")}</label>
-                  <textarea
-                    rows={4}
-                    value={editRequirements}
-                    onChange={(e) => setEditRequirements(e.target.value)}
-                    className="field resize-y"
-                  />
-                </div>
-
-                <div>
-                  <label className="field-label">{t("4. User flow")}</label>
-                  <textarea
-                    rows={3}
-                    value={editUserFlow}
-                    onChange={(e) => setEditUserFlow(e.target.value)}
-                    className="field resize-y"
-                  />
-                </div>
-
-                <div>
-                  <label className="field-label">{t("5. Architecture")}</label>
-                  <textarea
-                    rows={3}
-                    value={editArchitecture}
-                    onChange={(e) => setEditArchitecture(e.target.value)}
-                    className="field resize-y font-mono text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="field-label">{t("6. Database schema")}</label>
-                  <textarea
-                    rows={4}
-                    value={editDatabaseSchema}
-                    onChange={(e) => setEditDatabaseSchema(e.target.value)}
-                    className="field resize-y font-mono text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="field-label">{t("7. Tech stack")}</label>
-                  <textarea
-                    rows={2}
-                    value={editTechStack}
-                    onChange={(e) => setEditTechStack(e.target.value)}
-                    className="field resize-y"
-                  />
-                </div>
-
-                {/* Poin 8+ : bisa diubah, dihapus, atau ditambah sendiri */}
+                {/* Extra sections: can be changed, deleted, or added by hand */}
                 <div className="pt-4 border-t border-line space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <span className="block text-xs font-medium text-muted">{t("Extra points (8 onwards)")}</span>
+                      <span className="block text-xs font-medium text-muted">{t("Extra points")}</span>
                       <p className="text-xs text-faint mt-0.5">
-                        {t("Points beyond the seven required ones. They are renumbered automatically on save.")}
+                        {t("Points beyond the standard sections. They are numbered after them on save.")}
                       </p>
                     </div>
                     <button type="button" onClick={addExtraSection} className="btn-outline text-xs">
@@ -674,7 +795,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
                       <div key={idx} className="p-3 bg-subtle rounded-lg space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="w-5 h-5 shrink-0 rounded-md bg-accent-soft text-accent-ink font-semibold text-[11px] grid place-items-center">
-                            {8 + idx}
+                            {sections.length + 1 + idx}
                           </span>
                           <input
                             type="text"

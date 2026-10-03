@@ -116,10 +116,12 @@ test("JSON key names stay the same in every schema", () => {
   ];
   const featureKeys = ["coreFeatures", "description", "priority", "subFeatures"];
   const prdKeys = [
-    "projectTitle", "overview", "requirements", "functional", "id", "category", "description", "acceptanceCriteria",
-    "nonFunctional", "specification", "coreFeatures", "phase1", "phase2", "phase3", "futurePhases", "userFlow",
-    "architecture", "databaseSchema", "entity", "fields", "name", "type", "techStack", "layer", "technology",
-    "rationale", "additionalSections", "number", "title", "content", "logicFlowMermaid", "logicFlowExplanation",
+    "projectTitle", "overview", "goals", "goal", "metric", "target", "targetUsers", "name", "description",
+    "nonGoals", "coreFeatures", "phase1", "phase2", "phase3", "futurePhases", "requirements", "functional", "id",
+    "title", "userStory", "priority", "acceptanceCriteria", "nonFunctional", "category", "specification", "userFlow",
+    "logicFlowMermaid", "logicFlowExplanation", "assumptions", "risks", "risk", "mitigation", "openQuestions",
+    "architecture", "databaseSchema", "entity", "fields", "type", "techStack", "layer", "technology", "rationale",
+    "additionalSections", "number", "content",
   ];
   const taskKeys = [
     "tasks", "id", "phase", "title", "priority", "targetFiles", "dependencies", "promptInstructions",
@@ -169,7 +171,8 @@ test("translated rules keep their constraints", () => {
   assert.match(prompts.planSystem, /\(2-4 words\)/);
   assert.match(prompts.resyncSystem, /ALREADY FINAL/);
   assert.ok(prompts.resyncSystem.includes(JSON.stringify(lockedFeatures, null, 2)));
-  assert.match(prompts.prdSystem, /7 MAIN POINTS/);
+  assert.match(prompts.prdSystem, /Write functional requirements for Phase 1 only/);
+  assert.match(prompts.prdSystem, /2 to 4 acceptance criteria/);
   assert.match(prompts.prdSystem, /"additionalSections": \[\]/);
   assert.match(prompts.prdSystem, /'graph LR' or 'flowchart LR'/);
   assert.match(prompts.tasksSystem, /initial status "todo"/);

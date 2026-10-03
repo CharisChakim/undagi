@@ -2,28 +2,39 @@ import { parseJsonFromLlm } from "../llm/json.ts";
 import type { Connection } from "../llm/types.ts";
 import type { Lang } from "../messages.ts";
 import { additionalPointTitle, EXAMPLE_VALUES_NOTE, languageDirective } from "./language.ts";
-import { renderPrdMarkdown } from "../../shared/prdMarkdown.ts";
+import { prdSections, renderPrdMarkdown } from "../../shared/prdMarkdown.ts";
 import { generateLlmText, type PipelineOptions } from "./llm.ts";
 
 export function buildPrdSystemPrompt(humanLang: Lang): string {
-  return `You are an experienced Technical Product Manager & Software Architect.
+  return `You are an experienced product manager who writes lean, MVP-first PRDs, working with a software architect on the technical part.
 ${languageDirective({ humanLang })}
-Your task is to produce a detailed, structured Product Requirement Document (PRD) that MUST cover the following 7 MAIN POINTS:
+Your task is to write a Product Requirements Document (PRD) with these sections:
 
-PRD - Project Requirements Document
-1. Overview
-2. Requirements (Functional Requirements & Non-Functional Requirements)
-3. Core Features (MUST be divided per phase: Phase 1, Phase 2, Phase 3, and Later Phases if any)
-4. User Flow
-5. Architecture (Including an explanation of the architecture)
-6. Database Schema
-7. Tech Stack
+Product part (what to build and why):
+1. Overview: the problem (who has it, how often, what it costs them today) and the proposed solution.
+2. Goals & success metrics: what the first release must achieve, each goal with a metric and a target.
+3. Target users: who uses it and what they need from it.
+4. Scope & release plan: features per phase (Phase 1 is the MVP) and an explicit out-of-scope list (non-goals).
+5. Requirements: functional requirements as user stories with acceptance criteria, and non-functional requirements.
+6. User flow: the main path through the app, with a diagram.
+7. Assumptions, risks & open questions.
 
-ADDITIONAL POINTS (OPTIONAL, BEYOND THE 7 MANDATORY POINTS):
-- The seven points above are a minimum floor, not a ceiling.
-- If, after analyzing this project, you judge there is an important aspect not covered by those 7 points, ADD it as point 8, 9, and so on through the "additionalSections" field.
-- Examples of additional points that are often relevant: Third-Party Integrations, Data Migration Strategy, Observability & Monitoring, Compliance & Regulation, Testing Plan, Deployment & Rollback Strategy, User Permission/Role Model.
-- Only add points the project truly needs. Do not add points just to make the document look complete. If the 7 points are sufficient, return "additionalSections": [].
+Technical part (how to build it, read by the coding agent):
+8. Architecture
+9. Data model
+10. Tech stack
+
+Size and scope rules:
+- Scale the document to the project. A personal tool, a research prototype or a small internal app gets a short PRD; only a large multi-team product needs a long one. Never pad a section to look complete.
+- Phase 1 is the smallest release that is useful on its own. Write functional requirements for Phase 1 only; later phases stay one line per feature in "coreFeatures" and get their requirements when they are planned.
+- One functional requirement per user-visible capability, usually 4 to 10. Each has 2 to 4 acceptance criteria that a test or a person can check.
+- "nonGoals" names what this release deliberately does not do, so nobody builds it by accident. Usually 3 to 8 items.
+- Goals: 1 to 4. Target users: 1 to 3. Non-functional requirements: only those that constrain the build, usually 2 to 6. Assumptions and risks: the 2 to 5 that matter most each. Open questions: only real unknowns the user must decide; leave the list empty when there are none.
+- The data model holds only the entities Phase 1 needs, with a short description per field.
+- Write requirements, metrics and criteria for this project; avoid generic filler such as "the app must be user-friendly".
+
+Extra sections (optional):
+- Add a section through "additionalSections" only for something this project truly needs that the sections above do not cover, such as Third-Party Integrations, Data Migration, Compliance & Regulation, or a Permission/Role Model. At most 3. Usually none: return "additionalSections": [].
 
 Special rules for the Mermaid.js Logic Diagram:
 - Use a HORIZONTAL DIAGRAM with 'graph LR' or 'flowchart LR' syntax (left to right).
@@ -33,56 +44,56 @@ Special rules for the Mermaid.js Logic Diagram:
 Return the response EXACTLY in the following JSON format. ${EXAMPLE_VALUES_NOTE}
 {
   "projectTitle": "Project Title",
-  "overview": "General explanation of the background, vision, and main goals of the project...",
+  "overview": "Shop owners lose track of stock because they count it on paper once a week... The app lets them...",
+  "goals": [
+    { "goal": "The owner knows what to reorder", "metric": "Low-stock items noticed before they run out", "target": "9 out of 10 within the first month" }
+  ],
+  "targetUsers": [
+    { "name": "Shop owner", "description": "Runs one small shop alone and records stock on a phone between customers." }
+  ],
+  "nonGoals": ["Online payments", "More than one shop per account"],
+  "coreFeatures": {
+    "phase1": ["MVP feature 1", "MVP feature 2"],
+    "phase2": ["Next feature"],
+    "phase3": [],
+    "futurePhases": []
+  },
   "requirements": {
     "functional": [
       {
         "id": "FR-01",
-        "category": "Authentication",
-        "description": "Users can log in using OAuth or email",
-        "acceptanceCriteria": ["Active email validation", "Redirect to Dashboard"]
+        "title": "Record a delivery",
+        "userStory": "As a shop owner, I want to record a delivery in a few taps so that the stock count stays right.",
+        "priority": "Must", // "Must", "Should", or "Could"
+        "acceptanceCriteria": ["Saving a delivery of 10 units raises the item's stock by 10", "A quantity of zero or less is rejected with a message"]
       }
     ],
     "nonFunctional": [
-      {
-        "category": "Performance",
-        "specification": "API response time < 300ms for 95% of requests"
-      }
+      { "category": "Performance", "specification": "The stock list opens in under 2 seconds with 1,000 items" }
     ]
   },
-  "coreFeatures": {
-    "phase1": ["MVP Feature 1", "MVP Feature 2"],
-    "phase2": ["Advanced Feature 1", "Advanced Feature 2"],
-    "phase3": ["Integration & Analytics Features"],
-    "futurePhases": ["Mobile App", "Multi-language Support"]
-  },
-  "userFlow": "User interaction steps from Landing Page -> Auth -> Dashboard -> Main -> Output...",
-  "architecture": "Explanation of the client-server architecture structure, API proxy, and state management...",
+  "userFlow": "Main path: open the app -> ... -> ...",
+  "logicFlowMermaid": "graph LR\\n  A[Owner] -->|1. Open app| B[Stock list]\\n  B -->|2. Record delivery| C[Delivery form]\\n  C -->|3. Save| B",
+  "logicFlowExplanation": "Explanation of the horizontal diagram flow from left to right...",
+  "assumptions": ["The owner has a phone with a browser"],
+  "risks": [{ "risk": "Counts drift when sales are not recorded", "mitigation": "A weekly stock check screen" }],
+  "openQuestions": [],
+  "architecture": "Explanation of the architecture for Phase 1: parts, how they talk, where data lives...",
   "databaseSchema": [
     {
-      "entity": "Users",
+      "entity": "Products",
       "fields": [
         { "name": "id", "type": "UUID", "description": "Primary key" },
-        { "name": "email", "type": "VARCHAR(255)", "description": "Unique user email" }
+        { "name": "stock", "type": "INTEGER", "description": "Units on hand" }
       ]
     }
   ],
   "techStack": [
-    {
-      "layer": "Frontend",
-      "technology": "React + Vite + Tailwind CSS",
-      "rationale": "Fast, modern, and responsive UI"
-    }
+    { "layer": "Frontend", "technology": "React + Vite", "rationale": "Short reason for this project" }
   ],
   "additionalSections": [
-    {
-      "number": 8,
-      "title": "Third-Party Integrations",
-      "content": "Content of the additional point in text/markdown. Leave this array empty if the 7 points are sufficient."
-    }
-  ],
-  "logicFlowMermaid": "graph LR\\n  A[User] -->|1. Open App| B[Landing Page]\\n  B -->|2. Enter Idea| C[Plan Generator]\\n  C -->|3. Confirm| D[PRD & Diagram Review]\\n  D -->|4. Build| E[AI Agent Tasks]",
-  "logicFlowExplanation": "Explanation of the horizontal diagram flow from left to right..."
+    { "number": 11, "title": "Third-Party Integrations", "content": "Content in text/markdown. Leave this array empty unless the project truly needs it." }
+  ]
 }`;
 }
 
@@ -91,12 +102,15 @@ export function buildPrdPrompt(title: string, plan: any, description = ""): stri
 Title: ${title}
 Description / product brief: ${description || "Not available yet"}
 Plan Summary: ${plan?.summary || ""}
+Target Users: ${plan?.specs?.targetAudience || ""}
+Value Proposition: ${plan?.specs?.keyValueProposition || ""}
 Core Features: ${JSON.stringify(plan?.specs?.coreFeatures || [])}
 Tech Stack: ${JSON.stringify(plan?.specs?.techStack || [])}
 Architecture: ${JSON.stringify(plan?.architectureDraft || {})}
+Known Risks: ${JSON.stringify(plan?.estimation?.potentialRisks || [])}
 
-Compose a PRD document that MUST fully cover the 7 standard points, along with a horizontal diagram (graph LR), in the requested JSON format.
-After composing the 7 mandatory points, assess whether this project needs additional points (8, 9, etc.). Add them through "additionalSections" only if truly necessary. Do not write the document a second time as Markdown: the JSON fields are the whole answer.`;
+Write the PRD with every section, sized to this project, along with a horizontal diagram (graph LR), in the requested JSON format.
+Phase 1 is the MVP: only it gets functional requirements. Add "additionalSections" only if truly necessary. Do not write the document a second time as Markdown: the JSON fields are the whole answer.`;
 }
 
 export async function generatePrd(
@@ -124,12 +138,13 @@ export async function generatePrd(
   data.nonFunctionalRequirements = data.nonFunctionalRequirements || data.requirements?.nonFunctional || [];
   data.dataSchema = data.dataSchema || data.databaseSchema || [];
 
-  // Poin tambahan: buang yang kosong dan beri nomor urut lanjutan dari 7.
+  // Extra sections: drop empty ones and number them on from the standard sections.
+  const first = prdSections(data).length + 1;
   data.additionalSections = (Array.isArray(data.additionalSections) ? data.additionalSections : [])
     .filter((s: any) => s && (s.title || s.content))
     .map((s: any, idx: number) => ({
-      number: Number(s.number) > 7 ? Number(s.number) : 8 + idx,
-      title: s.title || additionalPointTitle(lang, 8 + idx),
+      number: first + idx,
+      title: s.title || additionalPointTitle(lang, first + idx),
       content: typeof s.content === "string" ? s.content : String(s.content ?? ""),
     }));
 

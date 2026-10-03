@@ -275,7 +275,7 @@ export interface PRDSectionCoreFeatures {
   futurePhases?: string[];
 }
 
-// Poin PRD di luar 7 poin wajib, ditambahkan LLM bila analisis menuntutnya.
+// A PRD section beyond the standard ones, added when the analysis calls for it.
 export interface PRDExtraSection {
   number: number;
   title: string;
@@ -294,24 +294,69 @@ export interface PRDArtifactVersion {
   status: PRDArtifactVersionStatus;
 }
 
-// Poin 2, 6, dan 7 bisa berupa data terstruktur dari LLM ATAU teks bebas setelah
-// pengguna mengeditnya di tab "Overview & Edit". Formatter di Step2PRD dan prompt
-// Step 3 sudah menerima kedua bentuk; tipe ini membuatnya eksplisit.
-export interface PRDRequirements {
-  functional: FunctionalRequirement[];
-  nonFunctional: NonFunctionalRequirement[];
+// Structured lists the PRD prompt asks for. Each can also be plain text once the
+// user edits it on the "Review & edit" tab; the Markdown writer and the task
+// prompt accept both shapes.
+export interface PRDRequirement {
+  id: string;
+  title?: string;
+  userStory?: string;
+  priority?: string; // "Must" | "Should" | "Could"
+  acceptanceCriteria?: string[];
+  // Written by PRDs from before user stories.
+  category?: string;
+  description?: string;
 }
 
+export interface PRDNonFunctionalRequirement {
+  category: string;
+  specification: string;
+}
+
+export interface PRDRequirements {
+  functional: PRDRequirement[];
+  nonFunctional: PRDNonFunctionalRequirement[];
+}
+
+export interface PRDGoal {
+  goal: string;
+  metric: string;
+  target: string;
+}
+
+export interface PRDTargetUser {
+  name: string;
+  description: string;
+}
+
+export interface PRDRisk {
+  risk: string;
+  mitigation: string;
+}
+
+export interface PRDEntity {
+  entity: string;
+  fields: { name: string; type: string; description?: string }[];
+}
+
+// Goals, users, non-goals, assumptions, risks and open questions are missing
+// from PRDs made before they were part of it.
 export interface PRDData {
   projectTitle: string;
-  overview: string; // Point 1
-  requirements: PRDRequirements | string; // Point 2
-  coreFeatures: PRDSectionCoreFeatures; // Point 3
-  userFlow: string; // Point 4
-  architecture: string; // Point 5
-  databaseSchema: DataEntity[] | string; // Point 6
-  techStack: TechStackSpec[] | string; // Point 7
-  additionalSections?: PRDExtraSection[]; // Point 8+, opsional
+  overview: string;
+  goals?: PRDGoal[] | string;
+  targetUsers?: PRDTargetUser[] | string;
+  coreFeatures: PRDSectionCoreFeatures; // Release plan per phase
+  nonGoals?: string[] | string;
+  requirements: PRDRequirements | string;
+  userFlow: string;
+  assumptions?: string[] | string;
+  risks?: PRDRisk[] | string;
+  openQuestions?: string[] | string;
+  architecture: string;
+  databaseSchema: PRDEntity[] | DataEntity[] | string;
+  techStack: TechStackSpec[] | string;
+  additionalSections?: PRDExtraSection[];
 
   // Legacy / extra fields for compatibility
   artifactVersionId?: string;

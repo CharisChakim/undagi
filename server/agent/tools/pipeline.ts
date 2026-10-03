@@ -137,7 +137,7 @@ const getPrd: ToolSpec = {
   def: {
     name: "get_prd",
     description:
-      "Read the full PRD with its seven mandatory points: overview, requirements, core features per phase, user flow, architecture, database schema, tech stack, and additional points if any. The requirements, database schema, and tech stack values are kept exactly as they are, including when they are already text edited by the user.",
+      "Read the full PRD: overview, goals and success metrics, target users, scope per phase with non-goals, requirements with acceptance criteria, user flow, assumptions, risks and open questions, then the technical part (architecture, database schema, tech stack), and additional sections if any. PRDs made before goals, users, non-goals and risks existed return them empty. Every value is kept exactly as it is, including when the user already edited it into text.",
     parameters: { type: "object", properties: {}, required: [] },
   },
   available: () => true,
@@ -150,12 +150,18 @@ const getPrd: ToolSpec = {
     return {
       projectTitle: prd.projectTitle || titleFor(found.session, languageFor(ctx)),
       overview: prd.overview || prd.executiveSummary || "",
+      goals: prd.goals ?? [],
+      targetUsers: prd.targetUsers ?? [],
+      coreFeatures: prd.coreFeatures || {},
+      nonGoals: prd.nonGoals ?? [],
       requirements: prd.requirements ?? {
         functional: prd.functionalRequirements || [],
         nonFunctional: prd.nonFunctionalRequirements || [],
       },
-      coreFeatures: prd.coreFeatures || {},
       userFlow: prd.userFlow || "",
+      assumptions: prd.assumptions ?? [],
+      risks: prd.risks ?? [],
+      openQuestions: prd.openQuestions ?? [],
       architecture: prd.architecture || "",
       databaseSchema: prd.databaseSchema ?? prd.dataSchema ?? [],
       techStack: prd.techStack ?? [],
