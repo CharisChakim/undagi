@@ -264,6 +264,13 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
 
       {errorMessage && <div className="max-w-3xl p-4 bg-danger-soft border border-danger/30 text-danger-ink rounded-xl text-sm">{errorMessage}</div>}
 
+      <GenerationProgress
+        active={loadingQuestions || loadingPlan}
+        label={loadingPlan ? t("Drafting the architecture & diagram...") : subView === "clarify" ? t("Reviewing your answers...") : t("Analysing your idea...")}
+        chars={generationChars}
+        onCancel={() => generationAbort.current?.abort()}
+      />
+
       {subView === "form" && (
         <div className="grid grid-cols-1 @5xl/pane:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4 items-start max-w-none">
           <form onSubmit={handleAnalyzeQuestions} className="card p-6 space-y-5">
@@ -300,7 +307,6 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
           </form>
 
           <aside className="space-y-4">
-            <GenerationProgress active={loadingQuestions || loadingPlan} label={loadingPlan ? t("Drafting the architecture & diagram...") : t("Analysing your idea...")} chars={generationChars} onCancel={() => generationAbort.current?.abort()} />
             <div className="card p-5 space-y-3">
               <h3 className={sectionTitle}><Wand2 className="w-4 h-4 text-faint" /> {t("What makes a good description")}</h3>
               <ul className="space-y-2 text-xs text-muted leading-relaxed">
@@ -348,7 +354,6 @@ export const PlanIntake: React.FC<PlanIntakeProps> = ({
           </div>
 
           <aside className="space-y-4">
-            <GenerationProgress active={loadingQuestions || loadingPlan} label={loadingPlan ? t("Drafting the architecture & diagram...") : t("Reviewing your answers...")} chars={generationChars} onCancel={() => generationAbort.current?.abort()} />
             <div className="card p-5 space-y-3"><div className="flex items-start justify-between gap-2"><h3 className={sectionTitle}><Edit3 className="w-4 h-4 text-faint" /> {t("Your project")}</h3><button type="button" onClick={() => setSubView("form")} className="btn-ghost !py-1 !px-2 text-xs shrink-0">{t("Fill in manually")}</button></div><div><p className="text-xs font-medium text-faint mb-0.5">{t("Project title")}</p><p className="text-xs text-ink">{title || t("Untitled project")}</p></div><div><p className="text-xs font-medium text-faint mb-0.5">{t("Detailed project description")}</p><p className="text-xs text-muted leading-relaxed max-h-40 overflow-y-auto">{description}</p></div>{targetAudience && <div><p className="text-xs font-medium text-faint mb-0.5">{t("Target users")}</p><p className="text-xs text-muted">{targetAudience}</p></div>}{techStackPreference && <div><p className="text-xs font-medium text-faint mb-0.5">{t("Preferred tech stack")}</p><p className="text-xs text-muted">{techStackPreference}</p></div>}</div>
             <div className="card p-5 space-y-2"><h3 className={sectionTitle}><HelpCircle className="w-4 h-4 text-faint" /> {t("What happens next")}</h3><p className="text-xs text-muted leading-relaxed">{t("Answer what you can, then generate the plan. If the AI still has gaps it will say so above, and one more round costs you nothing but a minute.")}</p></div>
           </aside>

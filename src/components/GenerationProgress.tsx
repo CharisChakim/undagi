@@ -22,12 +22,16 @@ export const GenerationProgress: React.FC<GenerationProgressProps> = ({ active, 
   const { t, lang } = useT();
   const [elapsed, setElapsed] = useState(0);
   const startedAt = useRef(0);
+  const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!active) {
       setElapsed(0);
       return;
     }
+    // It sits under the page heading in every step; a step started from a button
+    // further down still shows it.
+    card.current?.scrollIntoView({ block: "nearest" });
     startedAt.current = Date.now();
     setElapsed(0);
     const timer = window.setInterval(() => setElapsed(Date.now() - startedAt.current), 200);
@@ -43,7 +47,7 @@ export const GenerationProgress: React.FC<GenerationProgressProps> = ({ active, 
       : t("The model is thinking before it writes. At a high effort level this can take a few minutes.");
 
   return (
-    <div className="card flex flex-wrap items-center gap-3 px-3 py-2.5" role="status" aria-live="polite">
+    <div ref={card} className="card flex flex-wrap items-center gap-3 px-3 py-2.5" role="status" aria-live="polite">
       <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-accent-ink" aria-hidden />
       <span className="min-w-0 flex-1 text-sm text-ink">{label}</span>
       <span className="shrink-0 text-xs tabular-nums text-faint">

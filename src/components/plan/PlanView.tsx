@@ -181,6 +181,12 @@ export const PlanView: React.FC<PlanViewProps> = ({
         chars={generationChars}
         onCancel={() => prdAbort.current?.abort()}
       />
+      <GenerationProgress
+        active={resyncing}
+        label={t("Re-syncing the plan...")}
+        chars={generationChars}
+        onCancel={() => resyncAbort.current?.abort()}
+      />
 
       <div className="space-y-4 animate-in fade-in duration-300">
         <div className="card p-5 flex flex-wrap items-start justify-between gap-5">
@@ -200,13 +206,6 @@ export const PlanView: React.FC<PlanViewProps> = ({
           <div className="flex items-start gap-3 min-w-0"><AlertTriangle className="w-4 h-4 text-warn shrink-0 mt-0.5" /><div className="text-warn-ink leading-relaxed"><strong className="font-semibold block mb-0.5">{t("Features changed; the rest has not caught up.")}</strong>{t("The architecture, diagram, roadmap and estimate still describe the version before your edit. Re-sync so the PRD does not inherit parts that no longer apply.")}</div></div>
           <button type="button" onClick={() => void handleResyncPlan()} disabled={resyncing} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-warn text-warn-fg text-sm font-medium hover:brightness-110 transition-[filter,opacity] disabled:opacity-50 shrink-0"><RefreshCw className={`w-4 h-4 ${resyncing ? "animate-spin" : ""}`} />{resyncing ? t("Re-syncing...") : t("Re-sync")}</button>
         </div>}
-
-        <GenerationProgress
-          active={resyncing}
-          label={t("Re-syncing the plan...")}
-          chars={generationChars}
-          onCancel={() => resyncAbort.current?.abort()}
-        />
 
         <div className="space-y-2.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
