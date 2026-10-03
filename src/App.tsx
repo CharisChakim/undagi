@@ -8,7 +8,9 @@ import {
   loadSidebarCollapsed,
   saveSidebarCollapsed,
 } from "./lib/localStorage";
-import { fetchSessionList, fetchSession, persistSession, removeSession } from "./lib/sessionStore";
+import { fetchSessionList, fetchSession, persistSession, removeChat, removeSession } from "./lib/sessionStore";
+import { loadConversationId, newConversationId, saveConversationId } from "./lib/activeChat";
+import { projectForFolder } from "./lib/workspaceProject";
 import { Accent, Theme, applyAccent, loadAccent, loadTheme, saveAccent, saveTheme, applyTheme } from "./lib/theme";
 import { Language, loadLanguage, saveLanguage, makeT, LanguageProvider } from "./lib/i18n";
 import { AGENT_PATH, STEP_PATHS, pathToStep, isStepReachable, Step } from "./lib/routing";
@@ -31,6 +33,8 @@ import { AgentSettingsModal } from "./components/AgentSettingsModal";
 export default function App() {
   const [session, setSession] = useState<ProjectSession | null>(null);
   const [historySessions, setHistorySessions] = useState<SessionSummary[]>([]);
+  // Bumped when another chat of the open project is picked, so the chat pane reloads.
+  const [chatKey, setChatKey] = useState(0);
   const [storeError, setStoreError] = useState<string | null>(null);
 
   const [isConnectionsModalOpen, setIsConnectionsModalOpen] = useState(false);
@@ -249,13 +253,59 @@ export default function App() {
     handleSelectStep(step);
   };
 
+  // Opens one chat of a project. Several chats share a folder's project, so
+  // the chat is picked first and the chat pane reloads on chatKey.
+  const handleOpenChat = async (projectId: string, conversationId: string) => {
+    saveConversationId(projectId, conversationId);
+    if (session?.id !== projectId) await handleSelectHistorySession(projectId);
+    setChatKey((key) => key + 1);
+  };
+
+  const handleNewChatInFolder = async (projectId: string) => {
+    await handleOpenChat(projectId, newConversationId());
+    handleLayoutModeChange("agent");
+  };
+
+  const handleDeleteChat = async (projectId: string, conversationId: string) => {
+    try {
+      await removeChat(conversationId);
+      if (session?.id === projectId && loadConversationId(projectId) === conversationId) {
+        saveConversationId(projectId, newConversationId());
+        setChatKey((key) => key + 1);
+      }
+      await refreshHistory();
+    } catch (err: any) {
+      setStoreError(err.message || t("Failed to delete the chat."));
+    }
+  };
+
+  // A new chat stays in the folder it was started from: it shares that folder's
+  // plan, PRD, board and memory. Without a folder it starts a project of its own.
   const handleNewProject = () => {
     if (!session) return;
+    const owner = session.workspaceRoot ? projectForFolder(historySessions, session.workspaceRoot) : null;
+    if (owner) {
+      void handleOpenChat(owner.id, newConversationId());
+      return;
+    }
     applySession(createEmptySession(session.llmConfig), false);
   };
 
   const handleWorkspaceSelected = async (workspaceRoot: string) => {
     if (!session) return;
+    // The folder already has a project: the chat joins it instead of starting a
+    // second one there. A chat with a plan or tasks of its own keeps them, as
+    // its own project, unless the user says to open the folder's one.
+    const owner = projectForFolder(historySessions, workspaceRoot, session.id);
+    if (owner) {
+      const ownWork = Boolean(session.plan || session.prd || session.tasks?.length);
+      if (ownWork && !window.confirm(t("This folder already has a project with its own plan and board. Open it in a new chat? This chat keeps its own plan and stays where it is."))) return;
+      // A chat that is not saved as a project yet carries its messages into the folder's project.
+      const current = loadConversationId(session.id);
+      const saved = historySessions.some((item) => item.id === session.id);
+      await handleOpenChat(owner.id, !ownWork && !saved && current ? current : newConversationId());
+      return;
+    }
     const inferredName = projectNameFromWorkspaceRoot(workspaceRoot);
     const existingName = session.input.title.trim() || session.title.trim();
     const projectName = existingName || inferredName;
@@ -338,6 +388,10 @@ export default function App() {
         onSelectHistorySession={handleSelectHistorySession}
         onOpenChatStep={handleOpenChatStep}
         onDeleteHistory={handleDeleteHistory}
+        activeChatId={loadConversationId(session.id)}
+        onOpenChat={handleOpenChat}
+        onNewChatInFolder={handleNewChatInFolder}
+        onDeleteChat={handleDeleteChat}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         collapsed={isSidebarCollapsed}
@@ -386,6 +440,8 @@ export default function App() {
           onRatioCommit={handleRatioCommit}
           onOpenConnections={() => { setConnectionsInitialTab("connections"); setIsConnectionsModalOpen(true); }}
           harnessSettings={agentHarnessSettings}
+          chatKey={chatKey}
+          onChatTurnEnded={refreshHistory}
         />
       </div>
 

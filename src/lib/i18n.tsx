@@ -750,6 +750,12 @@ const ID: Record<string, string> = {
   "Stopped at {id}: the agent marked it blocked.": "Berhenti di {id}: agent menandainya blocked.",
   "Stopped at {id}: it failed.": "Berhenti di {id}: task gagal.",
   "Stopped: {id} was moved by hand.": "Berhenti: {id} dipindahkan manual.",
+  "New chat in this folder": "Chat baru di folder ini",
+  "Remove project from history": "Hapus proyek dari riwayat",
+  "Remove this folder's project from history? Its plan, PRD, board, memory and chats are deleted; the files in the folder stay.": "Hapus proyek folder ini dari riwayat? Plan, PRD, board, memori, dan semua chat-nya ikut terhapus; file di folder tetap ada.",
+  "Delete this chat": "Hapus chat ini",
+  "Failed to delete the chat.": "Gagal menghapus chat.",
+  "This folder already has a project with its own plan and board. Open it in a new chat? This chat keeps its own plan and stays where it is.": "Folder ini sudah punya proyek dengan plan dan board sendiri. Buka proyek itu di chat baru? Chat ini tetap menyimpan plan-nya sendiri dan tetap di tempatnya.",
 };
 
 type Vars = Record<string, string | number>;

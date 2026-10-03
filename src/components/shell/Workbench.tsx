@@ -51,6 +51,10 @@ export interface WorkbenchProps {
   onRatioCommit: (ratio: number) => void;
   onOpenConnections?: () => void;
   harnessSettings: AgentHarnessSettings;
+  /** Changes when another chat of the project is opened. */
+  chatKey?: number;
+  /** A chat turn ended; the chat list may have a new or renamed chat. */
+  onChatTurnEnded?: () => void;
 }
 
 const stepLabel = (step: Step, t: ReturnType<typeof useT>["t"]): string => {
@@ -74,6 +78,8 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   onRatioCommit,
   onOpenConnections,
   harnessSettings,
+  chatKey = 0,
+  onChatTurnEnded,
 }) => {
   const { t } = useT();
   const inProgressTasks = (session.tasks ?? []).filter((task) => task.status === "in_progress").length;
@@ -143,6 +149,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     runtimeSelection,
     harnessSettings,
     permissionMode,
+    chatKey,
   });
   // A retry can start minutes after the click; it sends with the runtime, permission
   // mode, settings and language chosen by then, not the ones the click saw.
@@ -348,9 +355,10 @@ export const Workbench: React.FC<WorkbenchProps> = ({
   // A chat turn whose agent wrote the board marker starts the board run once it ends.
   const sendFromChat = React.useCallback((text: string) => agentRun.send(text, {
     onOutcome: (report) => {
+      onChatTurnEnded?.();
       if (report.runBoard) window.setTimeout(() => void runBoardRef.current(), 0);
     },
-  }), [agentRun.send]);
+  }), [agentRun.send, onChatTurnEnded]);
 
   // Moving the card back to In progress hands it to the run again.
   const handleTaskMoved = React.useCallback((taskId: string, status: NonNullable<AgentTask["status"]>): void => {

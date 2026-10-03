@@ -235,6 +235,12 @@ const insertMessageStmt = db.prepare(
 const touchConversationStmt = db.prepare(
   `UPDATE conversations SET updated_at = ? WHERE id = ?`
 );
+const firstUserMessagesStmt = db.prepare(
+  `SELECT content, meta FROM messages WHERE conv_id = ? AND role = 'user' ORDER BY id ASC LIMIT 20`
+);
+const deleteMessagesStmt = db.prepare(`DELETE FROM messages WHERE conv_id = ?`);
+const deleteNotesStmt = db.prepare(`DELETE FROM conversation_notes WHERE conv_id = ?`);
+const deleteConversationStmt = db.prepare(`DELETE FROM conversations WHERE id = ?`);
 
 function requiredId(value: unknown, field: string): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${field} is required`);
@@ -454,6 +460,54 @@ export function listConversations(filter: ConversationListFilter = {}): Conversa
   `;
   const rows = db.prepare(query).all(...values) as unknown as ConversationRow[];
   return rows.map(toConversation);
+}
+
+const TITLE_LIMIT = 80;
+
+/**
+ * What the sidebar calls a chat: its own title, else the first thing the user
+ * wrote in it. A card run's prompt names it only when the user wrote nothing.
+ */
+export function conversationTitle(conversation: Pick<Conversation, "id" | "title">): string {
+  if (conversation.title.trim()) return conversation.title.trim();
+  const rows = firstUserMessagesStmt.all(conversation.id) as unknown as Array<{ content: string; meta: string }>;
+  let fallback = "";
+  for (const row of rows) {
+    let text = "";
+    let fromTask = false;
+    try {
+      const content = JSON.parse(row.content);
+      text = Array.isArray(content)
+        ? content.map((block) => (block?.type === "text" && typeof block.text === "string" ? block.text : "")).join(" ")
+        : "";
+      // Transcripts saved before runtime card runs carried their card are told
+      // apart by the prompt the board sends (src/components/shell/Workbench.tsx).
+      fromTask = Boolean(JSON.parse(row.meta || "{}")?.taskId) || /^Execute task \S+:/.test(text.trim());
+    } catch {
+      continue;
+    }
+    const line = text.replace(/\s+/g, " ").trim();
+    if (!line) continue;
+    const title = line.length > TITLE_LIMIT ? `${line.slice(0, TITLE_LIMIT).trimEnd()}…` : line;
+    if (!fromTask) return title;
+    fallback ||= title;
+  }
+  return fallback;
+}
+
+/** Removes one chat: its messages, its notes and the conversation itself. The project stays. */
+export function deleteConversation(convId: string): void {
+  const id = requiredId(convId, "conversationId");
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    deleteMessagesStmt.run(id);
+    deleteNotesStmt.run(id);
+    deleteConversationStmt.run(id);
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 export function linkConversationToProject(convId: string, projectId: string): Conversation {

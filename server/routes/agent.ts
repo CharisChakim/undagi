@@ -10,6 +10,8 @@ import type { Connection } from "../llm/types.ts";
 import { langOf, type Lang } from "../messages.ts";
 import { agentLangOf } from "../pipeline/language.ts";
 import {
+  conversationTitle,
+  deleteConversation,
   ensureConversationFor,
   getConversation,
   importLegacyHistory,
@@ -19,8 +21,8 @@ import {
   loadMessages,
   recordConversationNote,
 } from "../agent/conversations.ts";
-import { adoptChatWorkspace, chatWorkspaceEvent } from "../agent/chatWorkspace.ts";
-import { hasActiveRun } from "../runs/store.ts";
+import { adoptChatWorkspace, chatWorkspaceEvent, removeChatWorkspaces } from "../agent/chatWorkspace.ts";
+import { hasActiveConversationRun, hasActiveRun } from "../runs/store.ts";
 import { runAgent } from "../agent/loop.ts";
 import { parseAgentHarnessSettings } from "../agent/harness.ts";
 import { parsePermissionMode, withPermissionMode } from "../agent/permissionMode.ts";
@@ -453,7 +455,23 @@ router.get("/api/agent/conversations", (req, res) => {
     res.status(400).json({ error: "projectId is required." });
     return;
   }
-  res.json({ conversations: listConversations({ projectId }) });
+  res.json({ conversations: listConversations({ projectId }).map((conversation) => ({ ...conversation, title: conversationTitle(conversation) })) });
+});
+
+// Removes one chat of a project. The project, its plan, PRD, board and memory stay.
+router.delete("/api/agent/conversations/:conversationId", (req, res) => {
+  const conversationId = String(req.params.conversationId || "").trim();
+  if (!conversationId || !getConversation(conversationId)) {
+    res.status(404).json({ error: `Conversation not found: ${conversationId}.` });
+    return;
+  }
+  if (hasActiveConversationRun(conversationId)) {
+    res.status(409).json({ error: "This chat is still running. Stop it before removing it." });
+    return;
+  }
+  deleteConversation(conversationId);
+  removeChatWorkspaces([conversationId]);
+  res.json({ success: true });
 });
 
 router.get("/api/agent/conversations/:conversationId/messages", (req, res) => {

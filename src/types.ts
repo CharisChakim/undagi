@@ -469,4 +469,13 @@ export interface SessionSummary {
   // ditandai kosong sampai task pertama ada.
   hasPlan?: boolean;
   taskCount?: number;
+  /** The project's chats, newest first. A folder's project is shared by all of them. */
+  chats?: ChatSummary[];
+}
+
+export interface ChatSummary {
+  id: string;
+  /** The chat's first message, shortened; empty for a chat with nothing in it yet. */
+  title: string;
+  updatedAt: string;
 }

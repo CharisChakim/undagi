@@ -15,7 +15,7 @@ import runsRouter from "./server/routes/runs.ts";
 import runtimeAgentRouter from "./server/routes/runtime-agent.ts";
 import verifyRouter from "./server/routes/verify.ts";
 import mcpRouter from "./server/mcp/routes.ts";
-import { listConversations } from "./server/agent/conversations.ts";
+import { conversationTitle, listConversations } from "./server/agent/conversations.ts";
 import { removeChatWorkspaces } from "./server/agent/chatWorkspace.ts";
 import { generateFollowups } from "./server/pipeline/followups.ts";
 import { generatePlan } from "./server/pipeline/plan.ts";
@@ -89,7 +89,16 @@ app.get("/api/health", (_req, res) => {
 // Riwayat Proyek (SQLite) — daftar, buka, simpan, hapus
 app.get("/api/sessions", (req, res) => {
   try {
-    res.json({ sessions: listSessions() });
+    // Each project lists its chats: a folder's project is shared by all of them.
+    const sessions = listSessions().map((session) => ({
+      ...session,
+      chats: listConversations({ projectId: session.id }).map((conversation) => ({
+        id: conversation.id,
+        title: conversationTitle(conversation),
+        updatedAt: conversation.updatedAt,
+      })),
+    }));
+    res.json({ sessions });
   } catch (err: any) {
     console.error("Error GET /api/sessions:", err);
     res.status(500).json({ error: err.message || msg(langOf(req), "historyLoadFailed") });

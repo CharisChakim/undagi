@@ -102,3 +102,9 @@ export async function removeSession(id: string): Promise<void> {
   const res = await fetch(withLang(`/api/sessions/${encodeURIComponent(id)}`), { method: "DELETE" });
   if (!res.ok) throw new Error(await readError(res, "Failed to delete the project session."));
 }
+
+/** Removes one chat of a project; the project itself stays. */
+export async function removeChat(conversationId: string): Promise<void> {
+  const res = await fetch(withLang(`/api/agent/conversations/${encodeURIComponent(conversationId)}`), { method: "DELETE" });
+  if (!res.ok) throw new Error(await readError(res, "Failed to delete the chat."));
+}

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, DraftingCompass, Folder, FolderKanban, ListTree, PanelLeftClose, PanelLeftOpen, Plus, Search, Trash2, X } from "lucide-react";
+import { ChevronDown, DraftingCompass, Folder, FolderKanban, ListTree, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Search, Trash2, X } from "lucide-react";
 import type { ProjectSession, SessionSummary } from "../types";
 import { projectNameFromWorkspaceRoot } from "../lib/workspace";
+import { folderProject } from "../lib/workspaceProject";
 import { LogoMark } from "./LogoMark";
 import { useT } from "../lib/i18n";
 import { useDismissable } from "../lib/dismissable";
@@ -20,6 +21,11 @@ interface SidebarProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onSelectAgent?: () => void;
+  /** The chat open in the open project. */
+  activeChatId: string | null;
+  onOpenChat: (projectId: string, conversationId: string) => void;
+  onNewChatInFolder: (projectId: string) => void;
+  onDeleteChat: (projectId: string, conversationId: string) => void;
 }
 
 interface ChatGroup {
@@ -88,6 +94,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   onToggleCollapsed,
   onSelectAgent,
+  activeChatId,
+  onOpenChat,
+  onNewChatInFolder,
+  onDeleteChat,
 }) => {
   const { lang, t } = useT();
   const [sort, setSort] = useState<ChatSort>("recent");
@@ -131,7 +141,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const groups = useMemo(() => {
     const matching = search
-      ? historySessions.filter((chat) => (chat.title || "").toLowerCase().includes(search))
+      ? historySessions.filter((chat) => (chat.title || "").toLowerCase().includes(search)
+        || (chat.chats ?? []).some((item) => item.title.toLowerCase().includes(search)))
       : historySessions;
     return groupChats(matching, sort, t("No folder"));
   }, [historySessions, search, sort, t]);
@@ -162,6 +173,128 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onNewProject();
     onSelectAgent?.();
     onClose();
+  };
+
+  // Plan, PRD and Kanban of one project.
+  const stepRows = (chat: SessionSummary, isActive: boolean, indent: string) => {
+    const activeStep = isActive ? session.currentStep : 0;
+    return (
+      <div className={`space-y-px py-0.5 ${indent}`}>
+        <button type="button" onClick={() => openStep(chat.id, 1)} className={`shell-step ${activeStep === 1 ? "is-active" : ""}`}>
+          <ListTree className="h-3.5 w-3.5 shrink-0" aria-hidden /><span className="flex-1 truncate">{t("Plan")}</span>
+        </button>
+        <button type="button" onClick={() => openStep(chat.id, 2)} className={`shell-step ${activeStep === 2 ? "is-active" : ""}`}>
+          <DraftingCompass className="h-3.5 w-3.5 shrink-0" aria-hidden /><span className="flex-1 truncate">{t("PRD")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => openStep(chat.id, 3)}
+          aria-label={chat.taskCount ? undefined : `${t("Kanban")} — ${t("empty")}`}
+          className={`shell-step ${activeStep === 3 ? "is-active" : ""}`}
+        >
+          <FolderKanban className="h-3.5 w-3.5 shrink-0" aria-hidden /><span className="flex-1 truncate">{t("Kanban")}</span>
+          {!chat.taskCount && <span className="shrink-0 text-[10px] text-faint">{t("empty")}</span>}
+          {isActive && Boolean(session.tasks?.length) && (
+            <span className="shrink-0 text-[10px] tabular-nums text-faint">
+              {session.tasks!.filter((task) => task.status === "done").length}/{session.tasks!.length}
+            </span>
+          )}
+        </button>
+      </div>
+    );
+  };
+
+  // A project with its own Plan, PRD and Kanban under its one chat: a chat
+  // without a folder, or an older project saved in a folder that has another.
+  const sessionRow = (chat: SessionSummary) => {
+    const isActive = chat.id === session.id;
+    const isExpanded = chatOpen[chat.id] ?? (isActive && chat.hasPlan);
+    return (
+      <div key={chat.id}>
+        <div className={`shell-history-row group ${isActive ? "is-active" : ""}`}>
+          {chat.hasPlan ? (
+            <button
+              type="button"
+              onClick={() => toggleChat(chat.id, isExpanded)}
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? t("Collapse chat") : t("Expand chat")}
+              className="flex h-[30px] w-5 shrink-0 items-center justify-center text-faint hover:text-ink"
+            >
+              <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "" : "-rotate-90"}`} aria-hidden />
+            </button>
+          ) : (
+            <span className="h-[30px] w-5 shrink-0" aria-hidden />
+          )}
+          <button
+            type="button"
+            onClick={() => openChat(chat.id)}
+            aria-current={isActive ? "page" : undefined}
+            aria-label={`${chat.title || t("Untitled project")} — ${activityLabel(chat.updatedAt, lang)}`}
+            className="flex min-w-0 flex-1 items-center gap-2 py-[7px] pr-1 text-left"
+          >
+            <span className="min-w-0 flex-1 truncate text-[12px]">{chat.title || t("Untitled project")}</span>
+            <span className="shrink-0 text-[10px] text-faint">{activityLabel(chat.updatedAt, lang)}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeleteHistory(chat.id)}
+            title={t("Remove from history")}
+            className="mr-1 rounded p-1 text-transparent group-hover:text-faint hover:!text-danger focus-visible:text-faint"
+            aria-label={t("Remove from history")}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
+
+        {chat.hasPlan && isExpanded && stepRows(chat, isActive, "pl-5")}
+      </div>
+    );
+  };
+
+  // A folder's project: its Plan, PRD and Kanban once, then every chat that shares them.
+  const folderProjectRows = (owner: SessionSummary) => {
+    const isActive = owner.id === session.id;
+    const chats = (owner.chats ?? []).filter((chat) => !search || chat.title.toLowerCase().includes(search) || owner.title.toLowerCase().includes(search));
+    // A chat just opened has no messages yet, so the server does not list it.
+    const openNew = isActive && activeChatId && !chats.some((chat) => chat.id === activeChatId);
+    return (
+      <>
+        {stepRows(owner, isActive, "pl-1")}
+        {openNew && (
+          <div className="shell-history-row is-active">
+            <MessageSquare className="ml-1.5 mr-1 h-3.5 w-3.5 shrink-0 text-faint" aria-hidden />
+            <span className="min-w-0 flex-1 truncate py-[7px] text-[12px]">{t("New chat")}</span>
+          </div>
+        )}
+        {chats.map((chat) => {
+          const isOpen = isActive && chat.id === activeChatId;
+          return (
+            <div key={chat.id} className={`shell-history-row group ${isOpen ? "is-active" : ""}`}>
+              <button
+                type="button"
+                onClick={() => { onOpenChat(owner.id, chat.id); onClose(); }}
+                aria-current={isOpen ? "page" : undefined}
+                aria-label={`${chat.title || t("New chat")} — ${activityLabel(chat.updatedAt, lang)}`}
+                className="flex min-w-0 flex-1 items-center gap-1 py-[7px] pr-1 text-left"
+              >
+                <MessageSquare className="ml-1.5 mr-1 h-3.5 w-3.5 shrink-0 text-faint" aria-hidden />
+                <span className="min-w-0 flex-1 truncate text-[12px]">{chat.title || t("New chat")}</span>
+                <span className="shrink-0 text-[10px] text-faint">{activityLabel(chat.updatedAt, lang)}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onDeleteChat(owner.id, chat.id)}
+                title={t("Delete this chat")}
+                className="mr-1 rounded p-1 text-transparent group-hover:text-faint hover:!text-danger focus-visible:text-faint"
+                aria-label={t("Delete this chat")}
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            </div>
+          );
+        })}
+      </>
+    );
   };
 
   return (
@@ -276,91 +409,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {groups.map((group) => {
                 const isCollapsed = collapsedGroups.has(group.key) && !search;
+                // A folder's chats share one project; any other project saved in the
+                // same folder before stays listed as it was.
+                const owner = group.key ? folderProject(group.chats) : null;
+                const others = group.chats.filter((chat) => chat.id !== owner?.id);
                 return (
-                  <div key={group.key || "unfiled"} className="mt-2 first:mt-0">
-                    <button
-                      type="button"
-                      onClick={() => toggleGroup(group.key)}
-                      aria-expanded={!isCollapsed}
-                      aria-label={`${group.name} — ${activityLabel(new Date(group.latest).toISOString(), lang)}`}
-                      className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left hover:bg-subtle"
-                    >
-                      <ChevronDown className={`h-3 w-3 shrink-0 text-faint transition-transform ${isCollapsed ? "-rotate-90" : ""}`} aria-hidden />
-                      <Folder className={`h-3.5 w-3.5 shrink-0 ${group.key ? "text-accent-ink" : "text-faint"}`} aria-hidden />
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-ink">{group.name}</span>
-                      <span className="shrink-0 text-[10px] text-faint">{activityLabel(new Date(group.latest).toISOString(), lang)}</span>
-                    </button>
+                  <div key={group.key || "unfiled"} className="group/folder mt-2 first:mt-0">
+                    <div className="flex items-center rounded-md hover:bg-subtle">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.key)}
+                        aria-expanded={!isCollapsed}
+                        aria-label={`${group.name} — ${activityLabel(new Date(group.latest).toISOString(), lang)}`}
+                        className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left"
+                      >
+                        <ChevronDown className={`h-3 w-3 shrink-0 text-faint transition-transform ${isCollapsed ? "-rotate-90" : ""}`} aria-hidden />
+                        <Folder className={`h-3.5 w-3.5 shrink-0 ${group.key ? "text-accent-ink" : "text-faint"}`} aria-hidden />
+                        <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-ink">{group.name}</span>
+                        <span className="shrink-0 text-[10px] text-faint">{activityLabel(new Date(group.latest).toISOString(), lang)}</span>
+                      </button>
+                      {owner && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => { onNewChatInFolder(owner.id); onClose(); }}
+                            title={t("New chat in this folder")}
+                            aria-label={t("New chat in this folder")}
+                            className="rounded p-1 text-transparent group-hover/folder:text-faint hover:!text-ink focus-visible:text-faint"
+                          >
+                            <Plus className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { if (window.confirm(t("Remove this folder's project from history? Its plan, PRD, board, memory and chats are deleted; the files in the folder stay."))) onDeleteHistory(owner.id); }}
+                            title={t("Remove project from history")}
+                            aria-label={t("Remove project from history")}
+                            className="mr-1 rounded p-1 text-transparent group-hover/folder:text-faint hover:!text-danger focus-visible:text-faint"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                        </>
+                      )}
+                    </div>
 
                     {!isCollapsed && (
                       <div className="space-y-px pl-3">
-                        {group.chats.map((chat) => {
-                          const isActive = chat.id === session.id;
-                          const isExpanded = chatOpen[chat.id] ?? (isActive && chat.hasPlan);
-                          const activeStep = isActive ? session.currentStep : 0;
-                          return (
-                            <div key={chat.id}>
-                              <div className={`shell-history-row group ${isActive ? "is-active" : ""}`}>
-                                {chat.hasPlan ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleChat(chat.id, isExpanded)}
-                                    aria-expanded={isExpanded}
-                                    aria-label={isExpanded ? t("Collapse chat") : t("Expand chat")}
-                                    className="flex h-[30px] w-5 shrink-0 items-center justify-center text-faint hover:text-ink"
-                                  >
-                                    <ChevronDown className={`h-3 w-3 transition-transform ${isExpanded ? "" : "-rotate-90"}`} aria-hidden />
-                                  </button>
-                                ) : (
-                                  <span className="h-[30px] w-5 shrink-0" aria-hidden />
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => openChat(chat.id)}
-                                  aria-current={isActive ? "page" : undefined}
-                                  aria-label={`${chat.title || t("Untitled project")} — ${activityLabel(chat.updatedAt, lang)}`}
-                                  className="flex min-w-0 flex-1 items-center gap-2 py-[7px] pr-1 text-left"
-                                >
-                                  <span className="min-w-0 flex-1 truncate text-[12px]">{chat.title || t("Untitled project")}</span>
-                                  <span className="shrink-0 text-[10px] text-faint">{activityLabel(chat.updatedAt, lang)}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onDeleteHistory(chat.id)}
-                                  title={t("Remove from history")}
-                                  className="mr-1 rounded p-1 text-transparent group-hover:text-faint hover:!text-danger focus-visible:text-faint"
-                                  aria-label={t("Remove from history")}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                                </button>
-                              </div>
-
-                              {chat.hasPlan && isExpanded && (
-                                <div className="space-y-px py-0.5 pl-5">
-                                  <button type="button" onClick={() => openStep(chat.id, 1)} className={`shell-step ${activeStep === 1 ? "is-active" : ""}`}>
-                                    <ListTree className="h-3.5 w-3.5 shrink-0" aria-hidden /><span className="flex-1 truncate">{t("Plan")}</span>
-                                  </button>
-                                  <button type="button" onClick={() => openStep(chat.id, 2)} className={`shell-step ${activeStep === 2 ? "is-active" : ""}`}>
-                                    <DraftingCompass className="h-3.5 w-3.5 shrink-0" aria-hidden /><span className="flex-1 truncate">{t("PRD")}</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => openStep(chat.id, 3)}
-                                    aria-label={chat.taskCount ? undefined : `${t("Kanban")} — ${t("empty")}`}
-                                    className={`shell-step ${activeStep === 3 ? "is-active" : ""}`}
-                                  >
-                                    <FolderKanban className="h-3.5 w-3.5 shrink-0" aria-hidden /><span className="flex-1 truncate">{t("Kanban")}</span>
-                                    {!chat.taskCount && <span className="shrink-0 text-[10px] text-faint">{t("empty")}</span>}
-                                    {isActive && Boolean(session.tasks?.length) && (
-                                      <span className="shrink-0 text-[10px] tabular-nums text-faint">
-                                        {session.tasks!.filter((task) => task.status === "done").length}/{session.tasks!.length}
-                                      </span>
-                                    )}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                        {owner && folderProjectRows(owner)}
+                        {others.map(sessionRow)}
                       </div>
                     )}
                   </div>

@@ -12,6 +12,7 @@ import { agentLanguageFor, type AgentHarnessSettings } from "./agentHarness";
 import { RunRecorder } from "./runRecorder";
 import type { RunReport } from "./runRetry";
 import type { PermissionMode } from "../types";
+import { loadConversationId, saveConversationId } from "./activeChat";
 
 interface AgentRunOptions {
   sessionId: string;
@@ -21,6 +22,8 @@ interface AgentRunOptions {
   runtimeSelection?: RuntimeChatSelection;
   harnessSettings: AgentHarnessSettings;
   permissionMode?: PermissionMode;
+  /** Changes when another chat of the same project is opened (src/lib/activeChat.ts). */
+  chatKey?: number;
 }
 
 interface AgentRunResult {
@@ -101,28 +104,6 @@ export function settleEndedApprovals(entries: Entry[], keep: ReadonlySet<string>
       ? { ...entry, decided: true, approved: false }
       : entry
   );
-}
-
-const CONVERSATION_STORAGE_PREFIX = "ai_plan_architect_agent_conversation_v1";
-
-function conversationStorageKey(sessionId: string): string {
-  return `${CONVERSATION_STORAGE_PREFIX}:${encodeURIComponent(sessionId)}`;
-}
-
-function loadConversationId(sessionId: string): string | null {
-  try {
-    return window.localStorage.getItem(conversationStorageKey(sessionId));
-  } catch {
-    return null;
-  }
-}
-
-function saveConversationId(sessionId: string, conversationId: string): void {
-  try {
-    window.localStorage.setItem(conversationStorageKey(sessionId), conversationId);
-  } catch {
-    // Conversation persistence is best effort; the server remains authoritative.
-  }
 }
 
 /**
@@ -245,7 +226,7 @@ export function entriesFromStoredMessages(messages: unknown[], sequence: { curre
 // disimpan terpisah apa adanya dari server, karena blok tool_use dan tool_result
 // harus tetap berpasangan persis atau permintaan berikutnya ditolak.
 
-export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplied, runtimeSelection = { runtime: "legacy", model: "inherit", effort: "inherit" }, harnessSettings, permissionMode = "ask" }: AgentRunOptions): AgentRunResult {
+export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplied, runtimeSelection = { runtime: "legacy", model: "inherit", effort: "inherit" }, harnessSettings, permissionMode = "ask", chatKey = 0 }: AgentRunOptions): AgentRunResult {
   const { t, lang } = useT();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [busy, setBusy] = useState(false);
@@ -309,7 +290,7 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
       });
 
     return () => { cancelled = true; };
-  }, [sessionId]);
+  }, [sessionId, chatKey]);
 
   useEffect(() => () => controller.current?.abort(), []);
 

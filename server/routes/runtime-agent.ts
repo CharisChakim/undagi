@@ -625,6 +625,9 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
   let failureShown = false;
   let finalStatus: "completed" | "failed" | "interrupted" = "failed";
   let finalError: string | null = null;
+  // A card run's messages carry its card, as on the API route, so the chat
+  // list names a chat after what the user wrote rather than a card prompt.
+  const transcriptMeta = { runtime: body.runtime, runId: run.id, ...(body.taskId ? { taskId: body.taskId } : {}) };
   try {
     startRun(run.id);
     // The run now holds the conversation and the workspace, so files this chat
@@ -662,7 +665,7 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
       send(note);
       recordConversationNote(conversationId, note);
     }
-    appendTranscript(conversationId, body.message, "", { runtime: body.runtime, runId: run.id });
+    appendTranscript(conversationId, body.message, "", transcriptMeta);
     const runner = await createRuntimeRunnerAsync({
       runtime: body.runtime,
       prompt: context.prompt,
@@ -741,7 +744,7 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
     ac.signal.removeEventListener("abort", interruptExecutor);
     await executor?.close().catch(() => undefined);
     if (assistantText) {
-      appendMessage(conversationId, { role: "assistant", content: [{ type: "text", text: assistantText }] }, { runtime: body.runtime, runId: run.id });
+      appendMessage(conversationId, { role: "assistant", content: [{ type: "text", text: assistantText }] }, transcriptMeta);
     }
     if (run.taskId && assistantText) {
       addRunEvidence({

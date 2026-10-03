@@ -682,6 +682,11 @@ function isTerminal(status: RunStatus): status is (typeof TERMINAL_RUN_STATUSES)
 }
 
 /** Whether a run is working in this conversation or this workspace right now. */
+/** Whether a run is still going in this conversation, wherever its workspace is. */
+export function hasActiveConversationRun(conversationId: string): boolean {
+  return Boolean(activeConversationStmt.get(conversationId, ""));
+}
+
 export function hasActiveRun(conversationId: string, workspace: string): boolean {
   return Boolean(activeConversationStmt.get(conversationId, "") || activeWorkspaceStmt.get(workspace, ""));
 }
