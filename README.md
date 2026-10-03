@@ -59,6 +59,8 @@ Generate a requirements document from the approved plan. The PRD covers overview
 
 Generate a ready-to-run task board. Each task includes a stable ID, priority, target files, dependencies, instructions, and verification steps. Use Kanban or detailed list view, drag tasks between states, run an individual task, copy prompts, or download `AGENTS.md` for another coding agent.
 
+When the PRD changes, tasks generated from the older version are marked as needing sync. **Sync** asks the model for a fresh breakdown and shows how many cards it replaces first. Cards you added yourself and cards already worked on (anything past To do, with their notes and Verified label) stay as they are, and the model is told about them so it does not build the same work again. Only cards still in To do are replaced.
+
 #### Running a task
 
 - **One session per card.** Each task run starts an agent session of its own, and its retries stay in it. The normal chat keeps a single conversation.
