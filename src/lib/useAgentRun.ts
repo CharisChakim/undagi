@@ -88,6 +88,21 @@ export function approvalFiles(event: Record<string, any>): ApprovalFile[] | unde
   });
 }
 
+/**
+ * A turn that ended — done, stopped or broken — takes its server-side approval
+ * requests with it; the server no longer waits on them. Settle those cards as
+ * not approved so they stop offering a button that cannot work. `keep` holds the
+ * cards this page answers itself (askApproval), which outlive the turn.
+ */
+export function settleEndedApprovals(entries: Entry[], keep: ReadonlySet<string>): Entry[] {
+  if (!entries.some((entry) => entry.kind === "approval" && !entry.decided && !keep.has(entry.elicitId))) return entries;
+  return entries.map((entry) =>
+    entry.kind === "approval" && !entry.decided && !keep.has(entry.elicitId)
+      ? { ...entry, decided: true, approved: false }
+      : entry
+  );
+}
+
 const CONVERSATION_STORAGE_PREFIX = "ai_plan_architect_agent_conversation_v1";
 
 function conversationStorageKey(sessionId: string): string {
@@ -679,6 +694,9 @@ export function useAgentRun({ sessionId, workspaceRoot, allowShell, onToolApplie
             : next;
         });
       }
+      const localApprovalIds = new Set(localApprovals.current.keys());
+      setEntries((prev) => settleEndedApprovals(prev, localApprovalIds));
+      approvalRunIds.current.clear();
       if (controller.current === ac) {
         controller.current = null;
         setBusy(false);

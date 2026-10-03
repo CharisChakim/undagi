@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { approvalFiles, entriesFromStoredMessages, wasMessageDelivered } from "./useAgentRun";
+import type { Entry } from "./agentEvents";
+import { approvalFiles, entriesFromStoredMessages, settleEndedApprovals, wasMessageDelivered } from "./useAgentRun";
 
 const text = (role: "user" | "assistant", value: string) => ({ role, content: [{ type: "text", text: value }] });
 
@@ -63,4 +64,28 @@ test("a file-change approval carries its files; a command approval carries none"
   assert.deepEqual(approvalFiles({ kind: "file_change" }), []);
   assert.equal(approvalFiles({ kind: "command", command: "npm test" }), undefined);
   assert.equal(approvalFiles({ command: "npm test" }), undefined);
+});
+
+test("a turn that ended settles its open approval cards as not approved, but leaves local ones and answered ones", () => {
+  const card = (elicitId: string, decided: boolean, approved?: boolean): Entry =>
+    ({ kind: "approval", id: `entry-${elicitId}`, elicitId, command: "ls", decided, ...(approved === undefined ? {} : { approved }) });
+  const entries: Entry[] = [
+    card("server-open", false),
+    card("server-done", true, true),
+    card("local-open", false),
+    { kind: "user", id: "u1", text: "hi" },
+  ];
+
+  const settled = settleEndedApprovals(entries, new Set(["local-open"]));
+
+  assert.deepEqual(settled[0], { ...entries[0], decided: true, approved: false });
+  assert.equal(settled[1], entries[1]);
+  assert.equal(settled[2], entries[2]);
+  assert.equal(settled[3], entries[3]);
+});
+
+test("with no open server approval the entries come back unchanged", () => {
+  const entries: Entry[] = [{ kind: "approval", id: "a", elicitId: "x", command: "ls", decided: true, approved: true }];
+
+  assert.equal(settleEndedApprovals(entries, new Set()), entries);
 });
