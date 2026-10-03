@@ -229,3 +229,9 @@ test("the task generator asks for a runnable verifyCommand, or an empty one", ()
   assert.match(system, /Leave it "" when no command can check the task/);
   assert.match(system, /Never use destructive commands/);
 });
+
+test("the task generator keeps verifyCommand to one command, since Windows PowerShell 5.1 has no &&", () => {
+  const system = buildTasksSystemPrompt("en");
+  assert.match(system, /one plain command with no chaining or piping/);
+  assert.match(system, /Windows PowerShell 5\.1, which has no `&&`/);
+});

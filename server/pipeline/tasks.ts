@@ -9,8 +9,9 @@ import { generateLlmText, type PipelineOptions } from "./llm.ts";
 const AGENT_FIELDS = ["promptInstructions", "verificationSteps"];
 
 // Undagi runs this after the agent says a task is done, and the card counts
-// as verified only when it exits 0. The user approves it like any command.
-const VERIFY_COMMAND_RULES = `verifyCommand is one shell command that Undagi runs from the project root after the agent reports the task done; the task counts as verified only when it exits 0. It must be non-interactive, finish within about two minutes, and check this task specifically (prefer a targeted test, a type-check or a build over the whole suite). Never use destructive commands, installs outside the project, or calls to production services. Leave it "" when no command can check the task, such as a visual or manual change.`;
+// as verified only when it exits 0. The user approves it like any command. It
+// runs in whichever shell the machine has, so the rules keep it to one command.
+const VERIFY_COMMAND_RULES = `verifyCommand is one shell command that Undagi runs from the project root after the agent reports the task done; the task counts as verified only when it exits 0. It must be non-interactive, finish within about two minutes, and check this task specifically (prefer a targeted test, a type-check or a build over the whole suite). Write it as one plain command with no chaining or piping (no \`&&\`, \`||\`, \`;\` or \`|\`): it may run in /bin/sh or in Windows PowerShell 5.1, which has no \`&&\`, so pick the single most specific check instead. Never use destructive commands, installs outside the project, or calls to production services. Leave it "" when no command can check the task, such as a visual or manual change.`;
 
 export function buildTasksSystemPrompt(humanLang: Lang, agentLang: Lang = "en"): string {
   return `You are a Principal AI Engineer & Prompt Architect.
