@@ -419,7 +419,6 @@ const ID: Record<string, string> = {
   "Generate 7-point PRD": "Generate PRD 7 poin",
   "Generate project plan": "Generate project plan",
   "Writing the answer.": "Sedang menulis jawaban.",
-  "Starting the model.": "Memulai model.",
   "The model is thinking before it writes. At a high effort level this can take a few minutes.": "Model sedang berpikir sebelum menulis. Di tingkat effort tinggi ini bisa makan beberapa menit.",
   "The AI has what it needs": "AI sudah punya cukup informasi",
   "Generate the project plan now, or go back and change an answer first.": "Buat rencana proyek sekarang, atau kembali dan ubah jawaban dulu.",
@@ -738,6 +737,7 @@ const ID: Record<string, string> = {
   "The follow-up questions have not been answered.": "Pertanyaan follow-up belum mendapat jawaban.",
   "Follow-up answers saved: {count}.": "Jawaban follow-up tersimpan: {count}.",
   "MCP server '{name}' could not be reached: {detail}": "Server MCP '{name}' tidak bisa dihubungi: {detail}",
+  "The model is thinking before it writes.": "Model sedang berpikir sebelum menulis.",
 };
 
 type Vars = Record<string, string | number>;

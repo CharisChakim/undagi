@@ -9,8 +9,9 @@ interface GenerationProgressProps {
   onCancel?: () => void;
 }
 
-// A runtime takes this long to start before it can answer at all.
-const STARTING_SECONDS = 15;
+// Starting a runtime takes seconds; a longer silence is the model thinking,
+// which at a high effort level can run for minutes.
+const LONG_THINKING_SECONDS = 15;
 
 const elapsedLabel = (ms: number): string => {
   const totalSeconds = Math.floor(ms / 1000);
@@ -35,12 +36,10 @@ export const GenerationProgress: React.FC<GenerationProgressProps> = ({ active, 
 
   if (!active) return null;
 
-  // With no characters yet the app cannot tell "starting" from "the model is
-  // thinking", so the wait is told apart by how long it has been.
   const phase = chars > 0
     ? t("Writing the answer.")
-    : elapsed < STARTING_SECONDS * 1000
-      ? t("Starting the model.")
+    : elapsed < LONG_THINKING_SECONDS * 1000
+      ? t("The model is thinking before it writes.")
       : t("The model is thinking before it writes. At a high effort level this can take a few minutes.");
 
   return (
