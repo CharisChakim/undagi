@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import express, { type Request, type Response } from "express";
 
 import { getSession } from "../../db.ts";
-import { langOf, type Lang } from "../messages.ts";
-import { adoptChatWorkspace, chatWorkspaceEvent, ensureChatWorkspace } from "../agent/chatWorkspace.ts";
+import { langOf, msg, type Lang } from "../messages.ts";
+import { adoptChatWorkspace, chatWorkspaceEvent, ensureChatWorkspace, workspaceFolderMissing } from "../agent/chatWorkspace.ts";
 import {
   appendMessage,
   ensureConversationFor,
@@ -458,6 +458,9 @@ async function chat(req: Request, res: Response, options: RuntimeAgentRouterOpti
         throw new RequestError("workspaceRoot does not match the selected project.", 409);
       }
       body.workspaceRoot = project.workspaceRoot;
+      if (workspaceFolderMissing(project.workspaceRoot)) {
+        throw new RequestError(msg(langOf({ body }), "workspaceMissing", { path: project.workspaceRoot }), 409);
+      }
     } else if (body.workspaceRoot) {
       body.workspaceRoot = validateTransientWorkspaceRoot(body.workspaceRoot);
     }

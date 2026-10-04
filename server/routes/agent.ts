@@ -7,7 +7,7 @@ import { getSession } from "../../db.ts";
 import { resolveRole, getConnection } from "../connections/store.ts";
 import { LLM_TIMEOUT_MS } from "../llm/call.ts";
 import type { Connection } from "../llm/types.ts";
-import { langOf, type Lang } from "../messages.ts";
+import { langOf, msg, type Lang } from "../messages.ts";
 import { agentLangOf } from "../pipeline/language.ts";
 import {
   conversationTitle,
@@ -21,7 +21,7 @@ import {
   loadMessages,
   recordConversationNote,
 } from "../agent/conversations.ts";
-import { adoptChatWorkspace, chatWorkspaceEvent, removeChatWorkspaces } from "../agent/chatWorkspace.ts";
+import { adoptChatWorkspace, chatWorkspaceEvent, removeChatWorkspaces, workspaceFolderMissing } from "../agent/chatWorkspace.ts";
 import { hasActiveConversationRun, hasActiveRun } from "../runs/store.ts";
 import { runAgent } from "../agent/loop.ts";
 import { parseAgentHarnessSettings } from "../agent/harness.ts";
@@ -344,6 +344,9 @@ async function chat(req: Request, res: Response): Promise<void> {
     // klien lama tidak dapat menimpa transcript hanya karena reload.
     if (loadMessages(convId).length === 0 && Array.isArray(body.history) && body.history.length > 0) {
       importLegacyHistory(convId, body.history);
+    }
+    if (projectSession?.workspaceRoot && workspaceFolderMissing(projectSession.workspaceRoot)) {
+      throw new RequestError(msg(langOf(req), "workspaceMissing", { path: projectSession.workspaceRoot }), 409);
     }
     if (!projectSession) transient = transientContext(body);
   } catch (error) {

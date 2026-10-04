@@ -62,6 +62,10 @@ export const MESSAGES = {
     en: "This step ran for more than {minutes} minutes in total and was stopped. Try again, or pick a faster model.",
     id: "Langkah ini berjalan lebih dari {minutes} menit secara total dan dihentikan. Coba lagi, atau pilih model yang lebih cepat.",
   },
+  workspaceMissing: {
+    en: "The project folder {path} no longer exists. It may have been moved or renamed: choose the folder again with the folder button above the message box.",
+    id: "Folder proyek {path} sudah tidak ada. Mungkin dipindah atau diganti nama: pilih ulang foldernya lewat tombol folder di atas kotak pesan.",
+  },
   outputTruncated: {
     en: "The model stopped before it finished writing — it hit its output limit. Try again, or switch to a model with a larger output budget.",
     id: "Model berhenti sebelum jawabannya selesai — batas panjang keluarannya tercapai. Coba lagi, atau pakai model dengan jatah keluaran lebih besar.",

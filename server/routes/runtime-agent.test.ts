@@ -895,3 +895,23 @@ test("when the server cannot tell Stop from a dropped connection, the stored rea
     assert.match(run?.error ?? "", /stopped this run|lost its connection/);
   });
 });
+
+test("a project whose folder is gone is refused with the folder named, not a runtime error", async () => {
+  const provider = new ProviderFixture(async function* () {
+    yield { ...done, threadId: "thread_gone", turnId: "turn_gone" };
+  });
+  const { sessionId, workspaceRoot } = project();
+  fs.rmSync(workspaceRoot, { recursive: true, force: true });
+
+  await withServer(provider, async (url) => {
+    const refused = await fetch(`${url}/api/runtime-agent/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ runtime: "codex", message: "x", sessionId, idempotencyKey: "folder-gone", language: "en" }),
+    });
+    assert.equal(refused.status, 409);
+    const { error } = await refused.json();
+    assert.ok(String(error).includes(`The project folder ${workspaceRoot} no longer exists`), String(error));
+    assert.equal(provider.turns.length, 0);
+  });
+});

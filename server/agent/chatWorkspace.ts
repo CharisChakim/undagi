@@ -124,3 +124,15 @@ export function chatWorkspaceEvent(adoption: ChatWorkspaceAdoption): ({ type: "c
     ...(adoption.status === "failed" ? { message: adoption.message } : {}),
   };
 }
+
+/**
+ * Whether a project's folder is gone, moved or renamed. A runtime started in a
+ * missing folder fails with a bare ENOENT that reads as if the runtime were broken.
+ */
+export function workspaceFolderMissing(root: string): boolean {
+  try {
+    return !fs.statSync(root).isDirectory();
+  } catch {
+    return true;
+  }
+}
