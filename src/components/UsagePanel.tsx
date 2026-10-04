@@ -12,16 +12,30 @@ import {
   type UsagePrefs,
 } from "../lib/usagePrefs";
 
-// Fixed row heights make "three rows, then scroll" an exact box instead of a guess.
-const ROW_PX = 34;
+// Every height is fixed, so "three rows, then scroll" is an exact box instead of
+// a guess. A row holds one unit per window: a line of text, then its bar.
+const TEXT_PX = 11;
+const BAR_PX = 3;
+const UNIT_PX = TEXT_PX + 5 + BAR_PX;
+const UNIT_GAP_PX = 6;
+const ROW_PAD_PX = 13;
 const EDIT_ROW_PX = 28;
 const GAP_PX = 2;
 const MAX_ROWS = 3;
-const listHeight = (row: number) => MAX_ROWS * row + (MAX_ROWS - 1) * GAP_PX;
 
-// Two windows fit beside the name; a runtime that reports more still has all of
-// them in the row's tooltip.
-const SHOWN_WINDOWS = 2;
+/** Height of a row with `units` windows; a row that shows no bar still takes one unit. */
+const rowHeight = (units: number) => {
+  const count = Math.max(1, units);
+  return ROW_PAD_PX + count * UNIT_PX + (count - 1) * UNIT_GAP_PX;
+};
+
+/** The first three rows exactly; anything below them scrolls. */
+const listHeight = (heights: number[]) => {
+  const first = heights.slice(0, MAX_ROWS);
+  return first.reduce((sum, height) => sum + height, 0) + Math.max(0, first.length - 1) * GAP_PX;
+};
+
+const shownWindows = (entry: RuntimeUsage) => (entry.error ? [] : entry.windows);
 
 // A scrollbar that only appears past three rows must not eat the row's width.
 const LIST_CLASS = "flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:var(--app-line)_transparent]";
@@ -51,55 +65,54 @@ function fillClass(remaining: number): string {
   return "bg-accent";
 }
 
-function windowDetail(entry: RuntimeUsage, window: UsageWindow, t: TFunction): string {
+function windowDetail(window: UsageWindow, t: TFunction): string {
   const remaining = t("{label}: {percent}% left", { label: windowLabel(window, t), percent: remainingPercent(window) });
   const reset = resetText(window, t);
   return reset ? `${remaining} · ${reset}` : remaining;
 }
 
-const WindowMeter: React.FC<{ entry: RuntimeUsage; window: UsageWindow }> = ({ entry, window }) => {
-  const { t } = useT();
-  const remaining = remainingPercent(window);
-  const label = windowLabel(window, t);
-  return (
-    <div
-      role="meter"
-      aria-label={`${entry.label} ${windowDetail(entry, window, t)}`}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={remaining}
-      className="min-w-0"
-    >
-      <div className="truncate text-[10px] leading-none text-faint">{label}</div>
-      <div className="mt-1 flex items-center gap-1">
-        <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-subtle" aria-hidden>
-          <div className={`h-full rounded-full ${fillClass(remaining)}`} style={{ width: `${remaining}%` }} />
-        </div>
-        <span className="shrink-0 text-[10px] leading-none tabular-nums text-ink">{remaining}%</span>
-      </div>
-    </div>
-  );
-};
-
+// One unit per window, stacked: "label percent" on the right, the bar under it.
+// The runtime's name sits on the left of the first unit.
 const UsageRow: React.FC<{ entry: RuntimeUsage }> = ({ entry }) => {
   const { t } = useT();
-  const unavailable = Boolean(entry.error) || entry.windows.length === 0;
-  const tooltip = [
-    entry.plan ? `${entry.label} · ${entry.plan}` : entry.label,
-    ...(unavailable ? [t("Usage unavailable")] : entry.windows.map((window) => windowDetail(entry, window, t))),
-  ].join("\n");
+  const windows = shownWindows(entry);
+  const details = windows.length ? windows.map((window) => windowDetail(window, t)) : [t("Usage unavailable")];
+  const tooltip = [entry.plan ? `${entry.label} · ${entry.plan}` : entry.label, ...details].join("\n");
+  const name = <span className="min-w-0 flex-1 truncate text-[11px] text-muted">{entry.label}</span>;
   return (
     <li
       title={tooltip}
-      style={{ height: ROW_PX }}
-      className="grid shrink-0 grid-cols-[4.4rem_1fr_1fr] items-center gap-x-1.5 rounded-md px-1.5 hover:bg-subtle"
+      style={{ height: rowHeight(windows.length), gap: UNIT_GAP_PX }}
+      className="flex shrink-0 flex-col justify-center rounded-md px-2 hover:bg-subtle"
     >
-      <span className="truncate text-[11px] font-semibold text-ink">{entry.label}</span>
-      {unavailable ? (
-        <span className="col-span-2 truncate text-[10px] text-faint">{t("Usage unavailable")}</span>
-      ) : (
-        entry.windows.slice(0, SHOWN_WINDOWS).map((window) => <WindowMeter key={window.id} entry={entry} window={window} />)
-      )}
+      {windows.length === 0 ? (
+        <div className="flex items-baseline gap-2 leading-none">
+          {name}
+          <span className="shrink-0 text-[10px] text-faint">{t("Usage unavailable")}</span>
+        </div>
+      ) : windows.map((window, index) => {
+        const remaining = remainingPercent(window);
+        return (
+          <div key={window.id} style={{ height: UNIT_PX }} className="flex flex-col justify-between">
+            <div className="flex items-baseline gap-2 leading-none">
+              {index === 0 ? name : <span className="flex-1" aria-hidden />}
+              <span className="min-w-0 truncate text-[10px] text-faint">{windowLabel(window, t)}</span>
+              <span className="shrink-0 text-[11px] tabular-nums text-ink">{remaining}%</span>
+            </div>
+            <div
+              role="meter"
+              aria-label={`${entry.label}, ${windowDetail(window, t)}`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={remaining}
+              style={{ height: BAR_PX }}
+              className="overflow-hidden rounded-full bg-subtle"
+            >
+              <div className={`h-full rounded-full ${fillClass(remaining)}`} style={{ width: `${remaining}%` }} />
+            </div>
+          </div>
+        );
+      })}
     </li>
   );
 };
@@ -179,7 +192,7 @@ export const UsagePanel: React.FC = () => {
       </div>
 
       {editing ? (
-        <ul style={{ maxHeight: listHeight(EDIT_ROW_PX) }} className={LIST_CLASS}>
+        <ul style={{ maxHeight: listHeight(arranged.map(() => EDIT_ROW_PX)) }} className={LIST_CLASS}>
           {arranged.map((entry, index) => (
             <EditRow
               key={entry.runtime}
@@ -195,7 +208,7 @@ export const UsagePanel: React.FC = () => {
       ) : shown.length === 0 ? (
         <p className="px-2 text-[10px] text-faint">{t("All usage rows are hidden.")}</p>
       ) : (
-        <ul style={{ maxHeight: listHeight(ROW_PX) }} className={LIST_CLASS}>
+        <ul style={{ maxHeight: listHeight(shown.map((entry) => rowHeight(shownWindows(entry).length))) }} className={LIST_CLASS}>
           {shown.map((entry) => <UsageRow key={entry.runtime} entry={entry} />)}
         </ul>
       )}
