@@ -40,7 +40,6 @@ const ID: Record<string, string> = {
   "Ask for a change...": "Minta perubahan...",
   "Ask the agent to change this project": "Minta agent mengubah proyek ini",
   "Ask for a change to this project — the agent can read it and edit the project directly.": "Minta perubahan pada proyek ini — agent bisa membacanya dan langsung menyunting proyek.",
-  "Breadcrumb": "Jejak lokasi",
   "Chats": "Chat",
   "Collapse chat": "Tutup chat",
   "Copy command": "Salin perintah",
