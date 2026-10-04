@@ -378,6 +378,28 @@ export const Workbench: React.FC<WorkbenchProps> = ({
     onLayoutModeChange("split");
   };
 
+  // A pane that comes into view fades and rises in instead of appearing at
+  // once: both panes on a layout change, the pipeline alone on a step change.
+  // The panes stay mounted, so this never resets the chat.
+  const agentPaneRef = React.useRef<HTMLDivElement>(null);
+  const pipelinePaneRef = React.useRef<HTMLDivElement>(null);
+  const previousView = React.useRef({ layoutMode, step: session.currentStep });
+  React.useEffect(() => {
+    const previous = previousView.current;
+    previousView.current = { layoutMode, step: session.currentStep };
+    const modeChanged = previous.layoutMode !== layoutMode;
+    if (!modeChanged && previous.step === session.currentStep) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const panes = modeChanged ? [agentPaneRef.current, pipelinePaneRef.current] : [pipelinePaneRef.current];
+    for (const pane of panes) {
+      if (!pane || pane.offsetParent === null) continue;
+      pane.animate?.(
+        [{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }],
+        { duration: 220, easing: "cubic-bezier(0.32, 0.72, 0, 1)" },
+      );
+    }
+  }, [layoutMode, session.currentStep]);
+
   const agentPane = (
     <div className="shell-chat-pane flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-surface [&>aside]:!static [&>aside]:!inset-auto [&>aside]:!h-full [&>aside]:!w-full [&>aside]:!max-w-none [&>aside]:!shadow-none">
       <AgentPane
@@ -431,6 +453,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-row overflow-hidden">
           <div
+            ref={agentPaneRef}
             className={`min-h-0 min-w-0 ${layoutMode === "board" ? "hidden" : ""}`}
             style={{ width: layoutMode === "split" ? `${ratio * 100}%` : "100%" }}
           >
@@ -440,7 +463,7 @@ export const Workbench: React.FC<WorkbenchProps> = ({
           {layoutMode === "split" && <Splitter ratio={ratio} onRatioChange={onRatioChange} onCommit={onRatioCommit} />}
 
           {layoutMode !== "agent" && (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ width: layoutMode === "split" ? `${(1 - ratio) * 100}%` : "100%" }}>
+            <div ref={pipelinePaneRef} className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ width: layoutMode === "split" ? `${(1 - ratio) * 100}%` : "100%" }}>
               {/* A flex column, so the pane's flex-1 and min-h-0 hold it to this height
                   and it scrolls itself instead of overflowing the row. */}
               <PipelinePane
