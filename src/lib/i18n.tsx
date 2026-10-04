@@ -773,6 +773,13 @@ const ID: Record<string, string> = {
   "Move up": "Naikkan",
   "Move down": "Turunkan",
   "Finish arranging": "Selesai mengatur",
+  "Report a bug": "Laporkan bug",
+  "Title": "Judul",
+  "Description": "Deskripsi",
+  "What went wrong, in a few words": "Apa yang salah, dalam beberapa kata",
+  "What you did, what you expected, and what happened instead...": "Apa yang Anda lakukan, apa yang diharapkan, dan apa yang terjadi...",
+  "This opens a prefilled issue on GitHub. You review it there and submit it with your own account; Undagi sends nothing itself.": "Ini membuka issue yang sudah terisi di GitHub. Anda memeriksanya di sana dan mengirimnya dengan akun Anda sendiri; Undagi tidak mengirim apa pun sendiri.",
+  "Open on GitHub": "Buka di GitHub",
   "This folder already has a project with its own plan and board. Open it in a new chat? This chat keeps its own plan and stays where it is.": "Folder ini sudah punya proyek dengan plan dan board sendiri. Buka proyek itu di chat baru? Chat ini tetap menyimpan plan-nya sendiri dan tetap di tempatnya.",
 };
 

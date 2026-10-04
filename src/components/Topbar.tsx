@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { ProjectSession } from "../types";
-import { Check, Download, Folder, Layers, Menu, MessageSquare, Moon, Plug, Settings2, Sun } from "lucide-react";
+import { Bug, Check, Download, Folder, Layers, Menu, MessageSquare, Moon, Plug, Settings2, Sun } from "lucide-react";
 import { useT, type Language } from "../lib/i18n";
 import { useConnections } from "../lib/connections";
 import { useDismissable } from "../lib/dismissable";
@@ -21,6 +21,7 @@ export interface TopbarProps {
   isNarrow?: boolean;
   onOpenConnections: () => void;
   onOpenSettings: () => void;
+  onOpenBugReport: () => void;
   onSelectSample: (sample: SampleProject) => void;
   theme: Theme;
   onToggleTheme: () => void;
@@ -50,6 +51,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   isNarrow = false,
   onOpenConnections,
   onOpenSettings,
+  onOpenBugReport,
   onSelectSample,
   theme,
   onToggleTheme,
@@ -217,6 +219,11 @@ export const Topbar: React.FC<TopbarProps> = ({
             {activeConnections > 0 && (
               <span className="rounded bg-ok-soft px-1.5 text-[10px] font-semibold text-ok-ink">{activeConnections}</span>
             )}
+          </button>
+
+          <button type="button" onClick={onOpenBugReport} className="shell-settings-button" title={t("Report a bug")}>
+            <Bug className="h-4 w-4" aria-hidden />
+            <span className="sr-only">{t("Report a bug")}</span>
           </button>
 
           {/* Bahasa, tema, dan pengaturan agent jarang diubah, jadi ketiganya
