@@ -5,7 +5,6 @@ import { GenerationProgress } from "./GenerationProgress";
 import {
   FileText,
   Sparkles,
-  Download,
   Copy,
   Check,
   ArrowRight,
@@ -347,7 +346,7 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
         content: s.content,
       }));
 
-    // Ekspor .md membaca fullMarkdownText. Tanpa dibangun ulang, Download/Copy MD
+    // Ekspor .md membaca fullMarkdownText. Tanpa dibangun ulang, Export/Copy MD
     // akan mengekspor versi sebelum diedit.
     updatedPrd.fullMarkdownText = renderPrdMarkdown(updatedPrd, lang);
 
@@ -360,19 +359,6 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
     });
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
-  };
-
-  const handleDownloadMarkdown = () => {
-    if (!prd?.fullMarkdownText) return;
-    const blob = new Blob([prd.fullMarkdownText], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `PRD_${(session.input.title || "project").toLowerCase().replace(/[^a-z0-9]/g, "_")}.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   const handleCopyMarkdown = () => {
@@ -641,11 +627,6 @@ export const Step2PRD: React.FC<Step2PRDProps> = ({ session, onUpdateSession, on
               <button onClick={handleCopyMarkdown} className="btn-ghost">
                 {copiedMd ? <Check className="w-4 h-4 text-ok" /> : <Copy className="w-4 h-4" />}
                 {copiedMd ? t("Copied") : t("Copy MD")}
-              </button>
-
-              <button onClick={handleDownloadMarkdown} className="btn-ghost">
-                <Download className="w-4 h-4" />
-                {t("Download .md")}
               </button>
 
               <button onClick={handleContinueToTasks} disabled={loading || generatingTasks} className="btn-primary">

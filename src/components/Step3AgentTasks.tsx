@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ProjectSession, AgentTask, SessionUpdate } from "../types";
 import { generateTasks, isAbort, PipelineModelControl, usePipelineTarget } from "../lib/generate";
-import { agentsMarkdownFilename, buildAgentsMarkdown } from "../lib/agentsMd";
+import { buildAgentsMarkdown } from "../lib/agentsMd";
 import { downloadFile } from "../lib/download";
 import { buildHandoffJson, handoffJsonFilename } from "../lib/handoff";
 import { fetchTaskRunReview, type TaskRunReview } from "../lib/runs";
@@ -340,14 +340,6 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
     setTimeout(() => setCopiedTaskId(null), 2000);
   };
 
-  const handleDownloadMdFile = () => {
-    downloadFile(
-      agentsMarkdownFilename(session),
-      buildAgentsMarkdown(session),
-      "text/markdown",
-    );
-  };
-
   const handleDownloadTaskHandoff = (task: AgentTask) => {
     // Like Run: the work waits until the tasks it depends on are done.
     if (openDependencies(task, tasks).length > 0) return;
@@ -519,7 +511,7 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
               </div>
               <h3 className="text-base font-semibold text-ink">{t("Task board")}</h3>
               <p className="text-muted mt-1 max-w-xl leading-relaxed">
-                {t("Move tasks between states on the board below, or download AGENTS.md for your AI agent to run.")}
+                {t("Move tasks between states on the board below, or export AGENTS.md for your AI agent to run.")}
               </p>
             </div>
 
@@ -530,11 +522,6 @@ export const Step3AgentTasks: React.FC<Step3AgentTasksProps> = ({ session, onUpd
               <button onClick={handleCopyAllMd} className="btn-ghost">
                 {copiedAll ? <Check className="w-4 h-4 text-ok" /> : <Copy className="w-4 h-4" />}
                 {copiedAll ? t("Copied") : t("Copy all")}
-              </button>
-
-              <button onClick={handleDownloadMdFile} className={onRunBoard ? "btn-outline" : "btn-primary"}>
-                <Download className="w-4 h-4" />
-                {t("Download AGENTS.md")}
               </button>
 
               {onRunBoard && nextPhase !== null && (boardRun?.running ? (
