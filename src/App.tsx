@@ -22,6 +22,7 @@ import { Workbench } from "./components/shell/Workbench";
 import { ConnectionsModal } from "./components/connections/ConnectionsModal";
 import { ExportModal } from "./components/ExportModal";
 import { BugReportModal } from "./components/BugReportModal";
+import { DonateModal } from "./components/DonateModal";
 import { RefreshCw } from "lucide-react";
 import { projectNameFromWorkspaceRoot } from "./lib/workspace";
 import {
@@ -42,6 +43,7 @@ export default function App() {
   const [connectionsInitialTab, setConnectionsInitialTab] = useState<"connections" | "runtimes">("connections");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+  const [isDonateOpen, setIsDonateOpen] = useState(false);
   const [isAgentSettingsOpen, setIsAgentSettingsOpen] = useState(false);
   const [agentHarnessSettings, setAgentHarnessSettings] = useState(loadAgentHarnessSettings);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -413,6 +415,7 @@ export default function App() {
           onOpenConnections={() => { setConnectionsInitialTab("connections"); setIsConnectionsModalOpen(true); }}
           onOpenSettings={() => setIsAgentSettingsOpen(true)}
           onOpenBugReport={() => setIsBugReportOpen(true)}
+          onOpenDonate={() => setIsDonateOpen(true)}
           onSelectSample={handleSelectSample}
           theme={theme}
           onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -461,6 +464,7 @@ export default function App() {
       />
 
       <BugReportModal isOpen={isBugReportOpen} onClose={() => setIsBugReportOpen(false)} />
+      <DonateModal isOpen={isDonateOpen} onClose={() => setIsDonateOpen(false)} />
 
       <AgentSettingsModal
         isOpen={isAgentSettingsOpen}

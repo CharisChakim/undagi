@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { ProjectSession } from "../types";
-import { Bug, Check, Download, Layers, Menu, MessageSquare, Moon, Plug, Settings2, Sun } from "lucide-react";
+import { Bug, Check, Coffee, Download, Layers, Menu, MessageSquare, Moon, Plug, Settings2, Sun } from "lucide-react";
 import { useT, type Language } from "../lib/i18n";
 import { useConnections } from "../lib/connections";
 import { useDismissable } from "../lib/dismissable";
@@ -21,6 +21,7 @@ export interface TopbarProps {
   onOpenConnections: () => void;
   onOpenSettings: () => void;
   onOpenBugReport: () => void;
+  onOpenDonate: () => void;
   onSelectSample: (sample: SampleProject) => void;
   theme: Theme;
   onToggleTheme: () => void;
@@ -51,6 +52,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   onOpenConnections,
   onOpenSettings,
   onOpenBugReport,
+  onOpenDonate,
   onSelectSample,
   theme,
   onToggleTheme,
@@ -196,6 +198,11 @@ export const Topbar: React.FC<TopbarProps> = ({
             {activeConnections > 0 && (
               <span className="rounded bg-ok-soft px-1.5 text-[10px] font-semibold text-ok-ink">{activeConnections}</span>
             )}
+          </button>
+
+          <button type="button" onClick={onOpenDonate} className="shell-settings-button" title={t("Support Undagi")}>
+            <Coffee className="h-4 w-4" aria-hidden />
+            <span className="sr-only">{t("Support Undagi")}</span>
           </button>
 
           <button type="button" onClick={onOpenBugReport} className="shell-settings-button" title={t("Report a bug")}>
