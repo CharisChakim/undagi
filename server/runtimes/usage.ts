@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
+import { runMetadataCommand } from "./process.ts";
 import type { RuntimeDetection, RuntimeDiscoveryReport, RuntimeId } from "./types.ts";
 
 /**
@@ -10,6 +12,8 @@ import type { RuntimeDetection, RuntimeDiscoveryReport, RuntimeId } from "./type
 export interface UsageWindow {
   /** Stable per-runtime id: "five_hour", "seven_day", "primary", "secondary". */
   id: string;
+  /** Name to show instead of one made from the window length, when the runtime groups its limits by model. */
+  label?: string;
   /** Length of the window, or null when the runtime does not say. */
   windowMinutes: number | null;
   /** 0–100, share of the window already used. */
@@ -174,6 +178,82 @@ export function readCodexUsage(
       params: { clientInfo: { name: "undagi-usage", version: "0.1.0" }, capabilities: {} },
     });
   });
+}
+
+// `agy` answers `-p "/usage"` itself only from this version on; an older one
+// would send "/usage" to the model as a prompt and spend quota.
+const ANTIGRAVITY_USAGE_MIN_VERSION: readonly [number, number, number] = [1, 1, 11];
+
+function versionAtLeast(version: string | null, minimum: readonly [number, number, number]): boolean {
+  const match = version?.match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (!match) return false;
+  for (let index = 0; index < 3; index += 1) {
+    const part = Number(match[index + 1]);
+    if (part !== minimum[index]) return part > minimum[index];
+  }
+  return true;
+}
+
+// "Claude and GPT models" is too long for a row; "Claude & GPT" is the same group.
+function groupLabel(name: string): string {
+  return name.replace(/\s+models?$/i, "").replace(/\s+and\s+/gi, " & ").trim() || name;
+}
+
+/**
+ * The `agy -p "/usage" --output-format json` answer: limits grouped by model
+ * family. Each group shows the bucket with the least left, the one that
+ * will stop the user first.
+ */
+export function parseAntigravityUsage(response: unknown): ParsedUsage | null {
+  const command = isRecord(response) && isRecord(response.command) ? response.command : null;
+  const data = command?.name === "usage" && isRecord(command.data) ? command.data : null;
+  if (!data || !Array.isArray(data.groups)) return null;
+  const windows: UsageWindow[] = [];
+  for (const group of data.groups) {
+    if (!isRecord(group) || typeof group.name !== "string" || !Array.isArray(group.buckets)) continue;
+    let tightest: Record<string, unknown> | null = null;
+    for (const bucket of group.buckets) {
+      if (!isRecord(bucket) || typeof bucket.remaining_fraction !== "number" || !Number.isFinite(bucket.remaining_fraction)) continue;
+      if (!tightest || bucket.remaining_fraction < (tightest.remaining_fraction as number)) tightest = bucket;
+    }
+    const usedPercent = tightest ? percent(100 - (tightest.remaining_fraction as number) * 100) : null;
+    if (!tightest || usedPercent === null) continue;
+    windows.push({
+      id: typeof tightest.id === "string" && tightest.id ? tightest.id : group.name,
+      label: groupLabel(group.name),
+      windowMinutes: tightest.window === "weekly" ? 10_080 : null,
+      usedPercent,
+      resetsAt: isoFromString(tightest.reset_time),
+    });
+  }
+  return { plan: null, windows };
+}
+
+/**
+ * Read Antigravity's quota groups through its non-interactive `/usage`. The CLI
+ * answers it without a turn, so it spends nothing; an older CLI is not asked.
+ */
+export async function readAntigravityUsage(
+  executable: string,
+  version: string | null,
+  options: { timeoutMs?: number } = {},
+): Promise<ParsedUsage | null> {
+  if (!versionAtLeast(version, ANTIGRAVITY_USAGE_MIN_VERSION)) return null;
+  const result = await runMetadataCommand(executable, ["-p", "/usage", "--output-format", "json"], {
+    cwd: tmpdir(),
+    timeoutMs: options.timeoutMs ?? READ_TIMEOUT_MS,
+    stdin: "ignore",
+  });
+  if (!result.ok) throw new Error(result.timedOut ? "USAGE_TIMEOUT" : "USAGE_COMMAND_FAILED");
+  let answer: unknown;
+  try {
+    answer = JSON.parse(result.stdout);
+  } catch {
+    throw new Error("USAGE_UNRECOGNIZED");
+  }
+  const parsed = parseAntigravityUsage(answer);
+  if (!parsed) throw new Error("USAGE_UNRECOGNIZED");
+  return parsed;
 }
 
 interface ClaudeUsageQuery {

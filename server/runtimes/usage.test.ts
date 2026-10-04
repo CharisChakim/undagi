@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { collectRuntimeUsage, parseClaudeUsage, parseCodexRateLimits } from "./usage.ts";
+import { chmodSync, existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { collectRuntimeUsage, parseAntigravityUsage, parseClaudeUsage, parseCodexRateLimits, readAntigravityUsage } from "./usage.ts";
 import { unknownCapabilities, type RuntimeDetection, type RuntimeId, type RuntimeStatus } from "./types.ts";
 
 function detection(runtime: RuntimeId, status: RuntimeStatus): RuntimeDetection {
@@ -112,4 +116,67 @@ test("a runtime that is not connected is not read, and one without plan limits i
 
   assert.equal(reads, 1);
   assert.deepEqual(result.entries, []);
+});
+
+const AGY_USAGE = {
+  status: "SUCCESS",
+  num_turns: 0,
+  command: {
+    name: "usage",
+    data: {
+      groups: [
+        { name: "Gemini Models", buckets: [{ id: "gemini-weekly", name: "Weekly Limit Remaining", window: "weekly", remaining_fraction: 0.8, reset_time: "2026-10-11T03:03:27Z" }] },
+        {
+          name: "Claude and GPT models",
+          buckets: [
+            { id: "3p-daily", window: "daily", remaining_fraction: 0.9, reset_time: "2026-10-05T00:00:00Z" },
+            { id: "3p-weekly", window: "weekly", remaining_fraction: 0.25, reset_time: "2026-10-11T03:03:27Z" },
+          ],
+        },
+      ],
+    },
+  },
+};
+
+test("Antigravity usage gives one window per group, named after it, from the bucket with least left", () => {
+  assert.deepEqual(parseAntigravityUsage(AGY_USAGE), {
+    plan: null,
+    windows: [
+      { id: "gemini-weekly", label: "Gemini", windowMinutes: 10_080, usedPercent: 20, resetsAt: "2026-10-11T03:03:27.000Z" },
+      { id: "3p-weekly", label: "Claude & GPT", windowMinutes: 10_080, usedPercent: 75, resetsAt: "2026-10-11T03:03:27.000Z" },
+    ],
+  });
+});
+
+test("an Antigravity answer that is not a /usage result is not read as usage", () => {
+  assert.equal(parseAntigravityUsage({ status: "SUCCESS", response: "Hello" }), null);
+  assert.equal(parseAntigravityUsage({ command: { name: "help", data: {} } }), null);
+  assert.deepEqual(parseAntigravityUsage({ command: { name: "usage", data: { groups: [] } } }), { plan: null, windows: [] });
+});
+
+function fakeAgy(): { path: string; marker: string } {
+  const dir = mkdtempSync(join(tmpdir(), "undagi-agy-"));
+  const path = join(dir, "agy");
+  const marker = join(dir, "ran");
+  writeFileSync(path, `#!/bin/sh\ntouch "${marker}"\nprintf '%s' '${JSON.stringify(AGY_USAGE)}'\n`);
+  chmodSync(path, 0o755);
+  return { path, marker };
+}
+
+test("Antigravity usage is read through /usage in print mode when the CLI is new enough", { skip: process.platform === "win32" }, async () => {
+  const agy = fakeAgy();
+
+  const usage = await readAntigravityUsage(agy.path, "1.2.16");
+
+  assert.equal(existsSync(agy.marker), true);
+  assert.deepEqual(usage?.windows.map((window) => window.label), ["Gemini", "Claude & GPT"]);
+});
+
+test("an Antigravity CLI older than its print-mode /usage is never run", { skip: process.platform === "win32" }, async () => {
+  for (const version of ["1.1.10", "0.9.0", null, "dev"]) {
+    const agy = fakeAgy();
+
+    assert.equal(await readAntigravityUsage(agy.path, version), null);
+    assert.equal(existsSync(agy.marker), false, `ran for ${String(version)}`);
+  }
 });

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface UsageWindow {
   id: string;
+  /** Name to show in place of one made from the window length. */
+  label?: string;
   windowMinutes: number | null;
   usedPercent: number;
   resetsAt: string | null;
@@ -29,6 +31,7 @@ function usageWindow(value: unknown): UsageWindow | null {
   if (!isRecord(value) || typeof value.id !== "string" || typeof value.usedPercent !== "number" || !Number.isFinite(value.usedPercent)) return null;
   return {
     id: value.id,
+    ...(typeof value.label === "string" && value.label ? { label: value.label } : {}),
     windowMinutes: typeof value.windowMinutes === "number" && value.windowMinutes > 0 ? value.windowMinutes : null,
     usedPercent: Math.min(100, Math.max(0, value.usedPercent)),
     resetsAt: typeof value.resetsAt === "string" ? value.resetsAt : null,

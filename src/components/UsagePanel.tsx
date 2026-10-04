@@ -27,6 +27,7 @@ const SHOWN_WINDOWS = 2;
 const LIST_CLASS = "flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:var(--app-line)_transparent]";
 
 function windowLabel(window: UsageWindow, t: TFunction): string {
+  if (window.label) return window.label;
   const minutes = window.windowMinutes;
   if (minutes && minutes < 1_440 && minutes % 60 === 0) return t("{count}h", { count: minutes / 60 });
   if (minutes && minutes % 1_440 === 0) return t("{count}d", { count: minutes / 1_440 });
@@ -69,12 +70,12 @@ const WindowMeter: React.FC<{ entry: RuntimeUsage; window: UsageWindow }> = ({ e
       aria-valuenow={remaining}
       className="min-w-0"
     >
-      <div className="flex items-baseline justify-between gap-1 text-[10px] leading-none">
-        <span className="truncate text-faint">{label}</span>
-        <span className="shrink-0 tabular-nums text-ink">{remaining}%</span>
-      </div>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-subtle" aria-hidden>
-        <div className={`h-full rounded-full ${fillClass(remaining)}`} style={{ width: `${remaining}%` }} />
+      <div className="truncate text-[10px] leading-none text-faint">{label}</div>
+      <div className="mt-1 flex items-center gap-1">
+        <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-subtle" aria-hidden>
+          <div className={`h-full rounded-full ${fillClass(remaining)}`} style={{ width: `${remaining}%` }} />
+        </div>
+        <span className="shrink-0 text-[10px] leading-none tabular-nums text-ink">{remaining}%</span>
       </div>
     </div>
   );
@@ -91,7 +92,7 @@ const UsageRow: React.FC<{ entry: RuntimeUsage }> = ({ entry }) => {
     <li
       title={tooltip}
       style={{ height: ROW_PX }}
-      className="grid shrink-0 grid-cols-[4.75rem_1fr_1fr] items-center gap-x-2 rounded-md px-2 hover:bg-subtle"
+      className="grid shrink-0 grid-cols-[4.4rem_1fr_1fr] items-center gap-x-1.5 rounded-md px-1.5 hover:bg-subtle"
     >
       <span className="truncate text-[11px] font-semibold text-ink">{entry.label}</span>
       {unavailable ? (

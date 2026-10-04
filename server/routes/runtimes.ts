@@ -9,6 +9,7 @@ import { discoverRuntimes, hasTransientFailure, withLastKnownCatalogs } from "..
 import type { RuntimeDetection, RuntimeDiscoveryReport, RuntimeId } from "../runtimes/types.ts";
 import {
   collectRuntimeUsage,
+  readAntigravityUsage,
   readClaudeUsage,
   readCodexUsage,
   type RuntimeUsageReport,
@@ -136,6 +137,7 @@ async function usageFor(force: boolean): Promise<RuntimeUsageReport> {
     ]);
     const readers: Partial<Record<RuntimeId, UsageReader>> = {
       codex: (detection) => readCodexUsage(detection.binaryPath ?? "codex"),
+      antigravity: (detection) => readAntigravityUsage(detection.binaryPath ?? "agy", detection.version),
     };
     if (claudeSdk) readers.claude = (detection) => readClaudeUsage(claudeSdk.query, detection.binaryPath);
     return collectRuntimeUsage(discovery, readers);

@@ -37,3 +37,11 @@ test("a usage response is read defensively: bad rows and windows are dropped", (
   ]);
   assert.throws(() => parseUsageReport("nope"));
 });
+
+test("a window's own label is kept, so groups of one length can be told apart", () => {
+  const report = parseUsageReport({
+    entries: [{ runtime: "antigravity", windows: [{ id: "g", label: "Gemini", usedPercent: 20 }, { id: "c", label: "", usedPercent: 5 }] }],
+  });
+
+  assert.deepEqual(report.entries[0].windows.map((window) => window.label), ["Gemini", undefined]);
+});
