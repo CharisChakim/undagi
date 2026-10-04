@@ -369,3 +369,8 @@ export async function collectRuntimeUsage(
   }));
   return { fetchedAt: now().toISOString(), entries: settled.filter((entry): entry is RuntimeUsageEntry => entry !== null) };
 }
+
+/** Whether a row failed or shows an old reading, so the report is worth asking again soon. */
+export function usageNeedsRetry(report: RuntimeUsageReport): boolean {
+  return report.entries.some((entry) => entry.error !== null || entry.stale === true);
+}

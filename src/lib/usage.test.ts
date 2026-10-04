@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseUsageReport, remainingPercent, timeUntil } from "./usage";
+import { nextPollDelay, parseUsageReport, remainingPercent, timeUntil } from "./usage";
 
 const NOW = Date.parse("2026-10-04T00:00:00.000Z");
 
@@ -54,4 +54,13 @@ test("a stale entry keeps its flag and when it was read", () => {
   assert.equal(report.entries[0].stale, true);
   assert.equal(report.entries[0].readAt, "2026-10-04T01:00:00.000Z");
   assert.equal(report.entries[1].stale, undefined);
+});
+
+test("the sidebar asks again in 30 seconds while a row failed or is old, else in 3 minutes", () => {
+  const row = { runtime: "codex", label: "Codex", plan: null, windows: [], error: null };
+
+  assert.equal(nextPollDelay({ fetchedAt: "x", entries: [row] }), 180_000);
+  assert.equal(nextPollDelay({ fetchedAt: "x", entries: [{ ...row, error: "USAGE_UNAVAILABLE" }] }), 30_000);
+  assert.equal(nextPollDelay({ fetchedAt: "x", entries: [{ ...row, stale: true }] }), 30_000);
+  assert.equal(nextPollDelay(null), 30_000);
 });

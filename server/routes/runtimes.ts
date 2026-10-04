@@ -15,6 +15,7 @@ import {
   type RuntimeUsageReport,
   type UsageMemory,
   type UsageReader,
+  usageNeedsRetry,
 } from "../runtimes/usage.ts";
 import { loadClaudeSdkModule } from "../runtime-runner/index.ts";
 
@@ -123,14 +124,18 @@ export function warmRuntimeDiscovery(): void {
 }
 
 // Reading usage spawns the runtime's CLI, so an answer is reused for a minute.
+// One with a failed or old row is reused only briefly: the next read usually
+// works, and the sidebar asks again soon for exactly that reason.
 // A runtime with no entry here has no official way to read its usage.
 const USAGE_TTL_MS = 60_000;
+const USAGE_RETRY_TTL_MS = 15_000;
 let cachedUsage: { report: RuntimeUsageReport; at: number } | null = null;
 let usageInFlight: Promise<RuntimeUsageReport> | null = null;
 const lastGoodUsage: UsageMemory = new Map();
 
 async function usageFor(force: boolean): Promise<RuntimeUsageReport> {
-  if (!force && cachedUsage && Date.now() < cachedUsage.at + USAGE_TTL_MS) return cachedUsage.report;
+  const ttlMs = cachedUsage && usageNeedsRetry(cachedUsage.report) ? USAGE_RETRY_TTL_MS : USAGE_TTL_MS;
+  if (!force && cachedUsage && Date.now() < cachedUsage.at + ttlMs) return cachedUsage.report;
   if (usageInFlight) return usageInFlight;
   usageInFlight = (async () => {
     const [discovery, claudeSdk] = await Promise.all([

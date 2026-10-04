@@ -85,12 +85,22 @@ export function timeUntil(iso: string | null, now: number): { days: number; hour
 
 // Usage moves slowly and each read starts the runtime's CLI, so a few minutes is
 // as often as the sidebar asks. The server also reuses an answer for a minute.
+// A failed or old row is asked about again soon: a read that times out, often
+// the first one after the app starts, usually works the next time.
 const POLL_MS = 3 * 60_000;
+const RETRY_MS = 30_000;
+
+/** How long to wait before reading again after `report`; no report yet counts as a failure. */
+export function nextPollDelay(report: RuntimeUsageReport | null): number {
+  return !report || report.entries.some((entry) => entry.error !== null || entry.stale) ? RETRY_MS : POLL_MS;
+}
 
 /** Usage of the connected runtimes, kept up to date while the page is visible. */
 export function useRuntimeUsage(): { report: RuntimeUsageReport | null; refreshing: boolean; refresh: () => Promise<void> } {
   const [report, setReport] = useState<RuntimeUsageReport | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Counts finished reads, failed ones too, so each one schedules the next.
+  const [reads, setReads] = useState(0);
   const mounted = useRef(true);
 
   const load = useCallback(async (method: "GET" | "POST") => {
@@ -101,21 +111,30 @@ export function useRuntimeUsage(): { report: RuntimeUsageReport | null; refreshi
     } catch {
       // Keep what is shown; the next poll tries again.
     } finally {
-      if (mounted.current) setRefreshing(false);
+      if (mounted.current) {
+        setRefreshing(false);
+        setReads((count) => count + 1);
+      }
     }
   }, []);
 
   useEffect(() => {
     mounted.current = true;
     void load("GET");
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void load("GET");
-    }, POLL_MS);
     return () => {
       mounted.current = false;
-      window.clearInterval(timer);
     };
   }, [load]);
+
+  // A hidden page skips the read but keeps the schedule going.
+  useEffect(() => {
+    if (reads === 0) return;
+    const timer = window.setTimeout(() => {
+      if (document.visibilityState === "visible") void load("GET");
+      else setReads((count) => count + 1);
+    }, nextPollDelay(report));
+    return () => window.clearTimeout(timer);
+  }, [reads, report, load]);
 
   const refresh = useCallback(() => load("POST"), [load]);
   return { report, refreshing, refresh };

@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { collectRuntimeUsage, parseAntigravityUsage, parseClaudeUsage, parseCodexRateLimits, readAntigravityUsage } from "./usage.ts";
+import { collectRuntimeUsage, usageNeedsRetry, parseAntigravityUsage, parseClaudeUsage, parseCodexRateLimits, readAntigravityUsage, type RuntimeUsageEntry } from "./usage.ts";
 import { unknownCapabilities, type RuntimeDetection, type RuntimeId, type RuntimeStatus } from "./types.ts";
 
 function detection(runtime: RuntimeId, status: RuntimeStatus): RuntimeDetection {
@@ -233,4 +233,14 @@ test("a runtime that disconnects forgets its last reading", async () => {
   assert.equal(memory.has("codex"), true);
   await collectRuntimeUsage({ ...ready, runtimes: [detection("codex", "needs_login")] }, { codex: reader }, { memory });
   assert.equal(memory.has("codex"), false);
+});
+
+test("a report with a failed or old row is worth asking again soon", () => {
+  const entry: RuntimeUsageEntry = { runtime: "codex", label: "Codex", plan: null, windows: [], error: null };
+  const report = (entries: RuntimeUsageEntry[]) => ({ fetchedAt: "x", entries });
+
+  assert.equal(usageNeedsRetry(report([entry])), false);
+  assert.equal(usageNeedsRetry(report([])), false);
+  assert.equal(usageNeedsRetry(report([{ ...entry, error: "USAGE_UNAVAILABLE" }])), true);
+  assert.equal(usageNeedsRetry(report([{ ...entry, stale: true }])), true);
 });
