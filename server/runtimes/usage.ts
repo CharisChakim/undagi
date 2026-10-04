@@ -30,8 +30,22 @@ export interface ParsedUsage {
 export interface RuntimeUsageEntry extends ParsedUsage {
   runtime: RuntimeId;
   label: string;
-  /** Stable code when the read failed; `windows` is empty then. */
+  /** Stable code when the read failed and there is no recent reading to show; `windows` is empty then. */
   error: string | null;
+  /** The latest read failed, so these are the windows of the last one that worked, read at `readAt`. */
+  stale?: true;
+  readAt?: string;
+}
+
+/** The last reading that worked, per runtime, kept between calls by the caller. */
+export type UsageMemory = Map<RuntimeId, { entry: RuntimeUsageEntry; at: number }>;
+
+// A failed read shows the last good one for this long; past it the numbers may
+// have reset and would mislead.
+const STALE_LIMIT_MS = 15 * 60_000;
+
+function failureCode(error: unknown): string {
+  return error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : "USAGE_READ_ERROR";
 }
 
 export interface RuntimeUsageReport {
@@ -309,23 +323,47 @@ export async function readClaudeUsage(
 }
 
 /**
- * Usage of every runtime that is connected (`ready`) and has a reader. A runtime
- * whose read fails stays listed with an error, so it does not look disconnected;
- * one with no plan limits is left out.
+ * Usage of every runtime that is connected (`ready`) and has a reader. A read
+ * that fails, which happens now and then (a slow CLI, the provider's endpoint),
+ * shows the last good reading from `memory` marked stale; with none recent
+ * enough the runtime stays listed with an error, so it does not look
+ * disconnected. One with no plan limits is left out.
  */
 export async function collectRuntimeUsage(
   report: RuntimeDiscoveryReport,
   readers: Partial<Record<RuntimeId, UsageReader>>,
-  now: () => Date = () => new Date(),
+  options: {
+    now?: () => Date;
+    memory?: UsageMemory;
+    /** Told the stable code of every failed read; never provider output. */
+    onFailure?: (runtime: RuntimeId, code: string) => void;
+  } = {},
 ): Promise<RuntimeUsageReport> {
+  const now = options.now ?? (() => new Date());
+  const memory: UsageMemory = options.memory ?? new Map();
   const settled = await Promise.all(report.runtimes.map(async (detection): Promise<RuntimeUsageEntry | null> => {
-    const reader = readers[detection.runtime];
-    if (detection.status !== "ready" || !reader) return null;
-    const base = { runtime: detection.runtime, label: USAGE_LABELS[detection.runtime] };
+    const runtime = detection.runtime;
+    const reader = readers[runtime];
+    if (detection.status !== "ready" || !reader) {
+      memory.delete(runtime);
+      return null;
+    }
+    const base = { runtime, label: USAGE_LABELS[runtime] };
     try {
       const usage = await reader(detection);
-      return usage ? { ...base, ...usage, error: null } : null;
-    } catch {
+      if (!usage) {
+        memory.delete(runtime);
+        return null;
+      }
+      const entry: RuntimeUsageEntry = { ...base, ...usage, error: null };
+      memory.set(runtime, { entry, at: now().getTime() });
+      return entry;
+    } catch (error) {
+      options.onFailure?.(runtime, failureCode(error));
+      const previous = memory.get(runtime);
+      if (previous && now().getTime() - previous.at <= STALE_LIMIT_MS) {
+        return { ...previous.entry, stale: true, readAt: new Date(previous.at).toISOString() };
+      }
       return { ...base, plan: null, windows: [], error: "USAGE_UNAVAILABLE" };
     }
   }));

@@ -16,6 +16,9 @@ export interface RuntimeUsage {
   windows: UsageWindow[];
   /** Set when the runtime is connected but its usage could not be read. */
   error: string | null;
+  /** The latest read failed; these windows are from the one at `readAt`. */
+  stale?: boolean;
+  readAt?: string;
 }
 
 export interface RuntimeUsageReport {
@@ -46,6 +49,8 @@ function usageEntry(value: unknown): RuntimeUsage | null {
     plan: typeof value.plan === "string" && value.plan ? value.plan : null,
     windows: Array.isArray(value.windows) ? value.windows.flatMap((item) => usageWindow(item) ?? []) : [],
     error: typeof value.error === "string" && value.error ? value.error : null,
+    ...(value.stale === true ? { stale: true } : {}),
+    ...(typeof value.readAt === "string" ? { readAt: value.readAt } : {}),
   };
 }
 

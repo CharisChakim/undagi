@@ -77,7 +77,9 @@ const UsageRow: React.FC<{ entry: RuntimeUsage }> = ({ entry }) => {
   const { t } = useT();
   const windows = shownWindows(entry);
   const details = windows.length ? windows.map((window) => windowDetail(window, t)) : [t("Usage unavailable")];
-  const tooltip = [entry.plan ? `${entry.label} · ${entry.plan}` : entry.label, ...details].join("\n");
+  const minutesAgo = entry.readAt ? Math.max(1, Math.round((Date.now() - Date.parse(entry.readAt)) / 60_000)) : null;
+  const staleNote = entry.stale && minutesAgo !== null ? t("Not refreshed: last read {count} min ago", { count: minutesAgo }) : null;
+  const tooltip = [entry.plan ? `${entry.label} · ${entry.plan}` : entry.label, ...details, ...(staleNote ? [staleNote] : [])].join("\n");
   const name = <span className="min-w-0 flex-1 truncate text-[11px] text-muted">{entry.label}</span>;
   return (
     <li
@@ -97,11 +99,11 @@ const UsageRow: React.FC<{ entry: RuntimeUsage }> = ({ entry }) => {
             <div className="flex items-baseline gap-2 leading-none">
               {index === 0 ? name : <span className="flex-1" aria-hidden />}
               <span className="min-w-0 truncate text-[10px] text-faint">{windowLabel(window, t)}</span>
-              <span className="shrink-0 text-[11px] tabular-nums text-ink">{remaining}%</span>
+              <span className={`shrink-0 text-[11px] tabular-nums ${entry.stale ? "text-faint" : "text-ink"}`}>{remaining}%</span>
             </div>
             <div
               role="meter"
-              aria-label={`${entry.label}, ${windowDetail(window, t)}`}
+              aria-label={[entry.label, windowDetail(window, t), staleNote].filter(Boolean).join(", ")}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={remaining}

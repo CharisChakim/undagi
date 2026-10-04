@@ -13,6 +13,7 @@ import {
   readClaudeUsage,
   readCodexUsage,
   type RuntimeUsageReport,
+  type UsageMemory,
   type UsageReader,
 } from "../runtimes/usage.ts";
 import { loadClaudeSdkModule } from "../runtime-runner/index.ts";
@@ -126,6 +127,7 @@ export function warmRuntimeDiscovery(): void {
 const USAGE_TTL_MS = 60_000;
 let cachedUsage: { report: RuntimeUsageReport; at: number } | null = null;
 let usageInFlight: Promise<RuntimeUsageReport> | null = null;
+const lastGoodUsage: UsageMemory = new Map();
 
 async function usageFor(force: boolean): Promise<RuntimeUsageReport> {
   if (!force && cachedUsage && Date.now() < cachedUsage.at + USAGE_TTL_MS) return cachedUsage.report;
@@ -140,7 +142,10 @@ async function usageFor(force: boolean): Promise<RuntimeUsageReport> {
       antigravity: (detection) => readAntigravityUsage(detection.binaryPath ?? "agy", detection.version),
     };
     if (claudeSdk) readers.claude = (detection) => readClaudeUsage(claudeSdk.query, detection.binaryPath);
-    return collectRuntimeUsage(discovery, readers);
+    return collectRuntimeUsage(discovery, readers, {
+      memory: lastGoodUsage,
+      onFailure: (runtime, code) => console.warn(`[usage] ${runtime}: ${code}`),
+    });
   })().then((report) => {
     cachedUsage = { report, at: Date.now() };
     return report;

@@ -773,6 +773,7 @@ const ID: Record<string, string> = {
   "Move up": "Naikkan",
   "Move down": "Turunkan",
   "Finish arranging": "Selesai mengatur",
+  "Not refreshed: last read {count} min ago": "Belum diperbarui: terakhir terbaca {count} menit lalu",
   "Report a bug": "Laporkan bug",
   "Title": "Judul",
   "Description": "Deskripsi",

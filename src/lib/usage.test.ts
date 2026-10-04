@@ -45,3 +45,13 @@ test("a window's own label is kept, so groups of one length can be told apart", 
 
   assert.deepEqual(report.entries[0].windows.map((window) => window.label), ["Gemini", undefined]);
 });
+
+test("a stale entry keeps its flag and when it was read", () => {
+  const report = parseUsageReport({
+    entries: [{ runtime: "claude", stale: true, readAt: "2026-10-04T01:00:00.000Z", windows: [] }, { runtime: "codex", stale: "yes" }],
+  });
+
+  assert.equal(report.entries[0].stale, true);
+  assert.equal(report.entries[0].readAt, "2026-10-04T01:00:00.000Z");
+  assert.equal(report.entries[1].stale, undefined);
+});

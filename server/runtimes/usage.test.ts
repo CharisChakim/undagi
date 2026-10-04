@@ -92,7 +92,7 @@ test("only connected runtimes with a reader are listed, and a failed read keeps 
       codex: async () => { throw new Error("boom"); },
       claude: async () => ({ plan: "max", windows: [{ id: "five_hour", windowMinutes: 300, usedPercent: 40, resetsAt: null }] }),
     },
-    () => new Date("2026-10-04T01:00:00.000Z"),
+    { now: () => new Date("2026-10-04T01:00:00.000Z") },
   );
 
   assert.equal(result.fetchedAt, "2026-10-04T01:00:00.000Z");
@@ -179,4 +179,58 @@ test("an Antigravity CLI older than its print-mode /usage is never run", { skip:
     assert.equal(await readAntigravityUsage(agy.path, version), null);
     assert.equal(existsSync(agy.marker), false, `ran for ${String(version)}`);
   }
+});
+
+test("a failed read shows the last good one, marked stale, until it is too old to trust", async () => {
+  const memory = new Map();
+  const failures: string[] = [];
+  let clock = Date.parse("2026-10-04T01:00:00.000Z");
+  let fail = false;
+  const report = { checkedAt: "2026-10-04T00:00:00.000Z", ttlMs: 1, runtimes: [detection("claude", "ready")] };
+  const readers = {
+    claude: async () => {
+      if (fail) throw new Error("USAGE_TIMEOUT");
+      return { plan: "team", windows: [{ id: "five_hour", windowMinutes: 300, usedPercent: 30, resetsAt: null }] };
+    },
+  };
+  const options = { memory, now: () => new Date(clock), onFailure: (runtime: string, code: string) => failures.push(`${runtime}:${code}`) };
+
+  const fresh = await collectRuntimeUsage(report, readers, options);
+  assert.equal(fresh.entries[0].stale, undefined);
+
+  fail = true;
+  clock += 10 * 60_000;
+  const stale = (await collectRuntimeUsage(report, readers, options)).entries[0];
+  assert.equal(stale.stale, true);
+  assert.equal(stale.readAt, "2026-10-04T01:00:00.000Z");
+  assert.equal(stale.error, null);
+  assert.equal(stale.windows[0].usedPercent, 30);
+
+  clock += 6 * 60_000;
+  const old = (await collectRuntimeUsage(report, readers, options)).entries[0];
+  assert.equal(old.error, "USAGE_UNAVAILABLE");
+  assert.deepEqual(old.windows, []);
+  assert.deepEqual(failures, ["claude:USAGE_TIMEOUT", "claude:USAGE_TIMEOUT"]);
+});
+
+test("a failure's own message is logged only when it is a stable code", async () => {
+  const failures: string[] = [];
+  await collectRuntimeUsage(
+    { checkedAt: "2026-10-04T00:00:00.000Z", ttlMs: 1, runtimes: [detection("codex", "ready")] },
+    { codex: async () => { throw new Error("spawn /home/someone/bin/codex ENOENT"); } },
+    { onFailure: (runtime, code) => failures.push(`${runtime}:${code}`) },
+  );
+
+  assert.deepEqual(failures, ["codex:USAGE_READ_ERROR"]);
+});
+
+test("a runtime that disconnects forgets its last reading", async () => {
+  const memory = new Map();
+  const reader = async () => ({ plan: null, windows: [{ id: "primary", windowMinutes: 10_080, usedPercent: 5, resetsAt: null }] });
+  const ready = { checkedAt: "x", ttlMs: 1, runtimes: [detection("codex", "ready")] };
+
+  await collectRuntimeUsage(ready, { codex: reader }, { memory });
+  assert.equal(memory.has("codex"), true);
+  await collectRuntimeUsage({ ...ready, runtimes: [detection("codex", "needs_login")] }, { codex: reader }, { memory });
+  assert.equal(memory.has("codex"), false);
 });
