@@ -7,6 +7,13 @@ import {
 } from "../runtimes/binary-paths.ts";
 import { discoverRuntimes, hasTransientFailure, withLastKnownCatalogs } from "../runtimes/discovery.ts";
 import type { RuntimeDetection, RuntimeDiscoveryReport, RuntimeId } from "../runtimes/types.ts";
+import {
+  collectRuntimeUsage,
+  readClaudeUsage,
+  readCodexUsage,
+  type RuntimeUsageReport,
+  type UsageReader,
+} from "../runtimes/usage.ts";
 import { loadClaudeSdkModule } from "../runtime-runner/index.ts";
 
 const router = express.Router();
@@ -97,6 +104,7 @@ async function saveBinaryPath(req: express.Request, res: express.Response): Prom
   try {
     saveRuntimeBinaryPath(input);
     cachedReport = null;
+    cachedUsage = null;
     respondWithReport(await reportFor(true), res);
   } catch {
     res.status(500).json({ error: "RUNTIME_DISCOVERY_FAILED" });
@@ -112,9 +120,47 @@ export function warmRuntimeDiscovery(): void {
   void reportFor(false).catch(() => undefined);
 }
 
+// Reading usage spawns the runtime's CLI, so an answer is reused for a minute.
+// A runtime with no entry here has no official way to read its usage.
+const USAGE_TTL_MS = 60_000;
+let cachedUsage: { report: RuntimeUsageReport; at: number } | null = null;
+let usageInFlight: Promise<RuntimeUsageReport> | null = null;
+
+async function usageFor(force: boolean): Promise<RuntimeUsageReport> {
+  if (!force && cachedUsage && Date.now() < cachedUsage.at + USAGE_TTL_MS) return cachedUsage.report;
+  if (usageInFlight) return usageInFlight;
+  usageInFlight = (async () => {
+    const [discovery, claudeSdk] = await Promise.all([
+      reportFor(false),
+      loadClaudeSdkModule().catch(() => null),
+    ]);
+    const readers: Partial<Record<RuntimeId, UsageReader>> = {
+      codex: (detection) => readCodexUsage(detection.binaryPath ?? "codex"),
+    };
+    if (claudeSdk) readers.claude = (detection) => readClaudeUsage(claudeSdk.query, detection.binaryPath);
+    return collectRuntimeUsage(discovery, readers);
+  })().then((report) => {
+    cachedUsage = { report, at: Date.now() };
+    return report;
+  }).finally(() => {
+    usageInFlight = null;
+  });
+  return usageInFlight;
+}
+
+async function usage(req: express.Request, res: express.Response): Promise<void> {
+  try {
+    res.json(await usageFor(req.method === "POST"));
+  } catch {
+    res.status(500).json({ error: "RUNTIME_USAGE_FAILED" });
+  }
+}
+
 router.get("/api/runtimes", discover);
 router.post("/api/runtimes/discover", discover);
 router.put("/api/runtimes/binary-path", saveBinaryPath);
+router.get("/api/runtimes/usage", usage);
+router.post("/api/runtimes/usage", usage);
 
 export { router };
 export default router;
