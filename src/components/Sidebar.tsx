@@ -4,6 +4,7 @@ import type { ProjectSession, SessionSummary } from "../types";
 import { projectNameFromWorkspaceRoot } from "../lib/workspace";
 import { folderProject } from "../lib/workspaceProject";
 import { LogoMark } from "./LogoMark";
+import { UsagePanel } from "./UsagePanel";
 import { useT } from "../lib/i18n";
 import { useDismissable } from "../lib/dismissable";
 
@@ -462,6 +463,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 );
               })}
             </div>
+
+            <UsagePanel />
           </div>
         )}
       </aside>
