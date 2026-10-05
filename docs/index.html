@@ -111,7 +111,7 @@ nav.scrolled { border-bottom-color: var(--line); }
   box-shadow: var(--elev-1);
 }
 .nav-sp { flex: 1; }
-.nav-link { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; padding: 6px 2px; transition: color var(--dur) var(--ease); }
+.nav-link { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; padding: 6px 2px; white-space: nowrap; transition: color var(--dur) var(--ease); }
 .nav-link:hover { color: var(--ink); }
 .icon-btn {
   width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer;
@@ -121,7 +121,8 @@ nav.scrolled { border-bottom-color: var(--line); }
 }
 .icon-btn:hover { color: var(--ink); transform: translateY(-1px); box-shadow: var(--elev-2); }
 .icon-btn:active { transform: translateY(0) scale(.97); }
-@media (max-width: 720px) { .nav-hide { display: none; } }
+/* Six section links fit from about 900px; below that only GitHub and the theme toggle stay. */
+@media (max-width: 900px) { .nav-hide { display: none; } }
 
 /* ---------- hero ---------- */
 header.hero { position: relative; padding: 88px 0 0; overflow: hidden; }
@@ -335,6 +336,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
     <a class="brand" href="#top"><span class="mark"><svg viewBox="0 0 100 100" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M30 25V73H70V35" fill="none" stroke="currentColor" stroke-width="8" stroke-linejoin="round"/><rect x="20" y="15" width="20" height="20" rx="5"/><rect x="40" y="63" width="20" height="20" rx="5"/><rect x="61.5" y="16.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="5"/></svg></span> Undagi</a>
     <span class="nav-sp"></span>
     <a class="nav-link nav-hide" href="#how">How it works</a>
+    <a class="nav-link nav-hide" href="#daily">Day to day</a>
     <a class="nav-link nav-hide" href="#compare">Compare</a>
     <a class="nav-link nav-hide" href="#models">Models</a>
     <a class="nav-link nav-hide" href="#trust">Boundaries</a>
@@ -377,7 +379,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
     <div class="shot" id="heroShot">
       <img class="themed" data-light="assets/board-light.png" data-dark="assets/board-dark.png"
            src="assets/board-dark.png"
-           alt="Undagi kanban workspace: nine generated tasks across To do, In progress and Done, each with an ID, phase, priority and target file count, plus a Download AGENTS.md button."
+           alt="Undagi's board for a small-shop POS project: a Run Phase 1 button, project memory, and 29 generated tasks with IDs, phases, priorities and dependencies. The sidebar shows the folder's Plan, PRD and Kanban, and the remaining usage of Codex, Claude Code and Antigravity."
            width="2880" height="1800" />
     </div>
   </div>
@@ -426,12 +428,14 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
       <div class="step">
         <span class="idx">STEP 02</span>
         <h3>PRD</h3>
-        <p>The approved plan becomes a seven-point requirements document you can actually edit:</p>
+        <p>The approved plan becomes a PRD written the way product teams write one, sized to a first release:</p>
         <ul>
-          <li>Requirements and features by phase</li>
-          <li>User flow and architecture</li>
-          <li>Database schema and tech stack</li>
-          <li>Structured view, raw fields, or Markdown</li>
+          <li>Goals and success metrics, target users</li>
+          <li>Scope and release plan, with non-goals</li>
+          <li>Requirements as user stories with acceptance criteria</li>
+          <li>Assumptions, risks and open questions</li>
+          <li>For the coding agent: architecture, data model, tech stack</li>
+          <li>Edit it as a structured view, raw fields, or Markdown</li>
         </ul>
       </div>
       <div class="step">
@@ -442,10 +446,11 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
           <li>Stable ID, priority, phase</li>
           <li>Target files and dependencies</li>
           <li>Instructions and verification steps</li>
-          <li>Run it here: the card moves to Done or Blocked, with the agent's note</li>
+          <li>Run one card, or a whole phase with one button, in dependency order</li>
+          <li>The card moves to Done or Blocked, with the agent's note</li>
           <li>A verify command per card: Done is marked Verified once it exits 0, or Unverified when nothing checked it</li>
           <li>Each run starts with what earlier tasks left behind: their notes and the facts agents learned</li>
-          <li>Export as <code>AGENTS.md</code></li>
+          <li>Export <code>AGENTS.md</code>, the plan, the PRD or a handoff bundle: one file, or several as a .zip</li>
         </ul>
       </div>
     </div>
@@ -453,10 +458,67 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
     <figure>
       <div class="shot"><img class="themed" data-light="assets/plan-light.png" data-dark="assets/plan-dark.png"
            src="assets/plan-light.png"
-           alt="The generated plan for a small-shop inventory app: a summary, a model picker with a Continue to the PRD button, and an interactive feature-structure diagram."
+           alt="The generated plan for a small-shop POS and inventory app: a first-release summary, a model picker with a Continue to the PRD button, and an interactive feature-structure diagram."
            width="2880" height="1800" loading="lazy" /></div>
       <figcaption>The plan step — an editable summary and feature structure you review before the PRD.</figcaption>
     </figure>
+  </div>
+</section>
+
+<section id="daily">
+  <div class="wrap">
+    <p class="kicker">Day to day</p>
+    <h2>Built for coming back tomorrow.</h2>
+    <p class="section-lede">
+      A plan is only useful if the next session can pick it up. Undagi keeps the project with the
+      folder, runs the board a phase at a time, and lets you change the plan without losing what is
+      already done.
+    </p>
+
+    <div class="grid2">
+      <div class="tile">
+        <h3>One folder, one project, any number of chats</h3>
+        <p>
+          A folder holds one project: its plan, PRD, board and memory. Every chat you open in it reads
+          the same board and memory, so tomorrow's chat carries on with the phase left unfinished.
+          Deleting a chat removes its messages; the project stays until you delete it on purpose.
+        </p>
+      </div>
+      <div class="tile">
+        <h3>Run a phase, not a prompt</h3>
+        <p>
+          <b>Run Phase 1</b> runs that phase's To do cards one at a time, each once its dependencies are
+          done, each in its own session with retries and its verify command. The run stops at the first
+          card that does not end Done, so nothing builds on a failure, and you check the phase before
+          the next one starts.
+        </p>
+        <p>
+          Ask the chat to work on the tasks and it starts the same run, because every chat turn sees the
+          board with its cards, status and dependencies.
+        </p>
+      </div>
+      <div class="tile">
+        <h3>Change the plan without losing the work</h3>
+        <p>
+          Syncing the board to a new PRD replaces only cards still in To do. A card that is running or
+          Done keeps its note, its Verified label and its place, and so does any card you added. The
+          new tasks are told which cards stay, so they do not repeat that work. You see how many cards
+          are replaced and kept before anything changes.
+        </p>
+      </div>
+      <div class="tile">
+        <h3>See what is left of your plan</h3>
+        <p>
+          The sidebar shows the remaining usage of each subscription you have connected: Claude Code's
+          five-hour and weekly windows, Codex's limits, and Antigravity's per model group. Each is read
+          through that CLI's own usage request, which sends no prompt and spends no quota. A read that
+          fails keeps showing the last one, marked as not refreshed.
+        </p>
+        <div class="chips">
+          <span class="chip">Claude Code</span><span class="chip">Codex</span><span class="chip">Antigravity</span>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -502,7 +564,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
         <li>Packaged installers are for Windows, Linux and Apple Silicon Macs, and none carries a verified publisher signature; on a Mac the first launch needs Open Anyway in Privacy &amp; Security.</li>
         <li>It plans a new project from an idea. It does not analyse an existing codebase to plan changes to it.</li>
         <li>No parallel agents, git worktrees or pull-request loop.</li>
-        <li>A task counts as Done when the agent says so. Undagi does not run the verification steps itself.</li>
+        <li>A card without a verify command counts as Done when the agent says so; it is labelled Unverified.</li>
         <li>Approvals and path checks are not an OS sandbox. &ldquo;Full access&rdquo; means you trust the agent.</li>
       </ul>
     </div>
@@ -650,7 +712,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
       <p>
         Installers for Windows (<code>.exe</code>), Linux (<code>.AppImage</code>, <code>.deb</code>) and
         Apple Silicon Macs (<code>.dmg</code>) are on the
-        <a href="https://github.com/CharisChakim/undagi/releases/tag/v1.0.3-beta">v1.0.3-beta release</a>.
+        <a href="https://github.com/CharisChakim/undagi/releases/tag/v1.0.4-beta">v1.0.4-beta release</a>.
         They bundle their own runtime, so you do not need Node.
       </p>
       <p>
