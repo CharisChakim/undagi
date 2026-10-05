@@ -1,3 +1,5 @@
+import { prefs as store } from "./prefs";
+
 // Which usage rows the sidebar shows and in what order. Ids are the runtime
 // ids the server reports, kept as plain strings so a runtime added later needs
 // no change here. A runtime the user never arranged follows the arranged ones.
@@ -19,7 +21,7 @@ function ids(value: unknown): string[] {
 
 export function loadUsagePrefs(): UsagePrefs {
   try {
-    const raw = localStorage.getItem(USAGE_PREFS_KEY);
+    const raw = store.get(USAGE_PREFS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Record<string, unknown> | null;
       return { order: ids(parsed?.order), hidden: ids(parsed?.hidden) };
@@ -32,7 +34,7 @@ export function loadUsagePrefs(): UsagePrefs {
 
 export function saveUsagePrefs(prefs: UsagePrefs): void {
   try {
-    localStorage.setItem(USAGE_PREFS_KEY, JSON.stringify(prefs));
+    store.set(USAGE_PREFS_KEY, JSON.stringify(prefs));
   } catch (e) {
     console.warn("Failed to save usage preferences:", e);
   }

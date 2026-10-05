@@ -1,3 +1,5 @@
+import { prefs } from "./prefs";
+
 export interface AgentHarnessSettings {
   compactTerminal: boolean;
   conciseAnswers: boolean;
@@ -27,7 +29,7 @@ export function agentLanguageFor(settings: Pick<AgentHarnessSettings, "agentInst
 
 export function loadAgentHarnessSettings(): AgentHarnessSettings {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    const saved = JSON.parse(prefs.get(STORAGE_KEY) || "null");
     // Versi sebelumnya menyimpan satu tombol `efficiencyStack` untuk ketiga
     // lapis sekaligus. Kalau pengguna sengaja mematikannya, pilihan itu
     // dihormati — tanpa ini token yang sudah ia tolak diam-diam menyala lagi.
@@ -49,7 +51,7 @@ export function loadAgentHarnessSettings(): AgentHarnessSettings {
 
 export function saveAgentHarnessSettings(settings: AgentHarnessSettings): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    prefs.set(STORAGE_KEY, JSON.stringify(settings));
   } catch (error) {
     console.warn("Failed to save agent harness settings:", error);
   }

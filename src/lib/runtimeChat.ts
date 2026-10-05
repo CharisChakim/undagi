@@ -1,4 +1,5 @@
 import type { RuntimeDiscoveryReport, RuntimeId } from "../types";
+import { prefs } from "./prefs";
 
 export type RuntimeChatSelection =
   | { runtime: "legacy"; model: "inherit"; effort: "inherit" }
@@ -40,7 +41,7 @@ function parseSelection(raw: string | null): RuntimeChatSelection | null {
 /** Whether the user has picked a runtime for this chat. */
 export function hasRuntimeSelection(sessionId: string): boolean {
   try {
-    return window.localStorage.getItem(storageKey(SELECTION_PREFIX, sessionId)) !== null;
+    return prefs.get(storageKey(SELECTION_PREFIX, sessionId)) !== null;
   } catch {
     return false;
   }
@@ -49,7 +50,7 @@ export function hasRuntimeSelection(sessionId: string): boolean {
 /** The runtime the user last picked in any chat, for a chat that has none yet. */
 export function loadLastRuntimeSelection(): RuntimeChatSelection | null {
   try {
-    return parseSelection(window.localStorage.getItem(LAST_SELECTION_KEY));
+    return parseSelection(prefs.get(LAST_SELECTION_KEY));
   } catch {
     return null;
   }
@@ -100,7 +101,7 @@ export function defaultAwaitsDiscovery(input: {
 
 export function loadRuntimeSelection(sessionId: string): RuntimeChatSelection {
   try {
-    const raw = window.localStorage.getItem(storageKey(SELECTION_PREFIX, sessionId));
+    const raw = prefs.get(storageKey(SELECTION_PREFIX, sessionId));
     if (!raw) return legacyRuntimeSelection();
     const value = JSON.parse(raw) as Record<string, unknown>;
     if (value.runtime === "legacy") return legacyRuntimeSelection();
@@ -118,8 +119,8 @@ export function loadRuntimeSelection(sessionId: string): RuntimeChatSelection {
 
 export function saveRuntimeSelection(sessionId: string, selection: RuntimeChatSelection): void {
   try {
-    window.localStorage.setItem(storageKey(SELECTION_PREFIX, sessionId), JSON.stringify(selection));
-    window.localStorage.setItem(LAST_SELECTION_KEY, JSON.stringify(selection));
+    prefs.set(storageKey(SELECTION_PREFIX, sessionId), JSON.stringify(selection));
+    prefs.set(LAST_SELECTION_KEY, JSON.stringify(selection));
   } catch {
     // Runtime selection is a convenience; a storage failure must not block chat.
   }
@@ -131,7 +132,7 @@ export function saveRuntimeSelection(sessionId: string, selection: RuntimeChatSe
  */
 export function loadPipelineSelection(sessionId: string): RuntimeChatSelection | null {
   try {
-    return parseSelection(window.localStorage.getItem(storageKey(PIPELINE_SELECTION_PREFIX, sessionId)));
+    return parseSelection(prefs.get(storageKey(PIPELINE_SELECTION_PREFIX, sessionId)));
   } catch {
     return null;
   }
@@ -139,7 +140,7 @@ export function loadPipelineSelection(sessionId: string): RuntimeChatSelection |
 
 export function savePipelineSelection(sessionId: string, selection: RuntimeChatSelection): void {
   try {
-    window.localStorage.setItem(storageKey(PIPELINE_SELECTION_PREFIX, sessionId), JSON.stringify(selection));
+    prefs.set(storageKey(PIPELINE_SELECTION_PREFIX, sessionId), JSON.stringify(selection));
   } catch {
     // Like the chat's pick, this is a convenience; generation still runs.
   }
@@ -151,7 +152,7 @@ export function loadExternalRuntimeSession(
   conversationId: string,
 ): string | null {
   try {
-    return text(window.localStorage.getItem(storageKey(EXTERNAL_SESSION_PREFIX, sessionId, runtime, conversationId)));
+    return text(prefs.get(storageKey(EXTERNAL_SESSION_PREFIX, sessionId, runtime, conversationId)));
   } catch {
     return null;
   }
@@ -164,7 +165,7 @@ export function saveExternalRuntimeSession(
   externalSessionId: string,
 ): void {
   try {
-    window.localStorage.setItem(
+    prefs.set(
       storageKey(EXTERNAL_SESSION_PREFIX, sessionId, runtime, conversationId),
       externalSessionId,
     );

@@ -1,10 +1,12 @@
+import { prefs } from "./prefs";
+
 export type Theme = "light" | "dark";
 
 const THEME_KEY = "ai_plan_architect_theme";
 
 export function loadTheme(): Theme {
   try {
-    const saved = localStorage.getItem(THEME_KEY);
+    const saved = prefs.get(THEME_KEY);
     if (saved === "light" || saved === "dark") return saved;
   } catch (e) {
     console.warn("Failed to load theme:", e);
@@ -16,7 +18,7 @@ export function loadTheme(): Theme {
 
 export function saveTheme(theme: Theme): void {
   try {
-    localStorage.setItem(THEME_KEY, theme);
+    prefs.set(THEME_KEY, theme);
   } catch (e) {
     console.warn("Failed to save theme:", e);
   }
@@ -35,7 +37,7 @@ const ACCENT_KEY = "ai_plan_architect_accent";
 
 export function loadAccent(): Accent {
   try {
-    const saved = localStorage.getItem(ACCENT_KEY);
+    const saved = prefs.get(ACCENT_KEY);
     if (ACCENTS.includes(saved as Accent)) return saved as Accent;
   } catch (e) {
     console.warn("Failed to load accent:", e);
@@ -45,7 +47,7 @@ export function loadAccent(): Accent {
 
 export function saveAccent(accent: Accent): void {
   try {
-    localStorage.setItem(ACCENT_KEY, accent);
+    prefs.set(ACCENT_KEY, accent);
   } catch (e) {
     console.warn("Failed to save accent:", e);
   }

@@ -1,4 +1,5 @@
 import React, { createContext, useContext } from "react";
+import { prefs } from "./prefs";
 
 export type Language = "en" | "id";
 
@@ -7,7 +8,7 @@ const LANGUAGE_KEY = "ai_plan_architect_language";
 // Bahasa Inggris adalah bawaan; Bahasa Indonesia dipakai kalau pengguna memilihnya.
 export function loadLanguage(): Language {
   try {
-    const saved = localStorage.getItem(LANGUAGE_KEY);
+    const saved = prefs.get(LANGUAGE_KEY);
     if (saved === "en" || saved === "id") return saved;
   } catch (e) {
     console.warn("Failed to load language:", e);
@@ -17,7 +18,7 @@ export function loadLanguage(): Language {
 
 export function saveLanguage(lang: Language): void {
   try {
-    localStorage.setItem(LANGUAGE_KEY, lang);
+    prefs.set(LANGUAGE_KEY, lang);
   } catch (e) {
     console.warn("Failed to save language:", e);
   }

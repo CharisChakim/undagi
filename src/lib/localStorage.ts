@@ -1,7 +1,9 @@
 import { ProjectSession, LLMConfig } from "../types";
+import { prefs } from "./prefs";
 
-// localStorage kini hanya menyimpan preferensi per-device: konfigurasi LLM dan
-// sesi mana yang terakhir dibuka. Isi proyeknya sendiri hidup di SQLite.
+// Sesi yang terakhir dibuka dan sidebar disimpan lewat prefs (SQLite). Hanya
+// konfigurasi LLM lama yang tetap di localStorage, karena bisa memuat API key.
+// Isi proyeknya sendiri hidup di SQLite.
 const ACTIVE_SESSION_ID_KEY = "ai_plan_architect_active_session_id";
 const DEFAULT_LLM_CONFIG_KEY = "ai_plan_architect_llm_config";
 const SIDEBAR_COLLAPSED_KEY = "ai_plan_architect_sidebar_collapsed";
@@ -57,7 +59,7 @@ export function saveLLMConfig(config: LLMConfig): void {
 
 export function loadActiveSessionId(): string | null {
   try {
-    return localStorage.getItem(ACTIVE_SESSION_ID_KEY);
+    return prefs.get(ACTIVE_SESSION_ID_KEY);
   } catch (e) {
     console.warn("Failed to load active session id:", e);
     return null;
@@ -66,7 +68,7 @@ export function loadActiveSessionId(): string | null {
 
 export function saveActiveSessionId(id: string): void {
   try {
-    localStorage.setItem(ACTIVE_SESSION_ID_KEY, id);
+    prefs.set(ACTIVE_SESSION_ID_KEY, id);
   } catch (e) {
     console.warn("Failed to save active session id:", e);
   }
@@ -74,7 +76,7 @@ export function saveActiveSessionId(id: string): void {
 
 export function loadSidebarCollapsed(): boolean {
   try {
-    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+    return prefs.get(SIDEBAR_COLLAPSED_KEY) === "1";
   } catch (e) {
     console.warn("Failed to load sidebar state:", e);
     return false;
@@ -83,7 +85,7 @@ export function loadSidebarCollapsed(): boolean {
 
 export function saveSidebarCollapsed(collapsed: boolean): void {
   try {
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+    prefs.set(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
   } catch (e) {
     console.warn("Failed to save sidebar state:", e);
   }

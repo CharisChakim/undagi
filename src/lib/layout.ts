@@ -1,3 +1,5 @@
+import { prefs } from "./prefs";
+
 export type LayoutMode = "agent" | "split" | "board";
 
 const LAYOUT_KEY = "undagi_layout";
@@ -36,7 +38,7 @@ function defaultMode(): LayoutMode {
 
 // Load dan save harus melihat nilai yang sama, jadi keduanya lewat sini.
 function readStoredLayout(): string | null {
-  return localStorage.getItem(LAYOUT_KEY) ?? localStorage.getItem(LEGACY_LAYOUT_KEY);
+  return prefs.get(LAYOUT_KEY) ?? prefs.get(LEGACY_LAYOUT_KEY);
 }
 
 export function loadLayout(): { mode: LayoutMode; ratio: number } {
@@ -82,7 +84,7 @@ export function saveLayout(value: { mode: LayoutMode; ratio: number }): void {
   if (isSinglePaneMode(value.mode)) lastMode = value.mode;
 
   try {
-    localStorage.setItem(
+    prefs.set(
       LAYOUT_KEY,
       JSON.stringify({
         mode: isLayoutMode(value.mode) ? value.mode : defaultMode(),

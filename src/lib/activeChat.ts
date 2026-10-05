@@ -1,3 +1,5 @@
+import { prefs } from "./prefs";
+
 // Which chat of a project is open. A folder's project is shared by all its
 // chats, so the project id alone no longer says which conversation to show.
 // The pick lives in this browser; the server keeps the conversations.
@@ -10,7 +12,7 @@ function conversationStorageKey(sessionId: string): string {
 
 export function loadConversationId(sessionId: string): string | null {
   try {
-    return window.localStorage.getItem(conversationStorageKey(sessionId));
+    return prefs.get(conversationStorageKey(sessionId));
   } catch {
     return null;
   }
@@ -18,7 +20,7 @@ export function loadConversationId(sessionId: string): string | null {
 
 export function saveConversationId(sessionId: string, conversationId: string): void {
   try {
-    window.localStorage.setItem(conversationStorageKey(sessionId), conversationId);
+    prefs.set(conversationStorageKey(sessionId), conversationId);
   } catch {
     // Conversation persistence is best effort; the server remains authoritative.
   }
