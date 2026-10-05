@@ -1,0 +1,4 @@
+# Shows a Sponsor button on the repository page. Undagi is free and open source;
+# the same options are in the app (the coffee icon in the header).
+custom:
+  - https://paypal.me/undagicc
