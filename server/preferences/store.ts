@@ -73,3 +73,26 @@ export function writePreferences(values: Record<string, string | null>): void {
     throw error;
   }
 }
+
+const THEME_KEY = "ai_plan_architect_theme";
+const ACCENT_KEY = "ai_plan_architect_accent";
+
+/**
+ * A classic script the page loads before anything is drawn, so the saved theme
+ * and accent are on <html> from the first frame. The page's own inline script
+ * reads localStorage, which the desktop app loses on every launch (a new port is
+ * a new origin); this one reads the same preferences the app does. A value it
+ * does not know is left to that fallback, which marks nothing here.
+ */
+export function bootScript(values: Record<string, string>): string {
+  const theme = values[THEME_KEY];
+  const accent = values[ACCENT_KEY];
+  const lines: string[] = ["(function(){var r=document.documentElement;"];
+  if (theme === "dark" || theme === "light") {
+    lines.push(`r.dataset.prefsTheme=${JSON.stringify(theme)};`);
+    lines.push(theme === "dark" ? 'r.classList.add("dark");' : "");
+  }
+  if (typeof accent === "string" && /^[a-z]{1,16}$/.test(accent)) lines.push(`r.dataset.accent=${JSON.stringify(accent)};`);
+  lines.push("})();");
+  return lines.filter(Boolean).join("\n");
+}

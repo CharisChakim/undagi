@@ -5,14 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <title>Undagi</title>
+    <!-- Tema dan aksen dari SQLite, sebelum render. Aplikasi desktop memakai port
+         acak, jadi localStorage-nya kosong tiap dibuka; skrip ini kosong kalau
+         server tidak menjawab, lalu skrip di bawah memakai localStorage. -->
+    <script src="/api/prefs-boot.js"></script>
     <script>
-      // Tema diterapkan sebelum React mount supaya mode gelap tidak berkedip terang dulu.
+      // Cadangan: dipakai untuk apa pun yang belum diterapkan skrip di atas, supaya
+      // mode gelap tidak berkedip terang dulu.
       try {
-        var saved = localStorage.getItem("ai_plan_architect_theme");
-        var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-        if (dark) document.documentElement.classList.add("dark");
-        var accent = localStorage.getItem("ai_plan_architect_accent");
-        if (accent) document.documentElement.dataset.accent = accent;
+        var root = document.documentElement;
+        if (!root.dataset.prefsTheme) {
+          var saved = localStorage.getItem("ai_plan_architect_theme");
+          var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) root.classList.add("dark");
+        }
+        if (!root.dataset.accent) {
+          var accent = localStorage.getItem("ai_plan_architect_accent");
+          if (accent) root.dataset.accent = accent;
+        }
       } catch (e) {}
     </script>
   </head>

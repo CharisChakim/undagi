@@ -1,5 +1,5 @@
 import express from "express";
-import { listPreferences, parsePreferenceWrite, PreferenceInputError, writePreferences } from "../preferences/store.ts";
+import { bootScript, listPreferences, parsePreferenceWrite, PreferenceInputError, writePreferences } from "../preferences/store.ts";
 
 const router = express.Router();
 
@@ -9,6 +9,19 @@ router.get("/api/preferences", (_req, res) => {
   } catch {
     res.status(500).json({ error: "PREFERENCES_READ_FAILED" });
   }
+});
+
+// Loaded by a <script> tag in index.html, before the page is drawn. An empty
+// script, not an error, when the preferences cannot be read: the page then falls
+// back to localStorage.
+router.get("/api/prefs-boot.js", (_req, res) => {
+  let script = "";
+  try {
+    script = bootScript(listPreferences());
+  } catch {
+    // Leave the script empty.
+  }
+  res.type("application/javascript").set("Cache-Control", "no-store").send(script);
 });
 
 router.put("/api/preferences", (req, res) => {
