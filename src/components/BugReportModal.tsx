@@ -94,7 +94,7 @@ export const BugReportModal: React.FC<BugReportModalProps> = ({ isOpen, onClose 
 
         <div className="flex justify-end gap-2 border-t border-line px-6 py-4">
           <button type="button" onClick={onClose} className="btn-outline">{t("Cancel")}</button>
-          <button type="submit" disabled={!complete} className="btn-primary disabled:opacity-50">{t("Open on GitHub")}</button>
+          <button type="submit" disabled={!complete} className="btn-primary disabled:opacity-50">{t("Continue to GitHub Issues")}</button>
         </div>
       </form>
     </div>
