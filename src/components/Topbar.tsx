@@ -267,16 +267,7 @@ export const Topbar: React.FC<TopbarProps> = ({
                   <span className="flex-1">{t("Agent settings")}</span>
                 </button>
                 <div className="my-1 h-px bg-line" aria-hidden />
-                <a
-                  href="https://github.com/CharisChakim/undagi/blob/main/LICENSE"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block rounded-md px-2 py-1.5 text-[11px] text-faint hover:bg-subtle hover:text-ink"
-                >
-                  Undagi v{__APP_VERSION__}
-                  <br />
-                  © 2026 Charis Chakim · {t("Noncommercial license")}
-                </a>
+                <p className="px-2 py-1.5 text-[11px] text-faint">Undagi v{__APP_VERSION__}</p>
               </div>
             )}
           </div>
