@@ -1,11 +1,12 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { ProjectSession } from "../types";
-import { Bug, Check, Coffee, Download, Layers, Menu, MessageSquare, Moon, Plug, Settings2, Sun } from "lucide-react";
+import { Bug, Check, Download, Layers, Menu, MessageSquare, Moon, Plug, Settings2, Sun } from "lucide-react";
 import { useT, type Language } from "../lib/i18n";
 import { useConnections } from "../lib/connections";
 import { useDismissable } from "../lib/dismissable";
 import { SAMPLE_PROJECTS, sampleText, type SampleProject } from "../lib/sampleData";
 import { ACCENTS, type Accent, type Theme } from "../lib/theme";
+import { CoffeeIcon } from "./CoffeeIcon";
 
 export type LayoutMode = "agent" | "split" | "board";
 
@@ -201,7 +202,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           </button>
 
           <button type="button" onClick={onOpenDonate} className="shell-settings-button" title={t("Support Undagi")}>
-            <Coffee className="h-4 w-4" aria-hidden />
+            <CoffeeIcon />
             <span className="sr-only">{t("Support Undagi")}</span>
           </button>
 

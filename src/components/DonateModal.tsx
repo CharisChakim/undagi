@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from "react";
-import { Coffee, ExternalLink, X } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import { useT } from "../lib/i18n";
 import { PAYPAL_ME_URL, QRIS_IMAGE } from "../lib/donate";
+import { CoffeeIcon } from "./CoffeeIcon";
 
 interface DonateModalProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ export const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => 
       >
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <Coffee className="h-4 w-4 text-faint" aria-hidden />
+            <CoffeeIcon />
             <h3 id="donate-title" className="font-semibold text-ink">{t("Support Undagi")}</h3>
           </div>
           <button ref={closeButton} type="button" onClick={onClose} className="rounded-lg p-1.5 text-faint transition-colors hover:bg-subtle hover:text-ink" aria-label={t("Close")}>

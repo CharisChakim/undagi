@@ -61,6 +61,7 @@
   --app-warn-fg: #ffffff;
   --app-warn-soft: #fefaec;
   --app-warn-ink: #8a5300;
+  --app-gold: #f5a20a;
 
   --app-danger: #c42b3c;
   --app-danger-soft: #fef2f3;
@@ -98,6 +99,7 @@
   --app-warn-fg: #1e1400;
   --app-warn-soft: #291f0c;
   --app-warn-ink: #f0c26e;
+  --app-gold: #ffc531;
 
   --app-danger: #f07a87;
   --app-danger-soft: #2a1316;
@@ -216,6 +218,7 @@ html.dark {
   --color-warn-fg: var(--app-warn-fg);
   --color-warn-soft: var(--app-warn-soft);
   --color-warn-ink: var(--app-warn-ink);
+  --color-gold: var(--app-gold);
 
   --color-danger: var(--app-danger);
   --color-danger-soft: var(--app-danger-soft);
@@ -734,6 +737,20 @@ html.dark {
     border-color var(--dur-base) var(--ease-standard),
     background-color var(--dur-base) var(--ease-standard),
     color var(--dur-base) var(--ease-standard);
+}
+
+.coffee-halo {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--app-gold) 30%, transparent) 0%,
+    color-mix(in srgb, var(--app-gold) 14%, transparent) 65%,
+    transparent 100%
+  );
 }
 
 .shell-settings-button:hover,
