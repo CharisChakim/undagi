@@ -1,8 +1,8 @@
 name: Release
 
-# Linux packages cannot be built from a Windows machine, and a .dmg needs a
-# Mac, so each target is built on its own native runner and all of them upload
-# into the same GitHub release.
+# Linux packages cannot be built from a Windows machine, so each target is built
+# on its own native runner and all of them upload into the same GitHub release.
+# There is no macOS job: a .dmg has never been run on a real Mac.
 on:
   push:
     tags:
@@ -51,13 +51,6 @@ jobs:
           - name: Linux packages
             os: ubuntu-latest
             target: --linux
-          # Apple Silicon only. The app is signed ad-hoc (mac.identity "-" in
-          # package.json), not with a Developer ID, and is not notarized, so
-          # macOS blocks the first launch until the user clicks Open Anyway.
-          # An arm64 app with no signature at all would not start.
-          - name: macOS installer (Apple Silicon)
-            os: macos-latest
-            target: --mac
 
     steps:
       - uses: actions/checkout@v4
