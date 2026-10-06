@@ -339,7 +339,6 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
     <a class="nav-link nav-hide" href="#daily">Day to day</a>
     <a class="nav-link nav-hide" href="#compare">Compare</a>
     <a class="nav-link nav-hide" href="#models">Models</a>
-    <a class="nav-link nav-hide" href="#trust">Boundaries</a>
     <a class="nav-link nav-hide" href="#install">Install</a>
     <a class="nav-link" href="https://github.com/CharisChakim/undagi">GitHub</a>
     <button class="icon-btn" id="theme" aria-label="Toggle dark mode" title="Toggle dark mode">
@@ -501,7 +500,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
           <tr>
             <td><a href="https://kiro.dev">Kiro</a></td>
             <td data-label="What it does">An IDE that turns a prompt into a spec, then code, on its own billed credits.</td>
-            <td data-label="How Undagi differs">Your models or your CLIs. Free, MIT, no account.</td>
+            <td data-label="How Undagi differs">Your models or your CLIs. Free for noncommercial use, no account.</td>
           </tr>
           <tr>
             <td><a href="https://github.com/github/spec-kit">Spec Kit</a>, <a href="https://github.com/bmad-code-org/BMAD-METHOD">BMAD-METHOD</a>, <a href="https://github.com/eyaltoledano/claude-task-master">Task Master</a></td>
@@ -518,16 +517,6 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
     </div>
     <p class="cmp-note">Checked on 5 October 2026. These tools change fast; open an issue if something is out of date.</p>
 
-    <div class="callout">
-      <p><strong>The honest fine print.</strong></p>
-      <ul>
-        <li>Single-user and local: no accounts, no team features, no Notion or Linear sync.</li>
-        <li>Windows and Linux only, and the installers are unsigned. No macOS yet.</li>
-        <li>It plans new projects; it does not analyse an existing codebase.</li>
-        <li>No parallel agents, worktrees or pull-request loop.</li>
-        <li>Plans live in a local database. Export <code>AGENTS.md</code> to keep them beside your code.</li>
-      </ul>
-    </div>
   </div>
 </section>
 
@@ -564,32 +553,6 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
   </div>
 </section>
 
-<section id="trust">
-  <div class="wrap">
-    <p class="kicker">Boundaries</p>
-    <h2>It runs on your machine, and it asks first.</h2>
-    <p class="section-lede">Powerful access, off until you say so.</p>
-
-    <div class="grid2">
-      <div class="tile">
-        <h3>No folder, no files.</h3>
-        <p>The built-in agent touches nothing until you pick a folder, and cannot step outside it.</p>
-      </div>
-      <div class="tile">
-        <h3>Shell is opt-in.</h3>
-        <p>Off by default. When on, each command waits for your approval, unless you choose Full access, which means you trust the agent.</p>
-      </div>
-      <div class="tile">
-        <h3>Local by default.</h3>
-        <p>No account, no telemetry. Everything lives in one file on your disk, behind <code>127.0.0.1</code>.</p>
-      </div>
-      <div class="tile">
-        <h3>No pretending.</h3>
-        <p>There is no denylist of dangerous commands. Approve one and it runs. A card's verify command runs too, so read it first.</p>
-      </div>
-    </div>
-  </div>
-</section>
 
 <section id="install">
   <div class="wrap">
