@@ -263,7 +263,7 @@ The development command runs the Vite client and API server together. The produc
 
 The bug icon in the header opens a dialog for a title and a description, then a prefilled issue on this repository's [GitHub Issues](https://github.com/CharisChakim/undagi/issues). You review it there and submit it with your own account; Undagi sends nothing itself. The issue carries the app version.
 
-Undagi is free and open source. If it helps your work, the coffee icon in the header opens a QRIS code (Indonesia) and a [PayPal.Me](https://paypal.me/undagicc) link.
+Undagi is free for noncommercial use. If it helps your work, the coffee icon in the header opens a QRIS code (Indonesia) and a [PayPal.Me](https://paypal.me/undagicc) link.
 
 ## Built with
 
@@ -280,3 +280,12 @@ data/                   Local runtime database (created on first run)
 ```
 
 The UI is available in English and Bahasa Indonesia, with light and dark themes.
+
+## License
+
+Undagi is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE):
+you may use, change and share it for noncommercial purposes. Commercial use
+needs written permission: contact [Charis Chakim](https://github.com/CharisChakim)
+for a commercial license. Keep [NOTICE](NOTICE) and
+the license lines at the top of the source files in any copy you pass on.
+Versions up to and including 1.0.5 were released under the MIT License.

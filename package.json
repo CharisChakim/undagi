@@ -4,7 +4,7 @@
   "desktopName": "undagi.desktop",
   "description": "A local-first AI workbench that turns a rough idea into an agent-ready task board.",
   "author": "Charis Chakim",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "version": "1.0.5",
   "type": "module",
@@ -34,6 +34,8 @@
       "electron/**",
       "dist/**",
       "package.json",
+      "LICENSE",
+      "NOTICE",
       "node_modules/**/*",
       "!node_modules/@anthropic-ai/claude-agent-sdk-*/**"
     ],
