@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // Messages the agent's loop and tools write with a value spliced in. They stay
 // English because the model reads them; the chat shows them translated. The
 // server builds them from these templates and the UI reads the values back out

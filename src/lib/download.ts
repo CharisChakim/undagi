@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // Helper ini menjaga pembuatan unduhan browser tetap konsisten dan mencegah
 // setiap komponen menyalin sendiri siklus Blob, link sementara, dan revoke URL.
 export function downloadFile(filename: string, content: string, mime: string): void {

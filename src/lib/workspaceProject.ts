@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import type { SessionSummary } from "../types";
 
 // A folder has one project: its plan, PRD, board and memory, shared by every

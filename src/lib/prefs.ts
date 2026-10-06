@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // App preferences (theme, language, layout, the open project, the runtime picked
 // per chat, ...) are kept in SQLite through /api/preferences. The desktop app
 // serves the UI from a new random port on every launch and localStorage belongs

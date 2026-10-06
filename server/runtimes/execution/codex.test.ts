@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { strict as assert } from "node:assert";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";

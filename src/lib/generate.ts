@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { createContext, useContext, type ReactNode } from "react";
 import type { AgentTask, FollowUpQuestion, PRDData, ProjectPlan, ProjectSession } from "../types";
 import { agentLanguageFor, loadAgentHarnessSettings } from "./agentHarness";

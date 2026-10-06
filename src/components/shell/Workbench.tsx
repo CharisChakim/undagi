@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import React from "react";
 import { AlertTriangle, Bot } from "lucide-react";
 import type { AgentTask, PermissionMode, ProjectSession, SessionUpdate } from "../../types";

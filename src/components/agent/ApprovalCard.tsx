@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import React, { useEffect, useState } from "react";
 import { Check, Clock3, FilePen, Terminal, X } from "lucide-react";
 import type { ApprovalFile } from "../../lib/agentEvents";

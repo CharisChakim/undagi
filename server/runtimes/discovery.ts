@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { queryClaudeSdk, queryAntigravityCli, type ClaudeSdkMetadataProvider } from "./adapters.ts";
 import { queryCodexAppServer } from "./codex.ts";
 import { findExecutable, parseRuntimeVersion, runMetadataCommand, type MetadataCommandResult } from "./process.ts";

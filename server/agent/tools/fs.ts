@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { resolveInsideRoot } from "../sandbox.ts";

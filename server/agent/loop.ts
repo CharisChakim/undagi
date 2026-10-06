@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { getSession } from "../../db.ts";
 import { resultMessage } from "../../shared/resultMessages.ts";
 import { appendMessage, loadMessagesFor, sanitize } from "./conversations.ts";

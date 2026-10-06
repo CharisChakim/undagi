@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { describeFetchError, LlmError, msg, type Lang } from "../messages.ts";
 import { callLlm as callLlmCore, LLM_TIMEOUT_MS, MAX_OUTPUT_TOKENS } from "../llm/call.ts";
 import { getAdapter } from "../llm/adapters/index.ts";

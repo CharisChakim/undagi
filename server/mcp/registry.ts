@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { createMcpClient, type McpClient } from "./client.ts";
 import { listMcpServers, type McpServerRecord } from "./store.ts";
 import type { ToolContext, ToolSpec } from "../agent/registry.ts";

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // A bug report is a prefilled "new issue" page on the project's GitHub. Undagi
 // sends nothing itself: the user reads the filled form in the browser and
 // submits it there under their own account. Changing where reports go is a

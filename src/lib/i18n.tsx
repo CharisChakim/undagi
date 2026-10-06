@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import React, { createContext, useContext } from "react";
 import { prefs } from "./prefs";
 
@@ -775,7 +778,7 @@ const ID: Record<string, string> = {
   "Finish arranging": "Selesai mengatur",
   "Not refreshed: last read {count} min ago": "Belum diperbarui: terakhir terbaca {count} menit lalu",
   "Support Undagi": "Dukung Undagi",
-  "Undagi is free and open source. If it helps your work, a coffee for its maker keeps it going. Thank you!": "Undagi gratis dan open source. Kalau membantu pekerjaan Anda, secangkir kopi untuk pembuatnya membuatnya terus berjalan. Terima kasih!",
+  "Undagi is free for noncommercial use, and its source is open to read. If it helps your work, a coffee for its maker keeps it going. Thank you!": "Undagi gratis untuk pemakaian nonkomersial, dan kodenya terbuka untuk dibaca. Kalau membantu pekerjaan Anda, secangkir kopi untuk pembuatnya membuatnya terus berjalan. Terima kasih!",
   "QRIS (Indonesia)": "QRIS (Indonesia)",
   "QRIS code for a donation": "Kode QRIS untuk donasi",
   "Scan it with any bank or e-wallet app that supports QRIS, then enter the amount you like.": "Pindai dengan aplikasi bank atau e-wallet apa pun yang mendukung QRIS, lalu isi nominal sesuka Anda.",

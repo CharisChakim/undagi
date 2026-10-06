@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // Teks yang bisa sampai ke layar pengguna, terpisah dari route yang memakainya.
 // Log server sengaja tetap satu bahasa supaya mudah dicari.
 

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { spawn } from "node:child_process";
 import type { RuntimeEffortOption } from "./types.ts";
 import { parseCodexConfig, parseCodexModelList, type ParsedRuntimeModel } from "./parse.ts";

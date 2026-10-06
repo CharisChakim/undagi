@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // Penulis zip tanpa kompresi (method "store"). Dokumen yang diekspor hanya teks
 // pendek, jadi kompresi tidak sepadan dengan menambah dependency.
 export interface ZipEntry {

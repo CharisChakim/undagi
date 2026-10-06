@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 /** Non-secret app-server JSONL fixtures. They never contain a model prompt. */
 
 export const INITIALIZE_RESPONSE_FIXTURE = JSON.stringify({ id: 1, result: {} });

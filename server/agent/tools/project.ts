@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import type { ToolContext, ToolSpec } from "../registry.ts";
 import { getSession, saveSession } from "../../../db.ts";
 import { resultMessage } from "../../../shared/resultMessages.ts";

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // What earlier task runs left for the next ones, handed to a task run that
 // starts a fresh session. The board writes it: each done card's note, and the
 // facts runs wrote on MEMORY lines (session.projectMemory).

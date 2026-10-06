@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { accessSync, constants as fsConstants, statSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { spawn } from "node:child_process";

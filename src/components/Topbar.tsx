@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { ProjectSession } from "../types";
 import { Bug, Check, Download, Layers, Menu, MessageSquare, Moon, Plug, Settings2, Sun } from "lucide-react";

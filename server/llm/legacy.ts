@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import type { Connection } from "./types.ts";
 
 const GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai";

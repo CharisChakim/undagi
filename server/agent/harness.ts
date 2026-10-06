@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import type { Lang } from "../messages.ts";
 import { LANGUAGE_NAME } from "../pipeline/language.ts";
 

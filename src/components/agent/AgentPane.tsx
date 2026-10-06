@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import React, { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Bot, Check, ChevronDown, Circle, Clock3, Code2, FileText, Folder, GitBranch, History, Kanban, Laptop, ListChecks, PlugZap } from "lucide-react";
 import type { PermissionMode, ProjectSession, RuntimeDiscoveryReport, RuntimePreference } from "../../types";

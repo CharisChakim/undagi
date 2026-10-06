@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import type { Message } from "../llm/types.ts";
 
 /** What the chat route records on each message it writes for a runtime run. */

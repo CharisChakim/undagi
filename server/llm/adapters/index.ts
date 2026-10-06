@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import type { Connection, LlmFormat, LlmRequest, LlmAdapter } from "../types.ts";
 import { anthropicAdapter } from "./anthropic.ts";
 import { openaiAdapter } from "./openai.ts";

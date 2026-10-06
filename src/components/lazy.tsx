@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import React, { Suspense } from "react";
 
 // Mermaid (yang menarik cytoscape dan katex di belakangnya), React Flow, dan

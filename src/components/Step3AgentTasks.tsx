@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import React, { useEffect, useRef, useState } from "react";
 import type { ProjectSession, AgentTask, SessionUpdate } from "../types";
 import { generateTasks, isAbort, PipelineModelControl, usePipelineTarget } from "../lib/generate";

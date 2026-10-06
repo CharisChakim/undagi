@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // The PRD's Markdown document, written from its structured fields. The model used
 // to be asked for this as well as the fields, so every PRD was written twice and
 // took twice as long. Server and client share this one writer: the server

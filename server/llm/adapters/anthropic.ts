@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { LlmError } from "../../messages.ts";
 import { apiUrl } from "../url.ts";
 import type { LlmAdapter, Connection, LlmRequest, LlmResult, Message, StreamEvent, StopReason } from "../types.ts";

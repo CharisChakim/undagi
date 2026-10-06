@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import type { RunReport } from "./runRetry";
 
 /** How a task's verify command ended, as POST /api/tasks/verify reports it. */

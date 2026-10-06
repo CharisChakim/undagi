@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 // The project's task board, for a chat turn. Without it a runtime only sees the
 // working folder, so "work on the tasks" reached an agent that knew of no tasks.
 // The chat does not do the cards itself: Undagi runs the first unfinished phase

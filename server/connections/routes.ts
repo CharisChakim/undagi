@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Charis Chakim - Undagi (https://github.com/CharisChakim/undagi)
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import express, { type Response } from "express";
 import { langOf, msg } from "../messages.ts";
 import { parseJsonFromLlm } from "../llm/json.ts";
