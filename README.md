@@ -156,7 +156,7 @@ The current scope is `initialize`, `tools/list`, and `tools/call`. MCP `sampling
 
 ### Desktop app
 
-Download an installer from the [v1.0.5 release](https://github.com/CharisChakim/undagi/releases/tag/v1.0.5):
+Download an installer from the [v1.0.6 release](https://github.com/CharisChakim/undagi/releases/tag/v1.0.6):
 
 | Platform | File | Notes |
 | --- | --- | --- |
