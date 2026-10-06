@@ -130,6 +130,48 @@
   --app-accent-ink: #84abff;
 }
 
+:root[data-accent="violet"] {
+  --app-accent: #7c3aed;
+  --app-accent-fg: #ffffff;
+  --app-accent-soft: #f4effe;
+  --app-accent-ink: #6d28d9;
+}
+
+:root.dark[data-accent="violet"] {
+  --app-accent: #7c3aed;
+  --app-accent-fg: #ffffff;
+  --app-accent-soft: #221a3a;
+  --app-accent-ink: #b9a1ff;
+}
+
+:root[data-accent="pink"] {
+  --app-accent: #be185d;
+  --app-accent-fg: #ffffff;
+  --app-accent-soft: #fdf0f6;
+  --app-accent-ink: #9d174d;
+}
+
+:root.dark[data-accent="pink"] {
+  --app-accent: #c0266a;
+  --app-accent-fg: #ffffff;
+  --app-accent-soft: #3a1626;
+  --app-accent-ink: #f58ab8;
+}
+
+:root[data-accent="moss"] {
+  --app-accent: #3f6212;
+  --app-accent-fg: #ffffff;
+  --app-accent-soft: #f3f8ea;
+  --app-accent-ink: #365314;
+}
+
+:root.dark[data-accent="moss"] {
+  --app-accent: #4d7c0f;
+  --app-accent-fg: #ffffff;
+  --app-accent-soft: #1c2810;
+  --app-accent-ink: #a3c96a;
+}
+
 /* Tinta: aksen mengikuti warna teks, jadi di mode gelap tombolnya terang. */
 :root[data-accent="ink"] {
   --app-accent: #18181b;

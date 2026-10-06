@@ -41,6 +41,9 @@ const LANGUAGE_NAMES: Record<Language, string> = { en: "English", id: "Bahasa In
 const ACCENT_SWATCHES: Record<Accent, { name: string; color: string }> = {
   teal: { name: "Teal", color: "#0f766e" },
   blue: { name: "Blue", color: "#2563eb" },
+  violet: { name: "Violet", color: "#7c3aed" },
+  pink: { name: "Pink", color: "#be185d" },
+  moss: { name: "Moss", color: "#3f6212" },
   ink: { name: "Ink", color: "var(--app-ink)" },
 };
 

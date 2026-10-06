@@ -33,8 +33,8 @@ export function applyTheme(theme: Theme): void {
 
 // Warna aksen terpisah dari terang/gelap: keduanya bisa dipadukan bebas.
 // Nilainya dibaca juga oleh skrip inline di index.html sebelum React mount.
-export type Accent = "teal" | "blue" | "ink";
-export const ACCENTS: Accent[] = ["teal", "blue", "ink"];
+export type Accent = "teal" | "blue" | "violet" | "pink" | "moss" | "ink";
+export const ACCENTS: Accent[] = ["teal", "blue", "violet", "pink", "moss", "ink"];
 
 const ACCENT_KEY = "ai_plan_architect_accent";
 
