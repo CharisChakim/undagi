@@ -63,7 +63,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 }) => {
   const { lang, t } = useT();
   const { connections } = useConnections();
-  const [openMenu, setOpenMenu] = useState<"templates" | "settings" | null>(null);
+  const [openMenu, setOpenMenu] = useState<"settings" | null>(null);
   // Tombol yang membuka menu, supaya Escape mengembalikan fokus ke sana.
   const menuTrigger = useRef<HTMLButtonElement | null>(null);
   const menuRef = useDismissable<HTMLDivElement>((reason) => {
@@ -89,7 +89,7 @@ export const Topbar: React.FC<TopbarProps> = ({
     if (shift) popup.style.translate = `${shift}px 0`;
   }, [openMenu]);
 
-  const toggleMenu = (menu: "templates" | "settings", trigger: HTMLButtonElement) => {
+  const toggleMenu = (menu: "settings", trigger: HTMLButtonElement) => {
     menuTrigger.current = trigger;
     setOpenMenu((open) => (open === menu ? null : menu));
   };
@@ -165,33 +165,15 @@ export const Topbar: React.FC<TopbarProps> = ({
         )}
 
         <div ref={menuRef} className="flex items-center gap-1">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={(event) => toggleMenu("templates", event.currentTarget)}
-              aria-expanded={openMenu === "templates"}
-              className="shell-icon-button"
-              title={t("Templates")}
-            >
-              <Layers className="h-4 w-4 text-faint" aria-hidden />
-              <span className="hidden lg:inline">{t("Templates")}</span>
-            </button>
-            {openMenu === "templates" && (
-              <div ref={menuPopup} className="absolute right-0 top-full z-40 mt-1.5 w-56 rounded-lg border border-line bg-surface p-1 shadow-elev-2">
-                {SAMPLE_PROJECTS.map((sample) => (
-                  <button
-                    key={sample.id}
-                    type="button"
-                    onClick={() => { onSelectSample(sample); setOpenMenu(null); }}
-                    className="block w-full truncate rounded-md px-2 py-1.5 text-left text-[12px] text-muted hover:bg-subtle hover:text-ink"
-                    title={sampleText(sample, lang).tagline}
-                  >
-                    {sampleText(sample, lang).name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="shell-settings-button"
+            title={theme === "dark" ? t("Light mode") : t("Dark mode")}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
+            <span className="sr-only">{theme === "dark" ? t("Light mode") : t("Dark mode")}</span>
+          </button>
 
           <button type="button" onClick={onOpenConnections} className="shell-icon-button" title={t("Connections")}>
             <Plug className="h-4 w-4 text-faint" aria-hidden />
@@ -256,14 +238,21 @@ export const Topbar: React.FC<TopbarProps> = ({
                     </button>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={onToggleTheme}
-                  className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[12px] text-muted hover:bg-subtle hover:text-ink"
-                >
-                  {theme === "dark" ? <Sun className="h-3.5 w-3.5 shrink-0" aria-hidden /> : <Moon className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-                  <span className="flex-1">{theme === "dark" ? t("Light mode") : t("Dark mode")}</span>
-                </button>
+                <div className="my-1 h-px bg-line" aria-hidden />
+                <p className="px-2 pb-1 pt-1.5 text-[11px] font-medium text-faint">{t("Templates")}</p>
+                {SAMPLE_PROJECTS.map((sample) => (
+                  <button
+                    key={sample.id}
+                    type="button"
+                    onClick={() => { onSelectSample(sample); setOpenMenu(null); }}
+                    className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[12px] text-muted hover:bg-subtle hover:text-ink"
+                    title={sampleText(sample, lang).tagline}
+                  >
+                    <Layers className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span className="flex-1 truncate">{sampleText(sample, lang).name}</span>
+                  </button>
+                ))}
+                <div className="my-1 h-px bg-line" aria-hidden />
                 <button
                   type="button"
                   // Dialog mengembalikan fokus ke elemen yang fokus saat ia dibuka;
