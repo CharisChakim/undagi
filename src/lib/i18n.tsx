@@ -78,6 +78,7 @@ const ID: Record<string, string> = {
   "The model's answer was cut off.": "Jawaban model terpotong.",
   "The run ended with an error.": "Run berakhir dengan error.",
   "Agent settings": "Pengaturan agent",
+  "Noncommercial license": "Lisensi nonkomersial",
   "Efficiency stack": "Stack efisiensi",
   "RTK · Compact terminal": "RTK · Terminal ringkas",
   "Targeted commands, rg-first search, capped output, and summarized logs instead of raw dumps.": "Perintah tertarget, cari dengan rg lebih dulu, output dibatasi, dan log diringkas alih-alih ditumpahkan mentah.",
