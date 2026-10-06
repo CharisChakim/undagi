@@ -397,7 +397,7 @@ export const AgentPane: React.FC<AgentPaneProps> = ({
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent-ink">
                 <LogoMark className="h-3.5 w-3.5" />
                 Undagi
-                <span className="font-medium opacity-70">· Build for builders</span>
+                <span className="font-medium opacity-70">· Built for builders</span>
               </div>
               <h2 className="text-2xl font-semibold tracking-[-0.03em] text-ink">{t("Turn an idea into executable work")}</h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">{t("Work with the coding agent, shape a plan, build a PRD, or organize tasks directly in Kanban.")}</p>
