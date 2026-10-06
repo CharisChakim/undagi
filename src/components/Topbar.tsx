@@ -273,6 +273,8 @@ export const Topbar: React.FC<TopbarProps> = ({
                   rel="noopener noreferrer"
                   className="block rounded-md px-2 py-1.5 text-[11px] text-faint hover:bg-subtle hover:text-ink"
                 >
+                  Undagi v{__APP_VERSION__}
+                  <br />
                   © 2026 Charis Chakim · {t("Noncommercial license")}
                 </a>
               </div>
