@@ -193,12 +193,12 @@ The installers are unsigned, so Windows SmartScreen will warn on first run
 ("More info" → "Run anyway") and some Linux desktops will ask you to confirm
 the AppImage is executable.
 
-There is no macOS installer. On a Mac, use the install script under
-[Run from source](#run-from-source).
+macOS is not supported yet: a packaged app would need Apple notarization, and
+nothing has been tested on a Mac.
 
 ### Run from source
 
-**Linux / macOS**
+**Linux**
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/CharisChakim/undagi/main/install.sh

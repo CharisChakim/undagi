@@ -350,15 +350,13 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
 
 <header class="hero" id="top">
   <div class="wrap hero-in">
-    <span class="eyebrow"><span class="dot"></span> Local-first · Bring your own model</span>
+    <span class="eyebrow"><span class="dot"></span> Built for builders · Local-first · Bring your own model</span>
 
     <h1>Your coding agent deserves a better spec than <span class="em">one paragraph</span>.</h1>
 
     <p class="lede">
-      Undagi interviews you about the idea until the gaps are closed, drafts the architecture,
-      then splits it into atomic tasks — each with target files, dependencies, and verification steps.
-      Run the tasks right here with Claude Code, Codex, Antigravity or your own model — or download
-      <code>AGENTS.md</code> and hand it to any agent that reads it.
+      Tell it the idea. Undagi asks what's missing, drafts the architecture, and splits it into tasks
+      your agent can actually run &mdash; on Claude Code, Codex, Antigravity, or your own model.
     </p>
 
     <div class="cta-row">
@@ -372,7 +370,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
         View source
       </a>
     </div>
-    <p class="subnote">Linux / macOS (Windows and installers: see Install) · Node 22.14+ to run from source · no account, no telemetry</p>
+    <p class="subnote">Linux command shown · Windows and installers: see Install · no account, no telemetry</p>
   </div>
 
   <div class="wrap shot-wrap">
@@ -389,17 +387,13 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
   <div class="wrap">
     <p class="kicker">The gap</p>
     <h2>Most agent runs go wrong before the first line of code.</h2>
-    <p class="section-lede">
-      Coding agents are good at writing code. They are much worse at deciding what to build, in what
-      order, and how anyone would know it worked. That part is still yours — and a paragraph of intent
-      does not carry it.
-    </p>
+    <p class="section-lede">Agents write code well. Deciding what to build is where they stumble.</p>
 
     <div class="breaks">
-      <div class="brk"><span class="n">1</span><p><b>It picks an architecture you would not have picked.</b> You find out after the third file.</p></div>
-      <div class="brk"><span class="n">2</span><p><b>It writes task 7 before task 3</b> — and task 3 was the schema everything else depends on.</p></div>
-      <div class="brk"><span class="n">3</span><p><b>Nothing says how you would know it worked.</b> So the agent declares success and you go read the diff anyway.</p></div>
-      <div class="brk"><span class="n">4</span><p><b>You re-explain the same context tomorrow,</b> because it lived in a chat window that is now gone.</p></div>
+      <div class="brk"><span class="n">1</span><p><b>It picks an architecture you would never pick.</b> You find out at file three.</p></div>
+      <div class="brk"><span class="n">2</span><p><b>It builds the roof before the foundation.</b> The screens first, the database they need later.</p></div>
+      <div class="brk"><span class="n">3</span><p><b>It says &ldquo;done.&rdquo;</b> You read the diff anyway.</p></div>
+      <div class="brk"><span class="n">4</span><p><b>Tomorrow, you explain it all again.</b> Yesterday's context went with the chat.</p></div>
     </div>
   </div>
 </section>
@@ -408,49 +402,38 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
   <div class="wrap">
     <p class="kicker">How it works</p>
     <h2>Idea in. Executable backlog out.</h2>
-    <p class="section-lede">
-      Three steps, each one editable before it feeds the next. You are reviewing a document, not
-      babysitting a chat.
-    </p>
+    <p class="section-lede">Three steps. Edit any of them before the next.</p>
 
     <div class="steps">
       <div class="step">
         <span class="idx">STEP 01</span>
         <h3>Plan</h3>
-        <p>Describe the idea in a sentence. The agent asks focused follow-ups until it stops guessing, then drafts:</p>
+        <p>Say the idea. Answer a few questions. See the architecture.</p>
         <ul>
-          <li>Summary, audience, value proposition</li>
-          <li>Core features and tech stack</li>
-          <li>Architecture and data flow, as Mermaid diagrams</li>
-          <li>Phased roadmap, estimate, risks</li>
+          <li>Features and tech stack</li>
+          <li>Mermaid diagrams</li>
+          <li>Phased roadmap</li>
         </ul>
       </div>
       <div class="step">
         <span class="idx">STEP 02</span>
         <h3>PRD</h3>
-        <p>The approved plan becomes a PRD written the way product teams write one, sized to a first release:</p>
+        <p>A real PRD, sized for a first release.</p>
         <ul>
-          <li>Goals and success metrics, target users</li>
-          <li>Scope and release plan, with non-goals</li>
-          <li>Requirements as user stories with acceptance criteria</li>
-          <li>Assumptions, risks and open questions</li>
-          <li>For the coding agent: architecture, data model, tech stack</li>
-          <li>Edit it as a structured view, raw fields, or Markdown</li>
+          <li>Goals and scope</li>
+          <li>User stories with acceptance criteria</li>
+          <li>Risks and open questions</li>
         </ul>
       </div>
       <div class="step">
         <span class="idx">STEP 03</span>
         <h3>Task board</h3>
-        <p>The PRD splits into atomic coding tasks. Every card carries what an agent needs to execute it:</p>
+        <p>Small tasks, in order, each with a way to prove it is done.</p>
         <ul>
-          <li>Stable ID, priority, phase</li>
           <li>Target files and dependencies</li>
-          <li>Instructions and verification steps</li>
-          <li>Run one card, or a whole phase with one button, in dependency order</li>
-          <li>The card moves to Done or Blocked, with the agent's note</li>
-          <li>A verify command per card: Done is marked Verified once it exits 0, or Unverified when nothing checked it</li>
-          <li>Each run starts with what earlier tasks left behind: their notes and the facts agents learned</li>
-          <li>Export <code>AGENTS.md</code>, the plan, the PRD or a handoff bundle: one file, or several as a .zip</li>
+          <li>A verify command per card</li>
+          <li>Run one card or a whole phase</li>
+          <li>Export <code>AGENTS.md</code> for any agent</li>
         </ul>
       </div>
     </div>
@@ -460,7 +443,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
            src="assets/plan-light.png"
            alt="The generated plan for a small-shop POS and inventory app: a first-release summary, a model picker with a Continue to the PRD button, and an interactive feature-structure diagram."
            width="2880" height="1800" loading="lazy" /></div>
-      <figcaption>The plan step — an editable summary and feature structure you review before the PRD.</figcaption>
+      <figcaption>The plan step: review it before the PRD.</figcaption>
     </figure>
   </div>
 </section>
@@ -469,54 +452,35 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
   <div class="wrap">
     <p class="kicker">Day to day</p>
     <h2>Built for coming back tomorrow.</h2>
-    <p class="section-lede">
-      A plan is only useful if the next session can pick it up. Undagi keeps the project with the
-      folder, runs the board a phase at a time, and lets you change the plan without losing what is
-      already done.
-    </p>
+    <p class="section-lede">The project stays. The chats come and go.</p>
 
     <div class="grid2">
       <div class="tile">
-        <h3>One folder, one project, any number of chats</h3>
-        <p>
-          A folder holds one project: its plan, PRD, board and memory. Every chat you open in it reads
-          the same board and memory, so tomorrow's chat carries on with the phase left unfinished.
-          Deleting a chat removes its messages; the project stays until you delete it on purpose.
-        </p>
+        <h3>Close the laptop. Not the project.</h3>
+        <p>A folder holds the plan, the board and the memory. Open a new chat tomorrow and carry on.</p>
       </div>
       <div class="tile">
-        <h3>Run a phase, not a prompt</h3>
-        <p>
-          <b>Run Phase 1</b> runs that phase's To do cards one at a time, each once its dependencies are
-          done, each in its own session with retries and its verify command. The run stops at the first
-          card that does not end Done, so nothing builds on a failure, and you check the phase before
-          the next one starts.
-        </p>
-        <p>
-          Ask the chat to work on the tasks and it starts the same run, because every chat turn sees the
-          board with its cards, status and dependencies.
-        </p>
+        <h3>Not just a prompt. A whole phase.</h3>
+        <p>Chat with the agent as usual, or run a phase in one click: cards in order, stopping at the first one that fails.</p>
       </div>
       <div class="tile">
-        <h3>Change the plan without losing the work</h3>
-        <p>
-          Syncing the board to a new PRD replaces only cards still in To do. A card that is running or
-          Done keeps its note, its Verified label and its place, and so does any card you added. The
-          new tasks are told which cards stay, so they do not repeat that work. You see how many cards
-          are replaced and kept before anything changes.
-        </p>
+        <h3>&ldquo;Done&rdquo; has to prove it.</h3>
+        <p>Every card carries a check. Exit 0 and it is Verified; no check and it is marked Unverified.</p>
       </div>
       <div class="tile">
-        <h3>See what is left of your plan</h3>
-        <p>
-          The sidebar shows the remaining usage of each subscription you have connected: Claude Code's
-          five-hour and weekly windows, Codex's limits, and Antigravity's per model group. Each is read
-          through that CLI's own usage request, which sends no prompt and spends no quota. A read that
-          fails keeps showing the last one, marked as not refreshed.
-        </p>
+        <h3>Every quota, one glance.</h3>
+        <p>See what is left on Claude Code, Codex and Antigravity without spending any of it. Running low? Switch and keep going.</p>
         <div class="chips">
           <span class="chip">Claude Code</span><span class="chip">Codex</span><span class="chip">Antigravity</span>
         </div>
+      </div>
+      <div class="tile">
+        <h3>One board. No tab-hopping.</h3>
+        <p>Status, dependencies and the agent's notes sit on the card. Nothing to copy into Notion or Linear.</p>
+      </div>
+      <div class="tile">
+        <h3>Prompt in Indonesian. Build at full strength.</h3>
+        <p>Write your idea in Indonesian and get the plan, PRD and notes back in Indonesian. Behind the scenes, Undagi writes the agent's instructions in English, the language coding agents follow best.</p>
       </div>
     </div>
   </div>
@@ -525,11 +489,8 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
 <section id="compare">
   <div class="wrap">
     <p class="kicker">How it compares</p>
-    <h2>Planning tools are everywhere. Here is where Undagi fits.</h2>
-    <p class="section-lede">
-      Other tools cover parts of this path. Undagi's bet is one visual flow from a rough idea to a
-      board you can run, on whichever model or agent you already use.
-    </p>
+    <h2>Planners are everywhere. Here is where Undagi fits.</h2>
+    <p class="section-lede">One visual flow from a rough idea to a board you can run, on the agent you already use.</p>
 
     <div class="cmp-wrap">
       <table class="cmp">
@@ -539,33 +500,32 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
         <tbody>
           <tr>
             <td><a href="https://kiro.dev">Kiro</a></td>
-            <td data-label="What it does">An agentic IDE and CLI that turns a prompt into requirements, a design and sequenced tasks, then implements them with parallel agents. It runs on its own model catalogue, billed in credits; bring-your-own-key is still an <a href="https://github.com/kirodotdev/Kiro/issues/8939">open request</a>.</td>
-            <td data-label="How Undagi differs">Uses any endpoint you configure, local models included, or the Codex, Claude Code or Antigravity CLI you already have. Free, MIT, no account.</td>
+            <td data-label="What it does">An IDE that turns a prompt into a spec, then code, on its own billed credits.</td>
+            <td data-label="How Undagi differs">Your models or your CLIs. Free, MIT, no account.</td>
           </tr>
           <tr>
             <td><a href="https://github.com/github/spec-kit">Spec Kit</a>, <a href="https://github.com/bmad-code-org/BMAD-METHOD">BMAD-METHOD</a>, <a href="https://github.com/eyaltoledano/claude-task-master">Task Master</a></td>
-            <td data-label="What it does">Add planning to the agent you already use, as commands, skills or a CLI. The output is Markdown or JSON files in your repository.</td>
-            <td data-label="How Undagi differs">The same idea &rarr; PRD &rarr; tasks path as a visual app, with a board you run tasks from. The trade-off: those files live in git, Undagi keeps plans in a local database &mdash; export <code>AGENTS.md</code>, the PRD or a bundle to keep them beside the code.</td>
+            <td data-label="What it does">Planning as commands and files in your repo.</td>
+            <td data-label="How Undagi differs">The same path as a visual app, with a board you run.</td>
           </tr>
           <tr>
             <td><a href="https://www.conductor.build">Conductor</a>, <a href="https://github.com/smtg-ai/claude-squad">Claude Squad</a>, <a href="https://github.com/cline/kanban">Cline Kanban</a></td>
-            <td data-label="What it does">Run several coding-agent sessions side by side, each in an isolated workspace: git worktrees in Claude Squad and Cline Kanban, and Conductor runs on a Mac only. Cline Kanban also links cards into dependency chains.</td>
-            <td data-label="How Undagi differs">Focuses on what those sessions should build: the plan, the PRD, and tasks with target files and verification steps. It does not do worktrees, parallel agents or pull-request loops, so it works alongside them rather than instead.</td>
+            <td data-label="What it does">Parallel agent sessions in isolated worktrees.</td>
+            <td data-label="How Undagi differs">Decides what they build. Works alongside them.</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p class="cmp-note">Checked on 5 October 2026 against each project's public pages. These tools change quickly; if something here is out of date, please open an issue.</p>
+    <p class="cmp-note">Checked on 5 October 2026. These tools change fast; open an issue if something is out of date.</p>
 
     <div class="callout">
-      <p><strong>Where Undagi is not the right tool.</strong></p>
+      <p><strong>The honest fine print.</strong></p>
       <ul>
-        <li>It is single-user and local: no accounts, no sync, no team features.</li>
-        <li>Packaged installers are for Windows and Linux only, and none carries a verified publisher signature; on a Mac, run it from source.</li>
-        <li>It plans a new project from an idea. It does not analyse an existing codebase to plan changes to it.</li>
-        <li>No parallel agents, git worktrees or pull-request loop.</li>
-        <li>A card without a verify command counts as Done when the agent says so; it is labelled Unverified.</li>
-        <li>Approvals and path checks are not an OS sandbox. &ldquo;Full access&rdquo; means you trust the agent.</li>
+        <li>Single-user and local: no accounts, no team features, no Notion or Linear sync.</li>
+        <li>Windows and Linux only, and the installers are unsigned. No macOS yet.</li>
+        <li>It plans new projects; it does not analyse an existing codebase.</li>
+        <li>No parallel agents, worktrees or pull-request loop.</li>
+        <li>Plans live in a local database. Export <code>AGENTS.md</code> to keep them beside your code.</li>
       </ul>
     </div>
   </div>
@@ -575,49 +535,30 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
   <div class="wrap">
     <p class="kicker">Models</p>
     <h2>Bring your own model. Nothing is bundled.</h2>
-    <p class="section-lede">
-      Undagi ships with no model and no API key. You point it at whatever you already pay for —
-      or at something running on your own machine.
-    </p>
+    <p class="section-lede">No model. No API key. No lock-in.</p>
 
     <div class="grid2">
       <div class="tile">
-        <h3>Route by role, not by app</h3>
-        <p>
-          Bind a different connection to each stage, and pick the model for Plan, PRD and Tasks right
-          where you generate them. A strong model drafts the architecture; a cheap, fast one fills in
-          the task board. The app does not care which is which.
-        </p>
+        <h3>Route by role.</h3>
+        <p>A strong model drafts the architecture; a cheap one fills the board.</p>
         <div class="chips">
           <span class="chip">Agent</span><span class="chip">Plan</span><span class="chip">PRD</span><span class="chip">Tasks</span>
         </div>
       </div>
       <div class="tile">
-        <h3>Two wire formats, many endpoints</h3>
-        <p>
-          Anthropic Messages and OpenAI-compatible, with presets for local routers, Ollama, LM Studio,
-          OpenRouter, Anthropic, and Gemini. Codex, Claude Code, and Antigravity are detected if you
-          have them installed.
-        </p>
+        <h3>Bring any endpoint.</h3>
+        <p>Claude Code, Codex, Antigravity, or anything Anthropic- or OpenAI-compatible.</p>
         <div class="chips">
           <span class="chip">Ollama</span><span class="chip">LM Studio</span><span class="chip">OpenRouter</span><span class="chip">Anthropic</span><span class="chip">Gemini</span><span class="chip">Custom</span>
         </div>
       </div>
       <div class="tile">
-        <h3>MCP tools, no code changes</h3>
-        <p>
-          Register external tools over stdio or Streamable HTTP. They are discovered lazily and
-          namespaced as <code>mcp__server__tool</code>, isolated from the built-ins. A slow or dead
-          server does not stall the turn — the UI just reports it.
-        </p>
+        <h3>MCP, built in.</h3>
+        <p>Plug in external tools over stdio or HTTP.</p>
       </div>
       <div class="tile">
-        <h3>Keys stay where you put them</h3>
-        <p>
-          Keys saved through the UI live server-side in <code>data/undagi.db</code>. Prefer them out
-          of the database? Name an environment variable on the connection instead and keep the value
-          in <code>.env</code>.
-        </p>
+        <h3>Your keys stay yours.</h3>
+        <p>Stored on your machine, or read from your environment.</p>
       </div>
     </div>
   </div>
@@ -627,73 +568,25 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
   <div class="wrap">
     <p class="kicker">Boundaries</p>
     <h2>It runs on your machine, and it asks first.</h2>
-    <p class="section-lede">
-      File and shell access are real capabilities, so they are gated deliberately rather than enabled
-      by default.
-    </p>
+    <p class="section-lede">Powerful access, off until you say so.</p>
 
     <div class="grid2">
       <div class="tile">
-        <h3>No workspace, no file access</h3>
-        <p>
-          The built-in agent gets no file tools at all until you select a working folder. Paths are
-          then resolved to their real location and checked against that folder, so <code>../</code>, an
-          absolute path, and a symlink pointing outside are all refused.
-        </p>
-        <p>
-          Codex, Claude Code and Antigravity bring their own file tools. Without a folder they start in
-          an empty one made for that chat.
-        </p>
+        <h3>No folder, no files.</h3>
+        <p>The built-in agent touches nothing until you pick a folder, and cannot step outside it.</p>
       </div>
       <div class="tile">
-        <h3>Shell is a separate switch</h3>
-        <p>
-          Off by default, and only available once a folder is set. In Ask and Auto mode every command
-          is shown to you and waits for approval before it runs; Full access runs it without asking.
-          Refusing tells the model the command did not run, so it can suggest something else.
-        </p>
-        <p>
-          Codex and Claude Code ask through the same approval cards, though Claude Code does not ask
-          for what its own settings already allow. Antigravity cannot ask, so it refuses any tool its
-          own settings do not already allow.
-        </p>
-        <p>
-          A card's verify command is a separate case: Undagi runs it from the board after the agent
-          says the task is done, in your working folder, and asks first unless the chat is on Full
-          access. The shell switch does not govern it, so read the command on the card.
-        </p>
+        <h3>Shell is opt-in.</h3>
+        <p>Off by default. When on, each command waits for your approval, unless you choose Full access, which means you trust the agent.</p>
       </div>
       <div class="tile">
-        <h3>Your data stays local</h3>
-        <p>
-          Sessions, connections, and MCP definitions live in a SQLite file on disk. There is no
-          account, no sync, and no telemetry. Deleting <code>data/</code> deletes everything. Prompts
-          still go to the model provider you choose; with a local model, nothing leaves your machine.
-        </p>
-        <p>
-          The server listens on <code>127.0.0.1</code> only and refuses requests from other websites.
-        </p>
+        <h3>Local by default.</h3>
+        <p>No account, no telemetry. Everything lives in one file on your disk, behind <code>127.0.0.1</code>.</p>
       </div>
       <div class="tile">
-        <h3>Permissions come from the project</h3>
-        <p>
-          A project's working folder and shell switch are read from its saved state, never from the
-          request, so a client cannot widen its own access mid-conversation. A chat outside a project
-          may only pick a folder inside a trusted root.
-        </p>
-        <p>
-          The permission mode you pick per chat only answers approvals. It widens no sandbox.
-        </p>
+        <h3>No pretending.</h3>
+        <p>There is no denylist of dangerous commands. Approve one and it runs. A card's verify command runs too, so read it first.</p>
       </div>
-    </div>
-
-    <div class="callout">
-      <p><strong>One thing we will not pretend about.</strong></p>
-      <p>
-        There is no denylist of dangerous commands. Pattern-matching shell strings does not hold up,
-        and shipping one would imply a protection that is not there. If you enable the shell and
-        approve a command, it runs. Read the approvals.
-      </p>
     </div>
   </div>
 </section>
@@ -703,27 +596,23 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
     <p class="kicker">Install</p>
     <h2>Download the app, or run two commands.</h2>
     <p class="section-lede">
-      There is no database to install or run — everything is stored in a single file on disk.
-      Running the install script again keeps your existing <code>data/</code> and <code>.env</code>.
+      No database to install: everything is one file on disk. Running the script again keeps your
+      <code>data/</code> and <code>.env</code>.
     </p>
 
     <div class="tile" style="margin-bottom:22px">
       <h3>Desktop app</h3>
       <p>
-        Installers for Windows (<code>.exe</code>) and Linux (<code>.AppImage</code>, <code>.deb</code>) are on the
-        <a href="https://github.com/CharisChakim/undagi/releases/tag/v1.0.5">v1.0.5 release</a>.
-        They bundle their own runtime, so you do not need Node.
-      </p>
-      <p>
-        None is signed by a verified publisher. On Windows, SmartScreen warns on first run: click
-        &ldquo;More info&rdquo;, then &ldquo;Run anyway&rdquo;. There is no macOS installer; on a Mac use the
-        install script below.
+        Installers for Windows (<code>.exe</code>) and Linux (<code>.AppImage</code>, <code>.deb</code>) are
+        on the <a href="https://github.com/CharisChakim/undagi/releases/tag/v1.0.5">v1.0.5 release</a> and
+        bundle their own runtime. They are unsigned: on Windows, SmartScreen warns on first run
+        (&ldquo;More info&rdquo;, then &ldquo;Run anyway&rdquo;).
       </p>
     </div>
 
     <div class="grid2">
       <div>
-        <p class="os">LINUX / MACOS</p>
+        <p class="os">LINUX</p>
 <pre class="block">curl -fsSLO https://raw.githubusercontent.com/CharisChakim/undagi/main/install.sh
 bash install.sh
 undagi</pre>
