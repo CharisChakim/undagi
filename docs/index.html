@@ -561,7 +561,7 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
       <p><strong>Where Undagi is not the right tool.</strong></p>
       <ul>
         <li>It is single-user and local: no accounts, no sync, no team features.</li>
-        <li>Packaged installers are for Windows, Linux and Apple Silicon Macs, and none carries a verified publisher signature; on a Mac the first launch needs Open Anyway in Privacy &amp; Security.</li>
+        <li>Packaged installers are for Windows and Linux only, and none carries a verified publisher signature; on a Mac, run it from source.</li>
         <li>It plans a new project from an idea. It does not analyse an existing codebase to plan changes to it.</li>
         <li>No parallel agents, git worktrees or pull-request loop.</li>
         <li>A card without a verify command counts as Done when the agent says so; it is labelled Unverified.</li>
@@ -710,17 +710,14 @@ table.cmp { border-collapse: collapse; width: 100%; min-width: 760px; font-size:
     <div class="tile" style="margin-bottom:22px">
       <h3>Desktop app</h3>
       <p>
-        Installers for Windows (<code>.exe</code>), Linux (<code>.AppImage</code>, <code>.deb</code>) and
-        Apple Silicon Macs (<code>.dmg</code>) are on the
+        Installers for Windows (<code>.exe</code>) and Linux (<code>.AppImage</code>, <code>.deb</code>) are on the
         <a href="https://github.com/CharisChakim/undagi/releases/tag/v1.0.5">v1.0.5 release</a>.
         They bundle their own runtime, so you do not need Node.
       </p>
       <p>
         None is signed by a verified publisher. On Windows, SmartScreen warns on first run: click
-        &ldquo;More info&rdquo;, then &ldquo;Run anyway&rdquo;. On a Mac the first launch is refused: open
-        System Settings &rarr; Privacy &amp; Security and click Open Anyway, or run
-        <code>xattr -dr com.apple.quarantine /Applications/Undagi.app</code>. There is no Intel Mac build;
-        use the install script below.
+        &ldquo;More info&rdquo;, then &ldquo;Run anyway&rdquo;. There is no macOS installer; on a Mac use the
+        install script below.
       </p>
     </div>
 

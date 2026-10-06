@@ -163,7 +163,6 @@ Download an installer from the [v1.0.5 release](https://github.com/CharisChakim/
 | Windows | `Undagi-Setup-<version>-x64.exe` | Installs per user; you can pick the directory. |
 | Linux | `Undagi-<version>-x86_64.AppImage` | Portable. `chmod +x` it, then run it. |
 | Linux (Debian/Ubuntu) | `Undagi-<version>-amd64.deb` | `sudo apt install ./<file>.deb` |
-| macOS (Apple Silicon) | `Undagi-<version>-arm64.dmg` | Drag Undagi into Applications. The first launch needs one extra step, see below. |
 
 The desktop build runs the same local server, picks a free port instead of
 3000, and listens on `127.0.0.1` only. It keeps its data outside the install
@@ -173,7 +172,6 @@ directory:
 | --- | --- |
 | Windows | `%APPDATA%\Undagi` |
 | Linux | `~/.config/Undagi` |
-| macOS | `~/Library/Application Support/Undagi` |
 
 The database is at `data/undagi.db` inside that folder. To supply API keys
 through environment variables rather than the UI, put a `.env` file there.
@@ -195,22 +193,7 @@ The installers are unsigned, so Windows SmartScreen will warn on first run
 ("More info" → "Run anyway") and some Linux desktops will ask you to confirm
 the AppImage is executable.
 
-The macOS app is signed ad-hoc, not with an Apple Developer ID, and it is not
-notarized. The first time you open it, macOS refuses and says it could not
-verify that Undagi is free of malware. To open it anyway:
-
-1. Close that message.
-2. Open **System Settings → Privacy & Security**, scroll down to the line about
-   Undagi, and click **Open Anyway**.
-3. Confirm with your password. From then on it opens normally.
-
-Instead of steps 2 and 3, you can run this in Terminal:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Undagi.app
-```
-
-There is no build for Intel Macs; use the install script under
+There is no macOS installer. On a Mac, use the install script under
 [Run from source](#run-from-source).
 
 ### Run from source
